@@ -4,6 +4,7 @@ from psycopg2.extras import RealDictCursor
 
 class ConnectorError(Exception):
     """Custom error for connector failures."""
+
     pass
 
 
@@ -31,7 +32,7 @@ class PostgresConnector:
                 port=self.config.port,
                 database=self.config.database,
                 user=self.config.username,
-                password=self.config.password
+                password=self.config.password,
             )
         except psycopg2.DatabaseError as e:
             raise ConnectorError(f"Connection failed: {e}")
@@ -44,7 +45,9 @@ class PostgresConnector:
     def execute_query(self, sql, params=None):
         """Run a SELECT query and return rows as dictionaries."""
         try:
-            with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
+            with self.connection.cursor(
+                cursor_factory=RealDictCursor
+            ) as cursor:
                 cursor.execute(sql, params)
                 return cursor.fetchall()
         except psycopg2.DatabaseError as e:
