@@ -45,9 +45,7 @@ class PostgresConnector:
     def execute_query(self, sql, params=None):
         """Run a SELECT query and return rows as dictionaries."""
         try:
-            with self.connection.cursor(
-                cursor_factory=RealDictCursor
-            ) as cursor:
+            with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute(sql, params)
                 return cursor.fetchall()
         except psycopg2.DatabaseError as e:
