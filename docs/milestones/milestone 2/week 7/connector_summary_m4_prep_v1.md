@@ -1,7 +1,6 @@
 **Connector Development**
 
-**Summary&M4 Preparation\
-**
+**Summary&M4 Preparation**
 
 [**1.Introduction**](#introduction) **2**
 
