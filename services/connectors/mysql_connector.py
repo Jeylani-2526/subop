@@ -1,5 +1,5 @@
-import mysql.connector
-from mysql.connector import Error
+import pymysql
+from pymysql import Error
 
 
 class ConnectorError(Exception):
@@ -27,7 +27,7 @@ class MySQLConnector:
     def connect(self):
         """Connect to the MySQL database."""
         try:
-            self.connection = mysql.connector.connect(
+            self.connection = pymysql.connect(
                 host=self.config.host,
                 port=self.config.port,
                 database=self.config.database,
@@ -45,27 +45,36 @@ class MySQLConnector:
 
     def execute_query(self, sql, params=None):
         """Run a SELECT query and return rows as dictionaries."""
+        if self.connection is None:
+            raise ConnectorError("Not connected. Call connect() first.")
+        cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor(pymysql.cursors.DictCursor)
             cursor.execute(sql, params)
-            result = cursor.fetchall()
-            cursor.close()
-            return result
+            return cursor.fetchall()
         except Error as e:
             raise ConnectorError(f"Query failed: {e}")
+        finally:
+            if cursor is not None:
+                cursor.close()
 
     def execute_write(self, sql, params=None):
         """Run INSERT, UPDATE or DELETE and return affected row count."""
+        if self.connection is None:
+            raise ConnectorError("Not connected. Call connect() first.")
+        cursor = None
         try:
             cursor = self.connection.cursor()
             cursor.execute(sql, params)
             affected_rows = cursor.rowcount
             self.connection.commit()
-            cursor.close()
             return affected_rows
         except Error as e:
             self.connection.rollback()
             raise ConnectorError(f"Write failed: {e}")
+        finally:
+            if cursor is not None:
+                cursor.close()
 
     def health_check(self):
         """Check whether the database connection works."""
