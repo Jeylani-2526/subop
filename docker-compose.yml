@@ -7,7 +7,7 @@
 #   docker compose up -d
 #
 # M1–M2 only (no API yet):
-#   docker compose up -d postgres pgadmin zookeeper kafka kafka-ui
+#   docker compose up -d postgres mysql pgadmin zookeeper kafka kafka-ui
 # =============================================================================
 
 services:
@@ -33,7 +33,29 @@ services:
       timeout:  5s
       retries:  5
 
-      # ---------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # MySQL 8 — Secondary connector target (M2 connector prototype + M6 expansion)
+  # Required by M2W6: "Docker MySQL container setup (mysql:8)"
+  # ---------------------------------------------------------------------------
+  mysql:
+    image: mysql:8
+    container_name: subop-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE:      ${MYSQL_DATABASE}
+      MYSQL_USER:          ${MYSQL_USER}
+      MYSQL_PASSWORD:      ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:     ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+  # ---------------------------------------------------------------------------
   # Microsoft SQL Server 2022 Developer — MSSQL connector test database
   # ---------------------------------------------------------------------------
   mssql:
@@ -43,11 +65,18 @@ services:
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_PID: "Developer"
-      SA_PASSWORD: "YourStrongPassword123!"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
     ports:
       - "1433:1433"
     volumes:
       - mssql_data:/var/opt/mssql
+    healthcheck:
+      test:     ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -C -N || exit 1"]
+      interval: 10s
+      timeout:  5s
+      retries:  10
+
+  # ---------------------------------------------------------------------------
 
   # ---------------------------------------------------------------------------
   # pgAdmin 4 — Database administration UI
@@ -162,6 +191,8 @@ services:
 # =============================================================================
 volumes:
   postgres_data:
+    driver: local
+  mysql_data:
     driver: local
   mssql_data:
     driver: local
