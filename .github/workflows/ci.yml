@@ -54,6 +54,34 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: subop
+          MYSQL_USER: subop_app
+          MYSQL_PASSWORD: mysql_dev
+          MYSQL_ROOT_PASSWORD: root_dev
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost -uroot -proot_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: YourStrong!Passw0rd
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' -C -N"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
@@ -80,3 +108,18 @@ jobs:
           fi
         env:
           DATABASE_URL: postgresql://subop_test:subop_test@localhost:5432/subop_test
+
+         name: Run connector tests
+        run: |
+          pytest tests/test_postgres_connector.py tests/test_mysql_connector.py tests/test_mssql_connector.py -v --tb=short
+        env:
+          MYSQL_HOST: localhost
+          MYSQL_PORT: 3306
+          MYSQL_DATABASE: subop
+          MYSQL_USER: subop_app
+          MYSQL_PASSWORD: mysql_dev
+          MSSQL_HOST: localhost
+          MSSQL_PORT: 1433
+          MSSQL_DATABASE: master
+          MSSQL_USERNAME: sa
+          MSSQL_SA_PASSWORD: YourStrong!Passw0rd
