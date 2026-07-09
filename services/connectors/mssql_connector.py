@@ -5,7 +5,10 @@ import pyodbc
 class ConnectorError(Exception):
     """Custom error for connector failures."""
 
-    pass
+    #pass
+    def __init__(self, message, retryable=False):
+        super().__init__(message)
+        self.retryable = retryable
 
 
 # Stores all database connection parameters.
@@ -31,7 +34,7 @@ class MSSQLConnector:
         """Connect to the MSSQL database."""
         try:
             connection_string = (
-                "DRIVER={ODBC Driver 18 for SQL Server};"  # I have ODBC Driver 17
+                "DRIVER={ODBC Driver 17 for SQL Server};"  # I have ODBC Driver 17
                 f"SERVER={self.config.host},{self.config.port};"
                 f"DATABASE={self.config.database};"
                 f"UID={self.config.username};"
@@ -41,8 +44,10 @@ class MSSQLConnector:
 
             self.connection = pyodbc.connect(connection_string)
 
+        #except pyodbc.Error as e:
+            #raise ConnectorError("Query failed", retryable=False)
         except pyodbc.Error as e:
-            raise ConnectorError(f"Connection failed: {e}")
+            raise ConnectorError(f"Connection failed: {e}", retryable=False)
 
     # Close the active database connection.
     def disconnect(self):
@@ -55,7 +60,8 @@ class MSSQLConnector:
     def execute_query(self, sql, params=None):
         """Run a SELECT query and return rows as dictionaries."""
         if self.connection is None:
-            raise ConnectorError("Not connected. Call connect() first.")
+            #raise ConnectorError("Not connected. Call connect() first.")
+            raise ConnectorError("Not connected. Call connect() first.", retryable=False)
 
         cursor = None
         try:
@@ -71,8 +77,10 @@ class MSSQLConnector:
             # Convert each row into a dictionary.
             return [dict(zip(columns, row)) for row in rows]
 
+        #except pyodbc.Error as e:
+            #raise ConnectorError(f"Query failed: {e}")
         except pyodbc.Error as e:
-            raise ConnectorError(f"Query failed: {e}")
+            raise ConnectorError(f"Query failed: {e}", retryable=False)
 
         finally:
             if cursor is not None:
@@ -81,8 +89,10 @@ class MSSQLConnector:
     # Execute INSERT, UPDATE or DELETE statements.
     def execute_write(self, sql, params=None):
         """Run INSERT, UPDATE or DELETE and return affected row count."""
+        #if self.connection is None:
+            #raise ConnectorError("Not connected. Call connect() first.")
         if self.connection is None:
-            raise ConnectorError("Not connected. Call connect() first.")
+            raise ConnectorError("Not connected. Call connect() first.", retryable=False)
 
         cursor = None
         try:
@@ -97,10 +107,14 @@ class MSSQLConnector:
 
             return affected_rows
 
+        #except pyodbc.Error as e:
+            # Undo changes if an error occurs.
+            #self.connection.rollback()
+            #raise ConnectorError(f"Write failed: {e}")
         except pyodbc.Error as e:
             # Undo changes if an error occurs.
             self.connection.rollback()
-            raise ConnectorError(f"Write failed: {e}")
+            raise ConnectorError(f"Write failed: {e}", retryable=False)
 
         finally:
             if cursor is not None:
