@@ -1,26 +1,21 @@
 name: CI
-
 on:
   push:
     branches: [develop, main]
   pull_request:
     branches: [develop, main]
-
 jobs:
   lint:
     name: Lint (Black + flake8)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
       - name: Install lint tools
         run: pip install black flake8
-
       - name: Check formatting with Black
         run: |
           if find services/ -name "*.py" | grep -q .; then
@@ -28,7 +23,6 @@ jobs:
           else
             echo "No Python files yet — skipping Black check."
           fi
-
       - name: Lint with flake8
         run: |
           if find services/ -name "*.py" | grep -q .; then
@@ -36,7 +30,6 @@ jobs:
           else
             echo "No Python files yet — skipping flake8."
           fi
-
   test:
     name: Tests (pytest)
     runs-on: ubuntu-latest
@@ -64,18 +57,10 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-<<<<<<< HEAD
-          --health-cmd="mysqladmin ping -h localhost -uroot -proot_dev"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-=======
           --health-cmd "mysqladmin ping -h localhost -uroot -proot_dev"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
-
->>>>>>> e2b568425c92a953adb9ea6d166c16c66fe4cecd
       mssql:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
@@ -85,26 +70,16 @@ jobs:
         ports:
           - 1433:1433
         options: >-
-<<<<<<< HEAD
-          --health-cmd="/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong!Passw0rd -Q 'SELECT 1' -C -N"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-=======
           --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' -C -N"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
->>>>>>> e2b568425c92a953adb9ea6d166c16c66fe4cecd
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
       - name: Install dependencies
         run: |
           if [ -f services/requirements-dev.txt ]; then
@@ -112,7 +87,6 @@ jobs:
           else
             pip install pytest psycopg2-binary
           fi
-
       - name: Run tests
         run: |
           if find services/ -name "test_*.py" | grep -q .; then
@@ -122,7 +96,6 @@ jobs:
           fi
         env:
           DATABASE_URL: postgresql://subop_test:subop_test@localhost:5432/subop_test
-
       - name: Run connector tests
         run: |
           pytest tests/test_postgres_connector.py tests/test_mysql_connector.py tests/test_mssql_connector.py -v --tb=short
