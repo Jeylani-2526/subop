@@ -85,6 +85,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y unixodbc-dev
+
+      - name: Install Microsoft ODBC Driver for SQL Server
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
+          curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          ACCEPT_EULA=Y sudo apt-get install -y msodbcsql18
           
       - name: Install dependencies
         run: |
@@ -107,6 +114,11 @@ jobs:
         run: |
           pytest tests/test_postgres_connector.py tests/test_mysql_connector.py tests/test_mssql_connector.py -v --tb=short
         env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: subop_test
+          POSTGRES_USER: subop_test
+          POSTGRES_PASSWORD: subop_test
           MYSQL_HOST: localhost
           MYSQL_PORT: 3306
           MYSQL_DATABASE: subop
