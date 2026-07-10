@@ -1,14 +1,14 @@
-import AppShell from '../components/AppShell';
-import KPISummaryCard from '../components/KPISummaryCard';
+import AppShell from "./components/AppShell";
+import KPISummaryCard from "./components/KPISummaryCard";
 
 export default function HomePage() {
   return (
     <AppShell pageTitle="Home / Overview" userRole="admin">
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '16px',
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: "16px",
         }}
       >
         <KPISummaryCard
