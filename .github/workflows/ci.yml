@@ -1,26 +1,21 @@
 name: CI
-
 on:
   push:
     branches: [develop, main]
   pull_request:
     branches: [develop, main]
-
 jobs:
   lint:
     name: Lint (Black + flake8)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
       - name: Install lint tools
         run: pip install black flake8
-
       - name: Check formatting with Black
         run: |
           if find services/ -name "*.py" | grep -q .; then
@@ -28,7 +23,6 @@ jobs:
           else
             echo "No Python files yet — skipping Black check."
           fi
-
       - name: Lint with flake8
         run: |
           if find services/ -name "*.py" | grep -q .; then
@@ -36,7 +30,6 @@ jobs:
           else
             echo "No Python files yet — skipping flake8."
           fi
-
   test:
     name: Tests (pytest)
     runs-on: ubuntu-latest
@@ -54,23 +47,60 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: subop
+          MYSQL_USER: subop_app
+          MYSQL_PASSWORD: mysql_dev
+          MYSQL_ROOT_PASSWORD: root_dev
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost -uroot -proot_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: YourStrong!Passw0rd
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' -C -N"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
+      - name: Install system dependencies for pyodbc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unixodbc-dev
+
+      - name: Install Microsoft ODBC Driver for SQL Server
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
+          curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          ACCEPT_EULA=Y sudo apt-get install -y msodbcsql18
+          
       - name: Install dependencies
         run: |
           if [ -f services/requirements-dev.txt ]; then
             pip install -r services/requirements-dev.txt
           else
-            pip install pytest psycopg2-binary
+            pip install pytest psycopg2-binary pymysql pyodbc
           fi
-
+          
       - name: Run tests
         run: |
           if find services/ -name "test_*.py" | grep -q .; then
@@ -80,3 +110,22 @@ jobs:
           fi
         env:
           DATABASE_URL: postgresql://subop_test:subop_test@localhost:5432/subop_test
+      - name: Run connector tests
+        run: |
+          pytest tests/test_postgres_connector.py tests/test_mysql_connector.py tests/test_mssql_connector.py -v --tb=short
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: subop_test
+          POSTGRES_USER: subop_test
+          POSTGRES_PASSWORD: subop_test
+          MYSQL_HOST: localhost
+          MYSQL_PORT: 3306
+          MYSQL_DATABASE: subop
+          MYSQL_USER: subop_app
+          MYSQL_PASSWORD: mysql_dev
+          MSSQL_HOST: localhost
+          MSSQL_PORT: 1433
+          MSSQL_DATABASE: master
+          MSSQL_USERNAME: sa
+          MSSQL_SA_PASSWORD: YourStrong!Passw0rd
