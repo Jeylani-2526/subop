@@ -5,7 +5,6 @@ import pyodbc
 class ConnectorError(Exception):
     """Custom error for connector failures."""
 
-    # pass
     def __init__(self, message, retryable=False):
         super().__init__(message)
         self.retryable = retryable
@@ -43,9 +42,6 @@ class MSSQLConnector:
             )
 
             self.connection = pyodbc.connect(connection_string)
-
-        # except pyodbc.Error as e:
-        # raise ConnectorError("Query failed", retryable=False)
         except pyodbc.Error as e:
             raise ConnectorError(f"Connection failed: {e}", retryable=False)
 
@@ -60,7 +56,6 @@ class MSSQLConnector:
     def execute_query(self, sql, params=None):
         """Run a SELECT query and return rows as dictionaries."""
         if self.connection is None:
-            # raise ConnectorError("Not connected. Call connect() first.")
             raise ConnectorError(
                 "Not connected. Call connect() first.", retryable=False
             )
@@ -78,9 +73,6 @@ class MSSQLConnector:
 
             # Convert each row into a dictionary.
             return [dict(zip(columns, row)) for row in rows]
-
-        # except pyodbc.Error as e:
-        # raise ConnectorError(f"Query failed: {e}")
         except pyodbc.Error as e:
             raise ConnectorError(f"Query failed: {e}", retryable=False)
 
@@ -91,8 +83,7 @@ class MSSQLConnector:
     # Execute INSERT, UPDATE or DELETE statements.
     def execute_write(self, sql, params=None):
         """Run INSERT, UPDATE or DELETE and return affected row count."""
-        # if self.connection is None:
-        # raise ConnectorError("Not connected. Call connect() first.")
+
         if self.connection is None:
             raise ConnectorError(
                 "Not connected. Call connect() first.", retryable=False
@@ -110,11 +101,6 @@ class MSSQLConnector:
             self.connection.commit()
 
             return affected_rows
-
-        # except pyodbc.Error as e:
-        # Undo changes if an error occurs.
-        # self.connection.rollback()
-        # raise ConnectorError(f"Write failed: {e}")
         except pyodbc.Error as e:
             # Undo changes if an error occurs.
             self.connection.rollback()
