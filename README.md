@@ -224,10 +224,10 @@ subop/
 
 | # | Milestone | Dates | Owner | Status |
 |---|-----------|-------|-------|--------|
-| M1 | Project Understanding & Requirements | 11 May – 7 Jun 2026 | All | 🔄 In Progress |
-| M2 | Research, Feasibility & Competitor Analysis | 8 Jun – 28 Jun 2026 | All | ⏳ Upcoming |
-| M3 | System Architecture & Infrastructure Setup | 29 Jun – 19 Jul 2026 | Abdullah + Omer | ⏳ Upcoming |
-| M4 | Database-Agnostic Abstraction Layer | 20 Jul – 9 Aug 2026 | Omer | ⏳ Upcoming |
+| M1 | Project Understanding & Requirements | 11 May – 7 Jun 2026 | All | ✅ Completed |
+| M2 | Research, Feasibility & Competitor Analysis | 8 Jun – 28 Jun 2026 | All | ✅ Completed |
+| M3 | System Architecture & Infrastructure Setup | 29 Jun – 19 Jul 2026 | Abdullah + Omer | ✅ Completed |
+| M4 | Database-Agnostic Abstraction Layer | 20 Jul – 9 Aug 2026 | Omer | 🔄 In Progress |
 | M5 | ETL Engine Core | 10 Aug – 6 Sep 2026 | Abdullah + Omer | ⏳ Upcoming |
 | M6 | Connector Ecosystem Expansion | 7 Sep – 4 Oct 2026 | Omer | ⏳ Upcoming |
 | M7 | CDC & Real-Time Streaming Module | 5 Oct – 2 Nov 2026 | Abdullah + Omer | ⏳ Upcoming |
