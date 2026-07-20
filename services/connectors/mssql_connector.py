@@ -4,6 +4,7 @@ import pyodbc
 # Custom exception used for all connector-related errors.
 class ConnectorError(Exception):
     """Custom error for connector failures."""
+
     def __init__(self, message, retryable=False):
         super().__init__(message)
         self.retryable = retryable
