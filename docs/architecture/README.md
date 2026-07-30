@@ -1,13 +1,15 @@
 # Architecture
 
-## SUBOP System Architecture v1.1
+## SUBOP System Architecture v1
 
-The architecture diagram shows all 10 SUBOP modules, their data flow, and cross-cutting concerns.
+Full documentation of all 10 SUBOP modules, their data flow, and cross-cutting concerns.
 
 | File | Description |
 |------|-------------|
-| `architecture_v1_1.drawio` | Editable draw.io source — open at app.diagrams.net |
-| `architecture_v1.png` | PNG export for README display |
+| `architecture_doc_v1.md` | Full architecture document (module design, data flow, deployment topology) |
+
+A rendered diagram export (`architecture_v1.png`) and its editable draw.io source will be added
+alongside the document as the diagram is finalised.
 
 ## Layer Summary
 
