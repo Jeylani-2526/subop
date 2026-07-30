@@ -5,7 +5,7 @@
 > supporting near-real-time change capture, automating data warehouse management, and delivering
 > self-service BI dashboards — validated through real pilot testing with enterprise data teams.
 
-[![CI](https://github.com/jeylani-2526/subop/actions/workflows/ci.yml/badge.svg)](https://github.com/jeylani-2526/subop/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/jeylani-2526/subop/blob/main/LICENSE) [![Milestone](https://img.shields.io/badge/Milestone-1%20%E2%80%94%20Requirements-blue)](https://github.com/jeylani-2526/subop/blob/main/docs/milestones) [![Platform](https://img.shields.io/badge/Platform-Enterprise%20Data-1E4D78)](https://github.com/jeylani-2526/subop)
+[![CI](https://github.com/jeylani-2526/subop/actions/workflows/ci.yml/badge.svg)](https://github.com/jeylani-2526/subop/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/jeylani-2526/subop/blob/main/LICENSE) [![Milestone](https://img.shields.io/badge/Milestone-4%20%E2%80%94%20Abstraction%20Layer-blue)](https://github.com/jeylani-2526/subop/blob/main/docs/milestones) [![Platform](https://img.shields.io/badge/Platform-Enterprise%20Data-1E4D78)](https://github.com/jeylani-2526/subop)
 
 ---
 
@@ -38,7 +38,7 @@ Any Data Source (Oracle · PostgreSQL · MySQL · MSSQL · MongoDB · CSV · RES
   → Database Abstraction Layer
   → ETL Engine  ◄──── CDC / Real-Time Layer (Debezium + Kafka)
   → Metadata-Driven Data Warehouse  (PostgreSQL)
-  → BI Dashboard & OLAP Layer
+  → BI Dashboard & Analytics Layer
 
 Cross-cutting modules (apply to all layers):
   Data Quality Engine ──  validates every pipeline execution
@@ -67,9 +67,8 @@ SUBOP is designed to solve all five within a single, open, database-independent 
 
 ## Architecture
 
-[![SUBOP Architecture](docs/architecture/architecture_v1.png)](docs/architecture/)
-
-Full architecture documentation and the editable draw.io source are in [`docs/architecture/`](docs/architecture/).
+Full architecture documentation — module design, data flow, and deployment topology — is in
+[`docs/architecture/`](docs/architecture/). A rendered diagram will be linked here once finalised.
 
 ---
 
@@ -82,7 +81,7 @@ Full architecture documentation and the editable draw.io source are in [`docs/ar
 | 3 | **ETL Engine** | Batch, incremental, and parallel extract/transform/load pipelines | Python (Pipeline DSL) | M5 |
 | 4 | **CDC / Real-Time Layer** | Near-real-time change capture from database transaction logs | Debezium + Apache Kafka | M7 |
 | 5 | **Metadata-Driven Data Warehouse** | Auto-generated fact/dimension tables, SCD, and schema versioning | PostgreSQL + Python | M8 |
-| 6 | **BI Dashboard & OLAP Layer** | Self-service dashboard builder — no SQL knowledge required | React/Vue + Chart.js/ECharts + FastAPI | M9 |
+| 6 | **BI Dashboard & Analytics** | Self-service dashboard builder — no SQL knowledge required | React/Vue + Chart.js/ECharts + FastAPI | M9 |
 | 7 | **Data Quality Engine** | Automated null/duplicate/format/range/anomaly checks with quality scoring | Python (custom rules engine) | M10 |
 | 8 | **Data Lineage** | Source-to-dashboard tracing via directed acyclic graph | Python + graph library | M10 |
 | 9 | **Data Catalog** | Searchable inventory of all data assets with metadata and quality scores | Python + search index | M10 |
@@ -146,14 +145,13 @@ Services will be available at:
 | PostgreSQL | localhost:5432 |
 
 > **Note:** The `subop-api` service is commented out in `docker-compose.yml` until M3 (CI/CD setup).
-> Run `docker compose up -d postgres pgadmin zookeeper kafka kafka-ui` for the M1–M2 dev environment.
+> Run `docker compose up -d postgres mysql pgadmin zookeeper kafka kafka-ui` for the M1–M2 dev environment.
 
 ### 4. Run tests
 
 ```bash
 # Python services
-cd services/
-pip install -r requirements-dev.txt
+pip install -r services/requirements-dev.txt
 pytest -v
 
 # BI Dashboard frontend (M9+)
@@ -176,10 +174,16 @@ subop/
 │   │   ├── feature_request.md
 │   │   └── milestone_task.md
 │   └── pull_request_template.md
-├── docs/
-│   ├── architecture/               # Architecture diagram (v1.1) + draw.io source
-│   ├── milestones/                 # M1–M12 milestone documents and week plans
-│   └── api/                        # FastAPI OpenAPI contract specs (M3+)
+├── docs/                            # Organized by topic
+│   ├── architecture/                # System architecture doc, diagrams, addenda, superseded drafts
+│   ├── research/                    # Competitor analysis + feasibility research (M2)
+│   ├── data-layer/                  # Connector / abstraction / ETL research & interface docs
+│   ├── frontend/                    # Design system + BI dashboard page-shell planning
+│   ├── infrastructure/              # CI/CD and infra decision notes
+│   ├── compliance/                  # KVKK/GDPR research (feeds Module 10)
+│   ├── planning/                    # Scope notes, checklists, kickoff notes
+│   ├── milestones/                  # M1–M12 status index only (see docs/milestones/README.md)
+│   └── api/                         # FastAPI OpenAPI contract specs (M3+)
 ├── services/
 │   ├── connectors/                 # Module 1  — Connector Framework
 │   ├── abstraction/                # Module 2  — Database Abstraction Layer
@@ -198,6 +202,7 @@ subop/
 │   └── scripts/                    # Setup, seed, and utility scripts
 ├── data/
 │   └── samples/                    # Sample CSV/JSON data for connector testing
+├── tests/                          # Cross-service connector integration tests
 ├── docker-compose.yml              # Full local development stack
 ├── .env.example                    # Environment variable template
 ├── .gitignore
@@ -232,7 +237,7 @@ subop/
 | M6 | Connector Ecosystem Expansion | 7 Sep – 4 Oct 2026 | Omer | ⏳ Upcoming |
 | M7 | CDC & Real-Time Streaming Module | 5 Oct – 2 Nov 2026 | Abdullah + Omer | ⏳ Upcoming |
 | M8 | Metadata-Driven Data Warehouse | 3 Nov – 30 Nov 2026 | Abdullah + Omer | ⏳ Upcoming |
-| M9 | BI Dashboard & OLAP Layer | 1 Dec – 28 Dec 2026 | Beyza | ⏳ Upcoming |
+| M9 | BI Dashboard & Analytics | 1 Dec – 28 Dec 2026 | Beyza | ⏳ Upcoming |
 | M10 | Data Quality, Profiling, Lineage & Catalog | 29 Dec 2026 – 2 Feb 2027 | Abdullah + Beyza | ⏳ Upcoming |
 | M11 | Security, Compliance & Full Integration | 3 Feb – 23 Mar 2027 | All | ⏳ Upcoming |
 | M12 | Pilot Testing, Documentation & Final Delivery | 24 Mar – 11 May 2027 | All | ⏳ Upcoming |

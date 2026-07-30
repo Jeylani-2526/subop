@@ -1,0 +1,16 @@
+# =============================================================================
+# SUBOP — Python Development Dependencies
+# Install: pip install -r services/requirements-dev.txt
+# =============================================================================
+
+# --- Connector drivers (Module 1) ---
+psycopg2-binary
+PyMySQL
+pyodbc
+
+# --- Testing ---
+pytest
+
+# --- Code quality (matches .github/workflows/ci.yml and lint.yml) ---
+black
+flake8
