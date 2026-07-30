@@ -1,6 +1,6 @@
 # SUBOP Architecture Document v1
 **Final consolidated version — Sections 1–9 · Owner: Abdullah**
-**Path:** `docs/milestones/milestone-3/week-10/architecture_doc_v1.md`
+**Path:** `docs/architecture/architecture_doc_v1.md`
 
 
 
@@ -48,11 +48,11 @@ Seven layers, ordered from data ingress to user-facing output, with two cross-cu
 **Purpose:** Metadata-driven storage that automatically generates and versions fact/dimension tables and SCD logic from source metadata, without manual SQL authorship.
 **Inputs:** Transformed batches (from ETL) and streamed change events (from CDC) — same target for both.
 **Outputs:** Queryable star/snowflake schema consumed directly by the Analytics Layer.
-**Confirmed technology:** PostgreSQL 15. **ClickHouse has been formally removed from the architecture** — the BI layer queries PostgreSQL directly rather than through a separate OLAP store. This is rated **MEDIUM** feasibility, the most novel module in the platform: no evaluated competitor performs automatic metadata-to-schema generation, so this is a genuine design problem rather than a known pattern to adapt.
+**Confirmed technology:** PostgreSQL 15. **ClickHouse has been formally removed from the architecture** — the BI layer queries PostgreSQL directly rather than through a separate analytical store. This is rated **MEDIUM** feasibility, the most novel module in the platform: no evaluated competitor performs automatic metadata-to-schema generation, so this is a genuine design problem rather than a known pattern to adapt.
 **Open item — carried into M4/M5 (see Section 9.3):** the metadata representation format (JSON schema? annotated SQL DDL? YAML?) is not yet decided. This is the same gap Section 5.2 identifies as the CDC schema-drift risk, and it is *not* resolved by this document — see Section 9.3 for the explicit M4/M5 carry-forward statement.
 
 ### 2.5 Analytics Layer
-**Purpose:** Self-service BI dashboard builder and OLAP-style views for non-technical users, querying the warehouse directly.
+**Purpose:** Self-service BI dashboard builder and analytical views for non-technical users, querying the warehouse directly.
 **Inputs:** PostgreSQL warehouse schema.
 **Outputs:** Rendered dashboards, charts, and exported reports (PDF/Excel) to the end user.
 **Confirmed technology:** React 18 + Tailwind CSS (frontend), Chart.js and Apache ECharts (charting) — rated **HIGH** feasibility. The shell-first build strategy (page shells built M5–M8, data wiring in M9) is already underway via the frontend project setup (M3W8T5–T7, extended through M3W9T5–T8 and M3W10T5–T7).
@@ -116,7 +116,7 @@ For all 10 SUBOP modules. This table is the binding contract: no module may depe
 | **3. ETL Engine** | Pipeline definitions (JSON pipeline DSL) via API; batches from Abstraction Layer; streaming events from CDC Layer | Transformed row batches to Warehouse Layer; execution metadata to Governance modules (Quality, Lineage) | REST API (trigger/status), Kafka consumer (streaming mode), Python function call (batch mode, internal) |
 | **4. CDC / Real-Time Streaming** | PostgreSQL WAL / MySQL binlog via Debezium | Normalized change events (JSON: `{op, table, before, after, ts_ms}`) | Kafka topic: `cdc.<source>.<table>` |
 | **5. Metadata-Driven Data Warehouse** | Transformed batches (batch) and change events (streaming) from ETL Engine; source metadata definitions from Connector Framework schema introspection | Star/snowflake schema tables in PostgreSQL 15 | SQL write (direct PostgreSQL connection); Python function call for schema generation |
-| **6. BI Dashboard & OLAP** | Warehouse schema + data (read-only SQL); dashboard config (JSON) from frontend | Rendered chart data (JSON); exported reports (PDF/Excel) | REST API |
+| **6. BI Dashboard & Analytics** | Warehouse schema + data (read-only SQL); dashboard config (JSON) from frontend | Rendered chart data (JSON); exported reports (PDF/Excel) | REST API |
 | **7. Data Quality** | Row batches from ETL Engine at execution checkpoints; rule definitions (JSON) | Quality score per dataset (JSON); anomaly alerts | Python function call (in-process pipeline hook) + REST API (score/violation queries) |
 | **8. Data Lineage** | Pipeline execution metadata (source table, transform steps, target table) from ETL Engine | Lineage graph (nodes/edges JSON) | Python function call (metadata write, in-process) + REST API (graph queries) |
 | **9. Data Catalog** | Table/column metadata from Warehouse; quality scores from Data Quality; lineage links from Lineage module | Searchable asset index (PostgreSQL full-text search) | SQL query (internal) + REST API (search) |
@@ -212,10 +212,10 @@ FastAPI endpoint groups for all 10 modules. These are specific enough to unblock
 - `POST /api/warehouse/schemas/generate` — generate a schema from a metadata definition
 - `GET /api/warehouse/schemas/{id}/versions` — schema version history (SCD tracking)
 
-**6. BI Dashboard & OLAP** — base `/api/bi`
+**6. BI Dashboard & Analytics** — base `/api/bi`
 - `GET /api/bi/dashboards` — list dashboards
 - `POST /api/bi/dashboards` — create a dashboard
-- `POST /api/bi/query` — run an ad-hoc OLAP query against the warehouse
+- `POST /api/bi/query` — run an ad-hoc analytical query against the warehouse
 - `GET /api/bi/dashboards/{id}/export` — export as PDF/Excel
 
 **7. Data Quality** — base `/api/quality`
@@ -270,7 +270,7 @@ This distinction is noted here as a deployment-level trust-boundary observation 
 | ETL Engine | `postgres`, `mysql`, `mssql`, `kafka` | Batch runs against the affected source fail (recoverable — retried per Section 5.1's connector-timeout classification); CDC-fed runs stall if `kafka` is down |
 | Connector Framework | Whichever of `postgres` / `mysql` / `mssql` is configured for that connector instance | Connection attempts fail `health_check()`; classified per `ConnectorError.retryable` (Section 3.5, Question 5) |
 | CDC / Real-Time Streaming | `kafka` (which itself depends on `zookeeper`) + the source database's WAL/binlog | If `zookeeper` is down, `kafka` cannot accept broker connections, which stalls the entire CDC path — this is the single most fragile dependency chain in the stack |
-| BI Dashboard & OLAP | `postgres` only | Dashboards fail to load; no dependency on `mysql`, `mssql`, or `kafka` since the warehouse is the sole read target (Section 2.4/2.5) |
+| BI Dashboard & Analytics | `postgres` only | Dashboards fail to load; no dependency on `mysql`, `mssql`, or `kafka` since the warehouse is the sole read target (Section 2.4/2.5) |
 | Governance Layer (Quality, Lineage, Catalog) | `postgres` only | Same isolation as BI Dashboard — governance metadata lives in the same warehouse |
 | Security & Compliance | None of the above directly; wraps every module as middleware (Section 2.7) | Not affected by any single service outage; addressed fully in Section 8 |
 
@@ -310,7 +310,7 @@ The four SUBOP user roles were established in Milestone 1 (`user_requirements_v1
 | 3. ETL Engine | Write | None | Admin | None |
 | 4. CDC / Real-Time Streaming | Write | None | Admin | None |
 | 5. Metadata-Driven Data Warehouse | Write | Read | Admin | None |
-| 6. BI Dashboard & OLAP | Read | Write | Admin | Read *(published dashboards only)* |
+| 6. BI Dashboard & Analytics | Read | Write | Admin | Read *(published dashboards only)* |
 | 7. Data Quality | Write | Read | Admin | Read *(score summaries only)* |
 | 8. Data Lineage | Read | Read | Admin | None |
 | 9. Data Catalog | Read | Read | Admin | Read |
@@ -377,7 +377,7 @@ This section maps the unified compliance checklist (C01–C10, `kvkk_gdpr_compli
 | Connector Framework | Point of extraction — the only place data minimization can happen *before* personal data enters the platform at all | C01 |
 | ETL Engine | Carries the declared `processing_purpose` on every pipeline run; the point where purpose-limitation is enforced in-flight | C02 |
 | Metadata-Driven Data Warehouse | Stores `legal_basis` and `retention_policy_days` per table; runs the nightly retention enforcement job | C03, C06 (retention side), C09 |
-| BI Dashboard & OLAP | Never receives personal data — only masked/aggregated output, per the RBAC + masking boundary below | C10 (masking enforcement point) |
+| BI Dashboard & Analytics | Never receives personal data — only masked/aggregated output, per the RBAC + masking boundary below | C10 (masking enforcement point) |
 | Data Catalog | Documents retention periods and last-erasure-run dates for personal-data tables, human-readable | C09 |
 | CDC / Real-Time Streaming | Touches personal data if the replicated source table contains it (e.g., a `customers` table streamed via Debezium) — inherits the same minimization and masking obligations as batch, not a separate regime | C01, C10 |
 | Security & Compliance | The implementation home for the data subject rights API, consent tracking, and breach detection | C04, C05, C06 (API side), C07, C08 |
@@ -418,7 +418,7 @@ These four decisions were identified as needing to be locked during M3 (per the 
 | 1 | **Database abstraction pattern** | **Adapter pattern**, via `ConnectorBase` as the mandatory 5-method interface (`connect`, `disconnect`, `execute_query`, `execute_write`, `health_check`), with optional mixins (`StreamingConnector`, `PaginatedConnector`, `DocumentConnector`) layered on top for connector-specific capability. SQLAlchemy ORM and a custom DSL were formally evaluated and rejected during M2. | §2.2, §3, §4, §3.5 (Q1–Q5) |
 | 2 | **Frontend stack** | **React 18 + Tailwind CSS** (Vite + TypeScript), matching Design System v1 tokens. Scaffolded since M3W8T5, with all five shared components and eight page shells completed by M3W10T5–T6. | §2.5, §3, Beyza's Week 8–10 component work (M3W8T5–T8, M3W9T5–T8, M3W10T5–T7) |
 | 3 | **API framework** | **FastAPI**, chosen specifically because its async capability resolves Open Question #1 below (sync/async connector execution) rather than being a generic "modern Python framework" choice. | §3, §6, §3.5 (Q1) |
-| 4 | **Warehouse target** | **PostgreSQL 15**, with **ClickHouse formally excluded**. The BI layer queries PostgreSQL directly; "OLAP Layer" naming is retained in Section 2 to describe analytical *query behavior*, not a claim that a dedicated OLAP engine exists. This avoids maintaining a second store that CDC writes would otherwise need to keep in sync. | §2.4, §2.5, §3, §5.1 |
+| 4 | **Warehouse target** | **PostgreSQL 15**, with **ClickHouse formally excluded**. The BI layer queries PostgreSQL directly; "Analytics Layer" naming is used in Section 2 to describe analytical *query behavior*, not a claim that a dedicated OLAP engine exists (see the naming addendum in `docs/architecture/addenda/`). This avoids maintaining a second store that CDC writes would otherwise need to keep in sync. | §2.4, §2.5, §3, §5.1 |
 
 None of these four are being revisited in this section — they are stated here as the formal closing record that Milestone 4 is built against, consistent with how they've already been used throughout Sections 2–8.
 
