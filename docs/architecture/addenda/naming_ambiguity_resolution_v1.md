@@ -1,6 +1,6 @@
 # Naming-Ambiguity Resolution Note (Draft v1)
 
-**Owner:** Abdullah · **Status:** First draft — shared for team review Wednesday 22 July; finalized as a formal Architecture Document addendum in Week 12.
+**Owner:** Abdullah · **Status:** ✅ Resolved — applied to `docs/architecture/architecture_doc_v1.md` and all other current-facing docs. Originally shared for team review Wednesday 22 July.
 **Source of the ambiguity:** Architecture Document s9.1 (Decision 4), s2.5, s4 (Module 6), s6 (API), s7.2, s8.
 
 ---

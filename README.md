@@ -38,7 +38,7 @@ Any Data Source (Oracle · PostgreSQL · MySQL · MSSQL · MongoDB · CSV · RES
   → Database Abstraction Layer
   → ETL Engine  ◄──── CDC / Real-Time Layer (Debezium + Kafka)
   → Metadata-Driven Data Warehouse  (PostgreSQL)
-  → BI Dashboard & OLAP Layer
+  → BI Dashboard & Analytics Layer
 
 Cross-cutting modules (apply to all layers):
   Data Quality Engine ──  validates every pipeline execution
@@ -81,7 +81,7 @@ Full architecture documentation — module design, data flow, and deployment top
 | 3 | **ETL Engine** | Batch, incremental, and parallel extract/transform/load pipelines | Python (Pipeline DSL) | M5 |
 | 4 | **CDC / Real-Time Layer** | Near-real-time change capture from database transaction logs | Debezium + Apache Kafka | M7 |
 | 5 | **Metadata-Driven Data Warehouse** | Auto-generated fact/dimension tables, SCD, and schema versioning | PostgreSQL + Python | M8 |
-| 6 | **BI Dashboard & OLAP Layer** | Self-service dashboard builder — no SQL knowledge required | React/Vue + Chart.js/ECharts + FastAPI | M9 |
+| 6 | **BI Dashboard & Analytics** | Self-service dashboard builder — no SQL knowledge required | React/Vue + Chart.js/ECharts + FastAPI | M9 |
 | 7 | **Data Quality Engine** | Automated null/duplicate/format/range/anomaly checks with quality scoring | Python (custom rules engine) | M10 |
 | 8 | **Data Lineage** | Source-to-dashboard tracing via directed acyclic graph | Python + graph library | M10 |
 | 9 | **Data Catalog** | Searchable inventory of all data assets with metadata and quality scores | Python + search index | M10 |
@@ -237,7 +237,7 @@ subop/
 | M6 | Connector Ecosystem Expansion | 7 Sep – 4 Oct 2026 | Omer | ⏳ Upcoming |
 | M7 | CDC & Real-Time Streaming Module | 5 Oct – 2 Nov 2026 | Abdullah + Omer | ⏳ Upcoming |
 | M8 | Metadata-Driven Data Warehouse | 3 Nov – 30 Nov 2026 | Abdullah + Omer | ⏳ Upcoming |
-| M9 | BI Dashboard & OLAP Layer | 1 Dec – 28 Dec 2026 | Beyza | ⏳ Upcoming |
+| M9 | BI Dashboard & Analytics | 1 Dec – 28 Dec 2026 | Beyza | ⏳ Upcoming |
 | M10 | Data Quality, Profiling, Lineage & Catalog | 29 Dec 2026 – 2 Feb 2027 | Abdullah + Beyza | ⏳ Upcoming |
 | M11 | Security, Compliance & Full Integration | 3 Feb – 23 Mar 2027 | All | ⏳ Upcoming |
 | M12 | Pilot Testing, Documentation & Final Delivery | 24 Mar – 11 May 2027 | All | ⏳ Upcoming |
