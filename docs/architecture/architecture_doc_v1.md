@@ -1,6 +1,6 @@
 # SUBOP Architecture Document v1
 **Final consolidated version — Sections 1–9 · Owner: Abdullah**
-**Path:** `docs/milestones/milestone-3/week-10/architecture_doc_v1.md`
+**Path:** `docs/architecture/architecture_doc_v1.md`
 
 
 
