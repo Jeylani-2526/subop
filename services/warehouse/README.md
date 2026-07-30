@@ -14,5 +14,5 @@ Warehouse schema generated 80% faster than a manually written equivalent.
 
 ## Storage
 
-PostgreSQL 15 is the target database. No separate OLAP engine (e.g. ClickHouse)
+PostgreSQL 15 is the target database. No separate analytical engine (e.g. ClickHouse)
 is included — the BI layer queries PostgreSQL directly.

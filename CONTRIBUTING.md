@@ -99,7 +99,7 @@ type(scope): short description
 | `etl` | Module 3 — ETL Engine |
 | `cdc` | Module 4 — CDC / Real-Time Layer |
 | `warehouse` | Module 5 — Metadata-Driven Data Warehouse |
-| `bi` | Module 6 — BI Dashboard & OLAP Layer |
+| `bi` | Module 6 — BI Dashboard & Analytics |
 | `quality` | Module 7 — Data Quality Engine |
 | `lineage` | Module 8 — Data Lineage |
 | `catalog` | Module 9 — Data Catalog |

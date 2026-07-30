@@ -20,7 +20,7 @@ alongside the document as the diagram is finalised.
 | Abstraction | Module 2 — Database Abstraction Layer |
 | Processing | Module 3 — ETL Engine · Module 4 — CDC/Real-Time Layer |
 | Storage | Module 5 — Metadata-Driven Data Warehouse (PostgreSQL) |
-| Analytics | Module 6 — BI Dashboard & OLAP Layer |
+| Analytics | Module 6 — BI Dashboard & Analytics |
 | Governance | Module 7 — Data Quality · Module 8 — Lineage · Module 9 — Catalog |
 | Security | Module 10 — Security & Compliance (cross-cutting) |
 
