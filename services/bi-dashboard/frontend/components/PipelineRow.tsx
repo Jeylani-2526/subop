@@ -10,6 +10,13 @@ interface PipelineRowProps {
   selected?: boolean;
 }
 
+const statusMap = {
+  Running: "running",
+  Completed: "completed",
+  Failed: "failed",
+  Pending: "warning",
+} as const;
+
 export default function PipelineRow({
   pipelineName,
   source,
@@ -39,7 +46,7 @@ export default function PipelineRow({
       </div>
 
       <div className="flex flex-col items-end gap-1 shrink-0 ml-3">
-        <StatusBadge status={status} />
+        <StatusBadge status={statusMap[status]} />
         <span className="text-xs text-neutral-400">{lastRunTime}</span>
       </div>
     </div>
