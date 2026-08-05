@@ -9,10 +9,28 @@ interface AssetCardProps {
   selected?: boolean;
 }
 
-function getScoreStyle(score: number): { bg: string; color: string; label: string } {
-  if (score >= 80) return { bg: 'var(--color-success-bg)', color: 'var(--color-success)', label: 'Good' };
-  if (score >= 50) return { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)', label: 'Fair' };
-  return { bg: 'var(--color-danger-bg)', color: 'var(--color-danger)', label: 'Poor' };
+function getScoreStyle(score: number): {
+  bg: string;
+  color: string;
+  label: string;
+} {
+  if (score >= 80)
+    return {
+      bg: "rgba(46,125,50,0.1)",
+      color: "var(--color-success)",
+      label: "Good",
+    };
+  if (score >= 50)
+    return {
+      bg: "rgba(230,81,0,0.1)",
+      color: "var(--color-warning)",
+      label: "Fair",
+    };
+  return {
+    bg: "rgba(198,40,40,0.1)",
+    color: "var(--color-danger)",
+    label: "Poor",
+  };
 }
 
 export default function AssetCard({
@@ -29,34 +47,119 @@ export default function AssetCard({
 
   return (
     <div
-      className={`
-        flex flex-col gap-3 p-4 rounded-lg border transition-colors cursor-pointer
-        ${selected ? 'border-primary bg-row-alt' : 'border-neutral-200 hover:bg-neutral-light'}
-      `}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+        padding: "16px",
+        borderRadius: "8px",
+        border: selected
+          ? "1px solid var(--color-primary)"
+          : "1px solid var(--color-border)",
+        backgroundColor: selected
+          ? "var(--color-row-alt)"
+          : "var(--color-surface)",
+        cursor: "pointer",
+        transition: "background-color 0.15s",
+      }}
+      onMouseEnter={(e) => {
+        if (!selected)
+          (e.currentTarget as HTMLDivElement).style.backgroundColor =
+            "var(--color-neutral-light)";
+      }}
+      onMouseLeave={(e) => {
+        if (!selected)
+          (e.currentTarget as HTMLDivElement).style.backgroundColor =
+            "var(--color-surface)";
+      }}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-col gap-1 min-w-0">
-          <span className="text-sm font-semibold truncate">{tableName}</span>
-          <span className="text-xs text-neutral-500">{schemaName} · {sourceSystem}</span>
+      {/* Üst satır — tablo adı + kalite skoru */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "8px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "4px",
+            minWidth: 0,
+          }}
+        >
+          <span
+            style={{
+              fontSize: "13px",
+              fontWeight: 600,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              color: "var(--color-neutral-dark)",
+            }}
+          >
+            {tableName}
+          </span>
+          <span style={{ fontSize: "11px", color: "#6b7280" }}>
+            {schemaName} · {sourceSystem}
+          </span>
         </div>
         <span
-          style={{ backgroundColor: score.bg, color: score.color }}
-          className="text-xs font-medium px-2 py-1 rounded-full shrink-0"
+          style={{
+            backgroundColor: score.bg,
+            color: score.color,
+            fontSize: "11px",
+            fontWeight: 500,
+            padding: "2px 8px",
+            borderRadius: "9999px",
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+          }}
         >
           {qualityScore} — {score.label}
         </span>
       </div>
 
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-neutral-400">Owner: {owner}</span>
-        <span className="text-xs text-neutral-400">{lastUpdated}</span>
+      {/* Alt satır — owner + tarih */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <span style={{ fontSize: "11px", color: "#9ca3af" }}>
+          Owner: {owner}
+        </span>
+        <span style={{ fontSize: "11px", color: "#9ca3af" }}>
+          {lastUpdated}
+        </span>
       </div>
 
+      {/* Lineage butonu */}
       <button
-        onClick={(e) => { e.stopPropagation(); onViewLineage(); }}
-        className="text-xs text-secondary hover:underline self-start"
+        onClick={(e) => {
+          e.stopPropagation();
+          onViewLineage();
+        }}
+        style={{
+          background: "none",
+          border: "none",
+          padding: 0,
+          fontSize: "11px",
+          color: "var(--color-secondary)",
+          cursor: "pointer",
+          textAlign: "left",
+          textDecoration: "none",
+        }}
+        onMouseEnter={(e) =>
+          (e.currentTarget.style.textDecoration = "underline")
+        }
+        onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
       >
-        Lineage'ı Gör →
+        Lineage'i Gör &rarr;
       </button>
     </div>
   );
