@@ -1,6 +1,6 @@
-# Naming-Ambiguity Resolution Note (Draft v1)
+# Naming-Ambiguity Resolution Note (v1)
 
-**Owner:** Abdullah · **Status:** ✅ Resolved — applied to `docs/architecture/architecture_doc_v1.md` and all other current-facing docs. Originally shared for team review Wednesday 22 July.
+**Owner:** Abdullah · **Status:** ✅ Finalized — applied to `docs/architecture/architecture_doc_v1.md` and all other current-facing docs. Originally shared for team review Wednesday 22 July; formally closed out in Week 12 (Milestone 4).
 **Source of the ambiguity:** Architecture Document s9.1 (Decision 4), s2.5, s4 (Module 6), s6 (API), s7.2, s8.
 
 ---
@@ -44,6 +44,8 @@ Confirmed no conflict with:
 - **Other module names** (Connector Framework, Database Abstraction Layer, ETL Engine, CDC/Real-Time Streaming, Metadata-Driven Data Warehouse, Data Quality, Data Lineage, Data Catalog, Security & Compliance) — "Analytics" doesn't collide with or shadow any of these.
 - **s9.1's own Decision 4 wording** — the underlying decision (PostgreSQL 15, ClickHouse excluded) is unchanged; only the naming used to describe the BI/Analytics module and its query behavior is affected.
 
-## 5. Status & Next Step
+## 5. Status & Close-Out
 
-This is a **first-draft resolution**, shared for team review at Wednesday's sync. If no conflicts are raised, the renames above (Module 6, s2.5, s6, s7.2, s8) become a formal addendum to the Architecture Document in Week 12. Separately: the mislabeled cross-reference found in s9.2 (Question 3 answer cites "Module 3" for the Abstraction Layer, which is actually Module 2 per s4) is a plain correction rather than a naming decision, and is called out separately in the Week 11 advisor report rather than bundled into this note.
+This resolution was shared for team review at the Wednesday 22 July sync; no conflicts were raised. The renames described above (Module 6, section 2.5, section 6, section 7.2, section 8) were applied to `architecture_doc_v1.md` and verified as part of Week 12 close-out: the current document uses "Analytics" consistently throughout, with exactly one intentional, explanatory "OLAP" mention remaining in Decision 4 (section 9.1), which correctly cites this addendum. No residual unexplained "OLAP" references remain anywhere in the current-facing architecture document.
+
+This addendum is formally **Finalized** as of Week 12. Separately: the mislabeled cross-reference found in section 9.2 (Question 3 answer cites "Module 3" for the Abstraction Layer, which is actually Module 2 per section 4) is a plain correction rather than a naming decision, and was called out separately in the Week 11 advisor report rather than bundled into this note.
