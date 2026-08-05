@@ -12,6 +12,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-400: #9ca3af;
+  --color-neutral-500: #6b7280;
   --color-primary: #1b3a6b;
   --color-secondary: #2e75b6;
   --color-success: #2e7d32;
