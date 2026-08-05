@@ -29,25 +29,36 @@ export default function PipelineRow({
   return (
     <div
       onClick={onSelect}
-      className={`
-        flex items-center justify-between px-4 py-3 cursor-pointer border-l-[3px] transition-colors
-        ${
-          selected
-            ? "bg-row-alt border-l-primary"
-            : "border-l-transparent hover:bg-neutral-light"
-        }
-      `}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "12px 16px",
+        cursor: "pointer",
+        borderLeft: selected ? "3px solid var(--color-primary)" : "3px solid transparent",
+        backgroundColor: selected ? "var(--color-row-alt)" : "transparent",
+        transition: "background-color 0.15s",
+        borderBottom: "1px solid var(--color-border)",
+      }}
+      onMouseEnter={e => {
+        if (!selected) (e.currentTarget as HTMLDivElement).style.backgroundColor = "var(--color-neutral-light)";
+      }}
+      onMouseLeave={e => {
+        if (!selected) (e.currentTarget as HTMLDivElement).style.backgroundColor = "transparent";
+      }}
     >
-      <div className="flex flex-col gap-1 min-w-0">
-        <span className="text-sm font-semibold truncate">{pipelineName}</span>
-        <span className="text-xs text-neutral-500 truncate">
-          {source} → {target}
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
+        <span style={{ fontSize: "13px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-neutral-dark)" }}>
+          {pipelineName}
+        </span>
+        <span style={{ fontSize: "11px", color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {source} {"->"} {target}
         </span>
       </div>
 
-      <div className="flex flex-col items-end gap-1 shrink-0 ml-3">
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", flexShrink: 0, marginLeft: "12px" }}>
         <StatusBadge status={statusMap[status]} />
-        <span className="text-xs text-neutral-400">{lastRunTime}</span>
+        <span style={{ fontSize: "11px", color: "#9ca3af" }}>{lastRunTime}</span>
       </div>
     </div>
   );
