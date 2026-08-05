@@ -13,22 +13,26 @@ export default function AppShell({
   pageTitle,
 }: AppShellProps) {
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      {/* Sidebar */}
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       <NavigationSidebar userRole={userRole} />
-
-      {/* Right side */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        {/* Header */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+          overflow: "hidden",
+        }}
+      >
         <header
           style={{
             height: "56px",
+            flexShrink: 0,
             backgroundColor: "var(--color-primary)",
             display: "flex",
             alignItems: "center",
             padding: "0 24px",
             justifyContent: "space-between",
-            flexShrink: 0,
           }}
         >
           <span style={{ color: "#fff", fontSize: "15px", fontWeight: 600 }}>
@@ -38,13 +42,12 @@ export default function AppShell({
             SUBOP
           </span>
         </header>
-
-        {/* Main content */}
         <main
           style={{
             flex: 1,
+            minHeight: 0,
+            overflow: "hidden",
             backgroundColor: "var(--color-background)",
-            padding: "16px 24px",
           }}
         >
           {children}

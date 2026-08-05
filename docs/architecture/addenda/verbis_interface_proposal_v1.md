@@ -1,6 +1,6 @@
-# VERBİS Interface-Placement Proposal (Draft v1)
+# VERBİS Interface-Placement Proposal (v1)
 
-**Owner:** Abdullah · **Status:** Draft — shared for team review Wednesday 22 July; finalized as a formal Architecture Document addendum in Week 12.
+**Owner:** Abdullah · **Status:** ✅ Finalized — applied to `docs/architecture/architecture_doc_v1.md` (Section 4, Section 8.4, Section 9.3) in Week 12. Originally shared for team review Wednesday 22 July; approved as-is, no team edits.
 **Source of the open item:** Architecture Document s8.4, s9.3 (item 2) — carried forward from Milestone 3.
 
 ---
@@ -54,6 +54,10 @@ transfer_recipients: List[str]
 
 Both fields join the existing audit-log/compliance record Security & Compliance already produces per processing activity, alongside `processing_purpose`, `declared_fields`, and `retention_policy_days` sourced from their respective modules. This keeps VERBİS export (M12) a matter of reading one consolidated record rather than joining across five modules after the fact.
 
-## 4. Status & Next Step
+## 4. Status & Close-Out
 
-This is a **draft placement proposal**, not a finalized interface change — shared for team review at Wednesday's sync. If no conflicts are raised, this becomes a formal addendum to Architecture Document s4/s8 in Week 12, alongside the parallel Week 12 work already scoped for these fields.
+This proposal was shared for team review at the Wednesday 22 July sync and approved as-is, with no conflicts raised. The Module 10 placement and both field contract definitions (Section 3, above) were formally added to `architecture_doc_v1.md` — Section 4's module interface table, Section 8.4's VERBİS registration mapping, and Section 9.3's M4-readiness statement — as part of Week 12 close-out.
+
+This closes the second of the two open items carried forward from Milestone 3 (the naming-ambiguity resolution closed the first, also in Week 12). Only the CDC schema-drift/metadata-format gap (Section 2.4, Section 5.2) remains open, carried into Milestone 4/5 per Section 9.3.
+
+This addendum is formally **Finalized** as of Week 12.

@@ -80,7 +80,7 @@ Every entry below is traceable to a specific M2 document — this table is a *lo
 |---|---|---|---|
 | **Language runtime** | Python 3.11 | Matches connector prototypes already built (psycopg2/PyMySQL); mature ecosystem for ETL, ML (Isolation Forest), and API development | `backend_infrastructure_notes_v1.md` (M1), carried forward through M2 connector work |
 | **API framework** | FastAPI | Async-capable (relevant to Open Question #1 — sync vs. async connector execution), strong typing via Pydantic, natural fit for the module interface contracts in Section 4 | M1 technical requirements; confirmed as target in `connector_summary_m4_prep_v1.md` |
-| **DB abstraction pattern** | Adapter pattern (`ConnectorBase`) | SQLAlchemy ORM and custom DSL formally evaluated and rejected | Feasibility Report Final v1, §2.2 (Omer's recommendation) |
+| **DB abstraction pattern** | Adapter pattern (`ConnectorBase`) | SQLAlchemy ORM and custom DSL formally evaluated and rejected | Feasibility Report Final v1, s2.2 (Omer's recommendation) |
 | **Connector drivers** | psycopg2 (PostgreSQL), PyMySQL (MySQL), pyodbc (MSSQL) | Implemented and tested (15 passing pytest tests across Postgres + MySQL + MSSQL as of Week 9) | `postgres_connector.py`, `mysql_connector.py`, `mssql_connector.py` (all committed) |
 | **CDC / streaming** | Debezium + Kafka | Externally validated pattern — confirmed independently by NiFi's own architecture recommendations and Informatica's PowerExchange CDC mechanism | Feasibility Report Final v1, Module 4 discussion; Competitor Analysis Report |
 | **Frontend stack** | React 18 + Tailwind CSS (Vite + TypeScript) | Confirmed in UI Shell Architecture Plan; matches Design System v1 tokens; scaffolded M3W8T5, extended through M3W10T5–T7 | `ui_shell_architecture_v1.md` (Week 6), `design_system_v1.docx` (Week 7) |
@@ -120,7 +120,7 @@ For all 10 SUBOP modules. This table is the binding contract: no module may depe
 | **7. Data Quality** | Row batches from ETL Engine at execution checkpoints; rule definitions (JSON) | Quality score per dataset (JSON); anomaly alerts | Python function call (in-process pipeline hook) + REST API (score/violation queries) |
 | **8. Data Lineage** | Pipeline execution metadata (source table, transform steps, target table) from ETL Engine | Lineage graph (nodes/edges JSON) | Python function call (metadata write, in-process) + REST API (graph queries) |
 | **9. Data Catalog** | Table/column metadata from Warehouse; quality scores from Data Quality; lineage links from Lineage module | Searchable asset index (PostgreSQL full-text search) | SQL query (internal) + REST API (search) |
-| **10. Security & Compliance** | Every incoming API request (JWT) across all modules; audit-relevant actions from any module | Access decision (allow/deny/mask) returned inline; audit log entries | FastAPI middleware (wraps every REST endpoint) + Python function call (e.g. masking inside BI query execution) |
+| **10. Security & Compliance** | Every incoming API request (JWT) across all modules; audit-relevant actions from any module; VERBİS registration metadata (`data_subject_categories: List[str]`, `transfer_recipients: List[str]`) captured per processing activity at registration time (see Section 8.4 addendum) | Access decision (allow/deny/mask) returned inline; audit log entries | FastAPI middleware (wraps every REST endpoint) + Python function call (e.g. masking inside BI query execution) |
 
 ---
 
@@ -328,7 +328,7 @@ The four SUBOP user roles were established in Milestone 1 (`user_requirements_v1
 **Login and JWT issuance:**
 1. User submits credentials to `POST /api/auth/login` (Section 6, Module 10).
 2. On success, the Security & Compliance module issues two tokens: a short-lived **access token** (JWT, 15-minute expiry) carrying the user's `role` claim, and a longer-lived **refresh token** (7-day expiry), following the sync/threadpool execution model locked in Section 3.5 (Question 1).
-3. The access token is the sole artifact RBAC middleware inspects on every subsequent request — the `role` claim inside it is what the permission matrix in §8.1 is checked against.
+3. The access token is the sole artifact RBAC middleware inspects on every subsequent request — the `role` claim inside it is what the permission matrix in s8.1 is checked against.
 
 **Token refresh:**
 - The refresh token is stored in an `httpOnly`, `Secure` cookie — never in `localStorage` or JavaScript-accessible storage, to limit exposure if the frontend is compromised by XSS.
@@ -355,7 +355,7 @@ The four SUBOP user roles were established in Milestone 1 (`user_requirements_v1
 | Field | Type | Notes |
 |---|---|---|
 | `timestamp` | ISO 8601 datetime | Event time, not log-write time, if they ever diverge |
-| `user_id` | string | The authenticated principal; `system` for automated jobs (e.g., the nightly retention enforcement job in §8.4) |
+| `user_id` | string | The authenticated principal; `system` for automated jobs (e.g., the nightly retention enforcement job in s8.4) |
 | `action_type` | enum | e.g., `login_success`, `login_failure`, `connector_create`, `connector_update`, `connector_delete`, `dashboard_export`, `permission_change`, `subject_access_request`, `subject_erasure_request`, `bulk_access_anomaly` |
 | `target_resource` | string | The specific connector ID, dashboard ID, user ID, or table name affected |
 | `record_count` | integer, nullable | Populated for data-access events (per KVKK/GDPR C10); null for events like login or permission changes |
@@ -387,7 +387,7 @@ This section maps the unified compliance checklist (C01–C10, `kvkk_gdpr_compli
 These are two different mechanisms solving two different problems, and Section 8 needs to keep them distinct rather than treating "masking" as one undifferentiated control:
 
 - **Connector layer (data minimization, not masking):** `ConnectionConfig` carries a `declared_fields` list (C01); the connector raises `ComplianceError` if a table flagged `personal_data: true` has no declared fields. This is the strongest possible control — a field never extracted can never leak downstream — and it is enforced once, at ingestion, rather than repeatedly at every read.
-- **Warehouse/query layer (role-based masking):** For fields that *are* legitimately stored (because some role needs them — e.g., a Data Engineer needs a customer's raw email for pipeline debugging, but a Viewer should never see it), masking is applied server-side at query execution time, keyed to the RBAC role in the requester's JWT (§8.1's permission matrix, combined with a column-level policy). The BI Dashboard module in particular must never receive unmasked PII in its query results unless the requesting role is explicitly entitled to it — this is what makes `BI Dashboard: Write` for BI Analyst in §8.1 safe despite BI Analysts having no direct connector/warehouse admin rights: the masking happens beneath the module they do have access to, not as something they configure themselves.
+- **Warehouse/query layer (role-based masking):** For fields that *are* legitimately stored (because some role needs them — e.g., a Data Engineer needs a customer's raw email for pipeline debugging, but a Viewer should never see it), masking is applied server-side at query execution time, keyed to the RBAC role in the requester's JWT (s8.1's permission matrix, combined with a column-level policy). The BI Dashboard module in particular must never receive unmasked PII in its query results unless the requesting role is explicitly entitled to it — this is what makes `BI Dashboard: Write` for BI Analyst in s8.1 safe despite BI Analysts having no direct connector/warehouse admin rights: the masking happens beneath the module they do have access to, not as something they configure themselves.
 
 The practical distinction: connector-layer minimization decides *what enters the warehouse at all*; warehouse-layer masking decides *what a given role sees of what's already there*. Both are required — minimization alone doesn't help once a field is legitimately needed by at least one role, and masking alone doesn't reduce what's stored (and therefore doesn't reduce breach exposure, C08).
 
@@ -400,10 +400,10 @@ VERBİS requires a controller to register, per processing activity: purpose, dat
 | Processing purpose | ETL Engine's `processing_purpose` pipeline field (C02) |
 | Data categories | Connector Framework's `declared_fields` (C01), mapped to the KVKK data category taxonomy (M12 documentation task) |
 | Retention period | Warehouse's `retention_policy_days` field (C09) |
-| Data subject categories | Not yet captured as structured metadata — **open item**, see below |
-| Recipients of transferred data | Not yet captured as structured metadata — **open item**, see below |
+| Data subject categories | Security & Compliance module's `data_subject_categories: List[str]` field, registered per processing activity (Module 10, resolved Week 12 — see addendum below) |
+| Recipients of transferred data | Security & Compliance module's `transfer_recipients: List[str]` field, registered wherever a processing activity crosses a boundary (Module 10, resolved Week 12 — see addendum below) |
 
-**Open item flagged for M4/M5 scope, not resolved here:** two of the five VERBİS fields (data subject categories, transfer recipients) have no current home in the module interface contracts from Section 4. Rather than force a placeholder answer into this section, this is being carried forward explicitly as something the M4 connector work and M5 pipeline DSL should account for, so the M12 VERBİS template export isn't attempting to reconstruct this information after the fact from unstructured sources. (This is one of *two* items Section 9.3 carries forward — see Section 9.3 for the other, the CDC schema-drift/metadata-format gap from Section 2.4/5.2.)
+**Resolved in Week 12 (Milestone 4):** the two previously-homeless VERBİS fields (data subject categories, transfer recipients) now have a formal contract home in Module 10 — Security & Compliance, alongside `processing_purpose`, `declared_fields`, and `retention_policy_days` sourced from their respective modules. Both fields are populated at the point a processing activity is registered (pipeline creation/config time), and join the existing audit-log/compliance record Security & Compliance already produces per processing activity. This keeps VERBİS export (M12) a matter of reading one consolidated record rather than joining across five modules after the fact. Full placement rationale, rejected alternatives, and the field contract definitions are recorded in `docs/architecture/addenda/verbis_interface_proposal_v1.md` (Finalized, Week 12).
 
 ---
 
@@ -415,10 +415,10 @@ These four decisions were identified as needing to be locked during M3 (per the 
 
 | # | Decision | What Was Locked | Supporting Section |
 |---|---|---|---|
-| 1 | **Database abstraction pattern** | **Adapter pattern**, via `ConnectorBase` as the mandatory 5-method interface (`connect`, `disconnect`, `execute_query`, `execute_write`, `health_check`), with optional mixins (`StreamingConnector`, `PaginatedConnector`, `DocumentConnector`) layered on top for connector-specific capability. SQLAlchemy ORM and a custom DSL were formally evaluated and rejected during M2. | §2.2, §3, §4, §3.5 (Q1–Q5) |
-| 2 | **Frontend stack** | **React 18 + Tailwind CSS** (Vite + TypeScript), matching Design System v1 tokens. Scaffolded since M3W8T5, with all five shared components and eight page shells completed by M3W10T5–T6. | §2.5, §3, Beyza's Week 8–10 component work (M3W8T5–T8, M3W9T5–T8, M3W10T5–T7) |
-| 3 | **API framework** | **FastAPI**, chosen specifically because its async capability resolves Open Question #1 below (sync/async connector execution) rather than being a generic "modern Python framework" choice. | §3, §6, §3.5 (Q1) |
-| 4 | **Warehouse target** | **PostgreSQL 15**, with **ClickHouse formally excluded**. The BI layer queries PostgreSQL directly; "Analytics Layer" naming is used in Section 2 to describe analytical *query behavior*, not a claim that a dedicated OLAP engine exists (see the naming addendum in `docs/architecture/addenda/`). This avoids maintaining a second store that CDC writes would otherwise need to keep in sync. | §2.4, §2.5, §3, §5.1 |
+| 1 | **Database abstraction pattern** | **Adapter pattern**, via `ConnectorBase` as the mandatory 5-method interface (`connect`, `disconnect`, `execute_query`, `execute_write`, `health_check`), with optional mixins (`StreamingConnector`, `PaginatedConnector`, `DocumentConnector`) layered on top for connector-specific capability. SQLAlchemy ORM and a custom DSL were formally evaluated and rejected during M2. | s2.2, s3, s4, s3.5 (Q1–Q5) |
+| 2 | **Frontend stack** | **React 18 + Tailwind CSS** (Vite + TypeScript), matching Design System v1 tokens. Scaffolded since M3W8T5, with all five shared components and eight page shells completed by M3W10T5–T6. | s2.5, s3, Beyza's Week 8–10 component work (M3W8T5–T8, M3W9T5–T8, M3W10T5–T7) |
+| 3 | **API framework** | **FastAPI**, chosen specifically because its async capability resolves Open Question #1 below (sync/async connector execution) rather than being a generic "modern Python framework" choice. | s3, s6, s3.5 (Q1) |
+| 4 | **Warehouse target** | **PostgreSQL 15**, with **ClickHouse formally excluded**. The BI layer queries PostgreSQL directly; "Analytics Layer" naming is used in Section 2 to describe analytical *query behavior*, not a claim that a dedicated OLAP engine exists (see the naming addendum in `docs/architecture/addenda/`). This avoids maintaining a second store that CDC writes would otherwise need to keep in sync. | s2.4, s2.5, s3, s5.1 |
 
 None of these four are being revisited in this section — they are stated here as the formal closing record that Milestone 4 is built against, consistent with how they've already been used throughout Sections 2–8.
 
@@ -431,32 +431,32 @@ These five questions originated in `connector_summary_m4_prep_v1.md` (M2, Week 7
 **Question 1 — Synchronous vs. asynchronous connector execution.**
 *Does the connector framework use synchronous or asynchronous execution? The Kafka connector requires async handling the current psycopg2 implementation does not demonstrate.*
 
-**Answer:** `ConnectorBase` — the interface used by all SQL connectors (PostgreSQL, MySQL, MSSQL) — stays **synchronous**. A separate `StreamingConnectorBase` interface handles Kafka and REST sources **asynchronously**. FastAPI (locked in §9.1) wraps synchronous connector calls in a threadpool executor so the API layer itself remains non-blocking regardless of which connector type is underneath.
-**Supporting detail:** §3 (FastAPI's async capability is the stated rationale for the framework choice), §4 (Module 1's interface table lists both the in-process Python call for SQL connectors and the Kafka subscription path for streaming-capable ones), §7.1 (the deployment diagram's application layer sits above both synchronous database connections and the asynchronous Kafka path, reflecting this same split).
+**Answer:** `ConnectorBase` — the interface used by all SQL connectors (PostgreSQL, MySQL, MSSQL) — stays **synchronous**. A separate `StreamingConnectorBase` interface handles Kafka and REST sources **asynchronously**. FastAPI (locked in s9.1) wraps synchronous connector calls in a threadpool executor so the API layer itself remains non-blocking regardless of which connector type is underneath.
+**Supporting detail:** s3 (FastAPI's async capability is the stated rationale for the framework choice), s4 (Module 1's interface table lists both the in-process Python call for SQL connectors and the Kafka subscription path for streaming-capable ones), s7.1 (the deployment diagram's application layer sits above both synchronous database connections and the asynchronous Kafka path, reflecting this same split).
 
 **Question 2 — Shared interface vs. connector-specific extensions.**
 *Should every connector implement one shared interface, or should connectors with unusual capabilities get their own extended interface?*
 
 **Answer:** **Interface segregation.** The 5-method `ConnectorBase` contract remains mandatory for every connector — no connector may skip or partially implement it. Capability that doesn't apply to every connector is added only through optional mixins: `StreamingConnector.subscribe()`, `PaginatedConnector.fetch_page()`, `DocumentConnector.find_documents()`. A connector composes only the mixins it needs.
-**Supporting detail:** §4 (Module 1 and 2's interface definitions are written against exactly this contract), §7.2 (the service dependency table treats every SQL connector identically — Connector Framework depends on whichever of postgres/mysql/mssql is configured — precisely because the shared base makes them interchangeable at that level).
+**Supporting detail:** s4 (Module 1 and 2's interface definitions are written against exactly this contract), s7.2 (the service dependency table treats every SQL connector identically — Connector Framework depends on whichever of postgres/mysql/mssql is configured — precisely because the shared base makes them interchangeable at that level).
 
 **Question 3 — Non-relational sources (MongoDB) vs. a SQL-oriented abstraction.**
 *Does a document-model source like MongoDB force a redesign of the SQL-shaped abstraction layer, or can it fit inside it?*
 
-**Answer:** MongoDB implements `DocumentConnector` (the mixin from Question 2), but its query method still returns the same `List[Dict[str, Any]]` shape every SQL connector returns. The document/relational difference is absorbed **inside** the connector implementation and never leaks out to the ETL Engine — the ETL Engine's contract with the Abstraction Layer (§4, Module 3) is unaffected by which underlying source produced the batch.
-**Supporting detail:** §2.1 (Data Source Layer's confirmed technology list already anticipates non-SQL sources as a stated open item, now closed by this answer), §4 (Module 2's "normalized result sets" output is what makes this possible).
+**Answer:** MongoDB implements `DocumentConnector` (the mixin from Question 2), but its query method still returns the same `List[Dict[str, Any]]` shape every SQL connector returns. The document/relational difference is absorbed **inside** the connector implementation and never leaks out to the ETL Engine — the ETL Engine's contract with the Abstraction Layer (s4, Module 3) is unaffected by which underlying source produced the batch.
+**Supporting detail:** s2.1 (Data Source Layer's confirmed technology list already anticipates non-SQL sources as a stated open item, now closed by this answer), s4 (Module 2's "normalized result sets" output is what makes this possible).
 
 **Question 4 — Connector-specific features: individual implementation vs. shared components.**
 *When multiple connectors need similar-but-not-identical capability (e.g., pagination for REST, subscription for Kafka), should each connector implement its own version?*
 
 **Answer:** **Shared abstraction components**, not per-connector reinvention. Pagination, subscription, and document-query logic are each implemented once (as the mixins from Question 2) and reused across every connector that needs that capability, rather than each connector solving the same problem independently.
-**Supporting detail:** §4 (the mixin pattern itself is the direct answer, documented once and referenced rather than restated per module).
+**Supporting detail:** s4 (the mixin pattern itself is the direct answer, documented once and referenced rather than restated per module).
 
 **Question 5 — Common result format and error-handling strategy.**
 *Should every connector return data and raise errors the same way, or can each connector define its own conventions?*
 
 **Answer:** Every connector returns `List[Dict[str, Any]]` from reads and a row-count `int` from writes — no exceptions per connector type. All errors are raised as `ConnectorError` subclasses (`ConnectionError`, `QueryError`, `WriteError`) carrying `{error_code, message, connector_type, retryable: bool}`. The `retryable` flag is not decorative — it is the direct input to the recoverable-vs-fatal classification used elsewhere in this document.
-**Supporting detail:** §4 (Module 1 and 2 interface tables specify this exact shape), §5.1 (the batch ETL failure table classifies "connector timeout" as recoverable specifically *because* it uses this `retryable` flag), §5.2 (the CDC failure table applies the same recoverable/fatal logic to Debezium and Kafka failures), §8.3 (the audit log's `result` field — success/failure — is the same success/failure distinction this error model produces, now surfaced at the compliance layer as well as the pipeline layer).
+**Supporting detail:** s4 (Module 1 and 2 interface tables specify this exact shape), s5.1 (the batch ETL failure table classifies "connector timeout" as recoverable specifically *because* it uses this `retryable` flag), s5.2 (the CDC failure table applies the same recoverable/fatal logic to Debezium and Kafka failures), s8.3 (the audit log's `result` field — success/failure — is the same success/failure distinction this error model produces, now surfaced at the compliance layer as well as the pipeline layer).
 
 ---
 
@@ -465,14 +465,15 @@ These five questions originated in `connector_summary_m4_prep_v1.md` (M2, Week 7
 With all nine sections of this Architecture Document complete and the five open questions above formally closed, Milestone 4's connector, ETL, and CDC work can proceed against a stable interface contract without further architectural clarification on any of the following:
 
 - **Connector implementation** (M4): every connector — the three already built (PostgreSQL, MySQL, MSSQL) and the remaining sources on the Milestone 1 supported-sources list — has an unambiguous contract to implement against: the mandatory `ConnectorBase` methods, the applicable optional mixins, the `List[Dict[str, Any]]` / `ConnectorError` result and error shape, and the sync-vs-async execution model per Question 1.
-- **ETL Engine work** (M5): the pipeline DSL's required `processing_purpose` field (§8.4, KVKK/GDPR checklist item C02) and the batch/streaming data flow paths (§5.1, §5.2) are both specified in enough detail to begin implementation without waiting on further architecture decisions.
-- **CDC work** (M7): the streaming path's latency instrumentation points (§5.2) and the deployment-level dependency chain risk already flagged in §7.2 (Kafka's dependency on Zookeeper as the single most fragile link in the topology) give M7 a concrete starting point for both feature work and monitoring design.
+- **ETL Engine work** (M5): the pipeline DSL's required `processing_purpose` field (s8.4, KVKK/GDPR checklist item C02) and the batch/streaming data flow paths (s5.1, s5.2) are both specified in enough detail to begin implementation without waiting on further architecture decisions.
+- **CDC work** (M7): the streaming path's latency instrumentation points (s5.2) and the deployment-level dependency chain risk already flagged in s7.2 (Kafka's dependency on Zookeeper as the single most fragile link in the topology) give M7 a concrete starting point for both feature work and monitoring design.
 
-**Two items are explicitly not resolved by this document** and should not be mistaken for oversights — both are real, carried-forward scope rather than silently assumed away:
+**One item remains explicitly unresolved by this document** and should not be mistaken for an oversight — it is real, carried-forward scope rather than silently assumed away:
 
-1. **CDC schema-drift / metadata-representation-format gap** (§2.4, §5.2): the format used to represent source metadata (JSON schema? annotated SQL DDL? YAML?) is undecided, and source-table schema drift (column added/renamed) has no automatic handling designed yet — flagged in §5.2 as a fatal, open risk. This must be resolved before M7's CDC work begins in earnest, and directly affects how M4's connector schema-introspection output should be shaped.
-2. **VERBİS registration fields** (§8.4): two of the five VERBİS fields (data subject categories, transfer recipients) have no current home in the Section 4 module interface contracts. Carried forward as unresolved scope for M4/M5.
+1. **CDC schema-drift / metadata-representation-format gap** (s2.4, s5.2): the format used to represent source metadata (JSON schema? annotated SQL DDL? YAML?) is undecided, and source-table schema drift (column added/renamed) has no automatic handling designed yet — flagged in s5.2 as a fatal, open risk. This must be resolved before M7's CDC work begins in earnest, and directly affects how M4's connector schema-introspection output should be shaped.
 
-With those two flagged exceptions, Milestone 3 delivers what it set out to: a locked architecture (§9.1), a closed set of open questions (§9.2), a verified deployment topology (§7), and a security/compliance model (§8) — the stable foundation Milestone 4 needs to build against.
+*Resolved since this document's original close-out:* **VERBİS registration fields** (s8.4) — the two fields that had no current home in the Section 4 module interface contracts (data subject categories, transfer recipients) were placed in Module 10 (Security & Compliance) and formally added to the Section 4 and Section 8.4 contracts in Milestone 4, Week 12. See `docs/architecture/addenda/verbis_interface_proposal_v1.md` for the full placement rationale.
+
+With the one remaining flagged exception, Milestone 3 delivers what it set out to: a locked architecture (s9.1), a closed set of open questions (s9.2), a verified deployment topology (s7), and a security/compliance model (s8) — the stable foundation Milestone 4 needs to build against.
 
 ---

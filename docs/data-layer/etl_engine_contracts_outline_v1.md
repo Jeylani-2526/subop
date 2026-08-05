@@ -1,6 +1,6 @@
 # ETL Engine — Input/Output Contracts Outline (Draft v1)
 
-**Owner:** Abdullah · **Status:** Outline only — full specification is Week 12 scope, once the Abstraction Layer's confirmed interface (Omer, M4W11T9) exists to build against.
+**Owner:** Abdullah · **Status:** Superseded — deepened into the full contract draft in Week 12. See `etl_engine_contracts_v1.md` (docs/data-layer/) for the current, binding version, including the resolved Universal Type Mapping boundary question (Section 7 of that document).
 **Source:** Architecture Document s2.2, s4 (Module 3), s5.1, s5.2, s6, s9.2 (Q1, Q3, Q5), s9.3.
 
 ---
