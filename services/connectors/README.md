@@ -25,3 +25,19 @@ and each connector passes an automated validation test.
 | GraphQL | API | gql |
 | Apache Kafka | Streaming | confluent-kafka-python |
 | Debezium / Kafka Connect | CDC | Kafka Connect |
+
+## Local Setup — MS SQL Server
+
+`pyodbc` requires the **Microsoft ODBC Driver 18 for SQL Server** to be installed
+as a system driver — `pip install pyodbc` alone is not enough. Without it,
+`tests/test_mssql_connector.py` fails immediately with an
+`[IM002] Data source name not found` error, before ever reaching the database.
+
+Install it:
+- Windows: `winget install Microsoft.msodbcsql.18`, or download from
+  https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server
+- Verify install (PowerShell): `Get-OdbcDriver | Where-Object Name -like "*SQL Server*"`
+  should list "ODBC Driver 18 for SQL Server".
+
+PostgreSQL (`psycopg2`) and MySQL (`PyMySQL`) don't need an equivalent OS-level
+driver, so this step is MSSQL-specific.
