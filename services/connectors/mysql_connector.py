@@ -1,11 +1,7 @@
 import pymysql
 from pymysql import Error
 
-# class ConnectorError(Exception):
-# """Custom error for connector failures."""
 
-
-# pass
 class ConnectorError(Exception):
     """Custom error for connector failures."""
 
@@ -55,7 +51,7 @@ class MySQLConnector:
             raise ConnectorError(
                 "Not connected. Call connect() first.",
                 retryable=False,
-            )
+                )
         cursor = None
         try:
             cursor = self.connection.cursor(pymysql.cursors.DictCursor)
