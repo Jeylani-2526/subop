@@ -51,7 +51,7 @@ class MySQLConnector:
             raise ConnectorError(
                 "Not connected. Call connect() first.",
                 retryable=False,
-                )
+            )
         cursor = None
         try:
             cursor = self.connection.cursor(pymysql.cursors.DictCursor)
