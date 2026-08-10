@@ -33,7 +33,7 @@ class MSSQLConnector:
         """Connect to the MSSQL database."""
         try:
             connection_string = (
-                "DRIVER={ODBC Driver 17 for SQL Server};"
+                "DRIVER={ODBC Driver 18 for SQL Server};"
                 f"SERVER={self.config.host},{self.config.port};"
                 f"DATABASE={self.config.database};"
                 f"UID={self.config.username};"
