@@ -10,7 +10,6 @@ class ConnectorError(Exception):
         self.retryable = retryable
 
 
-
 class ConnectionConfig:
     """Stores the connection settings for PostgreSQL."""
 
