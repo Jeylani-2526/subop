@@ -5,7 +5,10 @@ from psycopg2.extras import RealDictCursor
 class ConnectorError(Exception):
     """Custom error for connector failures."""
 
-    pass
+    def __init__(self, message, retryable=False):
+        super().__init__(message)
+        self.retryable = retryable
+
 
 
 class ConnectionConfig:
@@ -35,7 +38,7 @@ class PostgresConnector:
                 password=self.config.password,
             )
         except psycopg2.DatabaseError as e:
-            raise ConnectorError(f"Connection failed: {e}")
+            raise ConnectorError(f"Connection failed: {e}", retryable=False)
 
     def disconnect(self):
         """Close the current database connection."""
@@ -49,7 +52,7 @@ class PostgresConnector:
                 cursor.execute(sql, params)
                 return cursor.fetchall()
         except psycopg2.DatabaseError as e:
-            raise ConnectorError(f"Query failed: {e}")
+            raise ConnectorError(f"Query failed: {e}", retryable=False)
 
     def execute_write(self, sql, params=None):
         """Run INSERT, UPDATE or DELETE and return affected row count."""
@@ -61,7 +64,7 @@ class PostgresConnector:
                 return affected_rows
         except psycopg2.DatabaseError as e:
             self.connection.rollback()
-            raise ConnectorError(f"Write failed: {e}")
+            raise ConnectorError(f"Write failed: {e}", retryable=False)
 
     def health_check(self):
         """Check whether the database connection works."""
