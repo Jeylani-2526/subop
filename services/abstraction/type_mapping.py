@@ -50,49 +50,38 @@ class UniversalTypeMapper:
         "serial": ("INTEGER", "direct"),
         "bigint": ("BIGINT", "direct"),
         "bigserial": ("BIGINT", "direct"),
-
         # Exact numeric types
         "numeric": ("DECIMAL", "direct"),
         "decimal": ("DECIMAL", "direct"),
-
         # Approximate floating-point types.
         # These map to DECIMAL but must be flagged as inexact.
         "real": ("DECIMAL", "inexact"),
         "double precision": ("DECIMAL", "inexact"),
-
         # Character types
         "char": ("VARCHAR", "direct"),
         "character": ("VARCHAR", "direct"),
         "varchar": ("VARCHAR", "direct"),
         "character varying": ("VARCHAR", "direct"),
         "text": ("TEXT", "direct"),
-
         # Boolean type
         "boolean": ("BOOLEAN", "direct"),
-
         # Date and timestamp types
         "date": ("DATE", "direct"),
         "timestamp": ("TIMESTAMP", "direct"),
         "timestamp without time zone": ("TIMESTAMP", "direct"),
         "timestamp with time zone": ("TIMESTAMP", "direct"),
         "timestamptz": ("TIMESTAMP", "direct"),
-
         # Structured data
         "json": ("JSON", "direct"),
         "jsonb": ("JSON", "direct"),
-
         # Binary data
         "bytea": ("BINARY", "direct"),
-
         # Canonical v1 has no UUID type.
         "uuid": ("VARCHAR", "fallback"),
-
         # XML is represented as canonical text.
         "xml": ("TEXT", "fallback"),
-
         # Arrays require recursive element normalization.
         "array": ("JSON", "conditional"),
-
         # Canonical v1 has no TIME or INTERVAL type.
         "time": ("VARCHAR", "fallback"),
         "time without time zone": ("VARCHAR", "fallback"),
@@ -108,40 +97,31 @@ class UniversalTypeMapper:
         "mediumint": ("INTEGER", "direct"),
         "int": ("INTEGER", "direct"),
         "integer": ("INTEGER", "direct"),
-
         # BIGINT requires 64-bit semantics.
         "bigint": ("BIGINT", "direct"),
-
         # Exact numeric types
         "decimal": ("DECIMAL", "direct"),
         "numeric": ("DECIMAL", "direct"),
-
         # Approximate numeric types
         "float": ("DECIMAL", "inexact"),
         "double": ("DECIMAL", "inexact"),
-
         # Character types with declared finite length
         "char": ("VARCHAR", "direct"),
         "varchar": ("VARCHAR", "direct"),
-
         # Large text types
         "tinytext": ("TEXT", "direct"),
         "text": ("TEXT", "direct"),
         "mediumtext": ("TEXT", "direct"),
         "longtext": ("TEXT", "direct"),
-
         # Explicit Boolean aliases
         "boolean": ("BOOLEAN", "direct"),
         "bool": ("BOOLEAN", "direct"),
-
         # Date and timestamp types
         "date": ("DATE", "direct"),
         "datetime": ("TIMESTAMP", "direct"),
         "timestamp": ("TIMESTAMP", "direct"),
-
         # Structured JSON data
         "json": ("JSON", "direct"),
-
         # Binary data
         "binary": ("BINARY", "direct"),
         "varbinary": ("BINARY", "direct"),
@@ -149,10 +129,8 @@ class UniversalTypeMapper:
         "blob": ("BINARY", "direct"),
         "mediumblob": ("BINARY", "direct"),
         "longblob": ("BINARY", "direct"),
-
         # ENUM is represented as text while retaining schema metadata.
         "enum": ("VARCHAR", "fallback"),
-
         # MySQL TIME can represent durations, so canonical v1
         # preserves it as deterministic text.
         "time": ("VARCHAR", "fallback"),
@@ -165,53 +143,42 @@ class UniversalTypeMapper:
         "smallint": ("INTEGER", "direct"),
         "int": ("INTEGER", "direct"),
         "bigint": ("BIGINT", "direct"),
-
         # Exact and monetary numeric types
         "decimal": ("DECIMAL", "direct"),
         "numeric": ("DECIMAL", "direct"),
         "money": ("DECIMAL", "direct"),
         "smallmoney": ("DECIMAL", "direct"),
-
         # Approximate numeric types
         "float": ("DECIMAL", "inexact"),
         "real": ("DECIMAL", "inexact"),
-
         # Character types with finite declared length
         "char": ("VARCHAR", "direct"),
         "nchar": ("VARCHAR", "direct"),
         "varchar": ("VARCHAR", "direct"),
         "nvarchar": ("VARCHAR", "direct"),
-
         # Legacy large-text types
         "text": ("TEXT", "direct"),
         "ntext": ("TEXT", "direct"),
-
         # Boolean representation
         "bit": ("BOOLEAN", "direct"),
-
         # Temporal types
         "date": ("DATE", "direct"),
         "datetime": ("TIMESTAMP", "direct"),
         "smalldatetime": ("TIMESTAMP", "direct"),
         "datetime2": ("TIMESTAMP", "direct"),
         "datetimeoffset": ("TIMESTAMP", "direct"),
-
         # Binary types
         "binary": ("BINARY", "direct"),
         "varbinary": ("BINARY", "direct"),
         "image": ("BINARY", "direct"),
         "rowversion": ("BINARY", "direct"),
-
         # SQL Server TIMESTAMP is a binary row-version value,
         # not a temporal timestamp.
         "timestamp": ("BINARY", "direct"),
-
         # Canonical v1 has no UUID type.
         "uniqueidentifier": ("VARCHAR", "fallback"),
-
         # XML remains complete textual content.
         "xml": ("TEXT", "fallback"),
-
         # SQL_VARIANT must be resolved using the native type
         # of each individual value.
         "sql_variant": (None, "ambiguous"),
@@ -285,9 +252,7 @@ class UniversalTypeMapper:
                 mapping_metadata,
             )
 
-        raise UnsupportedTypeError(
-            f"Unsupported database: {database}"
-        )
+        raise UnsupportedTypeError(f"Unsupported database: {database}")
 
     @staticmethod
     def _normalize_type_name(source_type: str) -> str:
@@ -324,9 +289,7 @@ class UniversalTypeMapper:
         mapping = cls.POSTGRESQL_MAPPING.get(normalized_type)
 
         if mapping is None:
-            raise UnsupportedTypeError(
-                f"Unsupported PostgreSQL type: {original_type}"
-            )
+            raise UnsupportedTypeError(f"Unsupported PostgreSQL type: {original_type}")
 
         canonical_type, condition = mapping
 
@@ -344,9 +307,7 @@ class UniversalTypeMapper:
 
         # UUID has no dedicated canonical v1 type.
         if normalized_type == "uuid":
-            metadata["fallback_reason"] = (
-                "Canonical type system v1 has no UUID type."
-            )
+            metadata["fallback_reason"] = "Canonical type system v1 has no UUID type."
 
         # XML semantics are retained as metadata even though the
         # canonical representation is TEXT.
@@ -428,9 +389,7 @@ class UniversalTypeMapper:
         # Unknown types must fail explicitly instead of being silently
         # coerced into an unrelated canonical representation.
         if mapping is None:
-            raise UnsupportedTypeError(
-                f"Unsupported MySQL type: {original_type}"
-            )
+            raise UnsupportedTypeError(f"Unsupported MySQL type: {original_type}")
 
         canonical_type, condition = mapping
 
@@ -506,9 +465,7 @@ class UniversalTypeMapper:
         mapping = cls.MSSQL_MAPPING.get(normalized_type)
 
         if mapping is None:
-            raise UnsupportedTypeError(
-                f"Unsupported MSSQL type: {original_type}"
-            )
+            raise UnsupportedTypeError(f"Unsupported MSSQL type: {original_type}")
 
         canonical_type, condition = mapping
 
