@@ -105,8 +105,16 @@ const MOCK_RUN_STATUS: Record<string, RunStatus> = {
     finishedAt: null,
     logs: [
       { timestamp: "10:00:01", level: "INFO", message: "Pipeline başlatıldı" },
-      { timestamp: "10:00:02", level: "INFO", message: "Kaynak bağlantısı kuruldu: PostgreSQL" },
-      { timestamp: "10:00:03", level: "INFO", message: "Veri çekme başladı..." },
+      {
+        timestamp: "10:00:02",
+        level: "INFO",
+        message: "Kaynak bağlantısı kuruldu: PostgreSQL",
+      },
+      {
+        timestamp: "10:00:03",
+        level: "INFO",
+        message: "Veri çekme başladı...",
+      },
     ],
   },
   "2": {
@@ -118,8 +126,16 @@ const MOCK_RUN_STATUS: Record<string, RunStatus> = {
     finishedAt: "2026-08-12T09:04:22Z",
     logs: [
       { timestamp: "09:00:01", level: "INFO", message: "Pipeline başlatıldı" },
-      { timestamp: "09:00:02", level: "INFO", message: "Kaynak bağlantısı kuruldu: MySQL" },
-      { timestamp: "09:04:22", level: "SUCCESS", message: "Pipeline tamamlandı — 42.381 satır" },
+      {
+        timestamp: "09:00:02",
+        level: "INFO",
+        message: "Kaynak bağlantısı kuruldu: MySQL",
+      },
+      {
+        timestamp: "09:04:22",
+        level: "SUCCESS",
+        message: "Pipeline tamamlandı — 42.381 satır",
+      },
     ],
   },
   "3": {
@@ -131,7 +147,11 @@ const MOCK_RUN_STATUS: Record<string, RunStatus> = {
     finishedAt: "2026-08-12T07:01:10Z",
     logs: [
       { timestamp: "07:00:01", level: "INFO", message: "Pipeline başlatıldı" },
-      { timestamp: "07:01:10", level: "ERROR", message: "Bağlantı zaman aşımına uğradı: MSSQL" },
+      {
+        timestamp: "07:01:10",
+        level: "ERROR",
+        message: "Bağlantı zaman aşımına uğradı: MSSQL",
+      },
     ],
   },
 };
@@ -183,7 +203,7 @@ export async function getPipelines(): Promise<Pipeline[]> {
 
 // Yeni pipeline oluştur
 export async function createPipeline(
-  payload: CreatePipelinePayload
+  payload: CreatePipelinePayload,
 ): Promise<Pipeline> {
   // Week 15: return fetch(`${BASE_URL}/pipelines/`, { method: "POST", body: JSON.stringify(payload) }).then(r => r.json());
   const newPipeline: Pipeline = {
