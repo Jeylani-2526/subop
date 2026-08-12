@@ -30,10 +30,22 @@ class MSSQLConnector:
 
     # Establish a connection to the Microsoft SQL Server.
     def connect(self):
-        """Connect to the MSSQL database."""
+        # Connect to the MSSQL database.
         try:
+            available_drivers = pyodbc.drivers()
+
+            if "ODBC Driver 18 for SQL Server" in available_drivers:
+                driver = "ODBC Driver 18 for SQL Server"
+            elif "ODBC Driver 17 for SQL Server" in available_drivers:
+                driver = "ODBC Driver 17 for SQL Server"
+            else:
+                raise ConnectorError(
+                    "No supported SQL Server ODBC driver found.",
+                    retryable=False,
+                )
+
             connection_string = (
-                "DRIVER={ODBC Driver 18 for SQL Server};"  # I have ODBC Driver 17
+                f"DRIVER={{{driver}}};"
                 f"SERVER={self.config.host},{self.config.port};"
                 f"DATABASE={self.config.database};"
                 f"UID={self.config.username};"
@@ -42,6 +54,7 @@ class MSSQLConnector:
             )
 
             self.connection = pyodbc.connect(connection_string)
+
         except pyodbc.Error as e:
             raise ConnectorError(f"Connection failed: {e}", retryable=False)
 

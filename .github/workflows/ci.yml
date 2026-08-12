@@ -128,4 +128,4 @@ jobs:
           MSSQL_PORT: 1433
           MSSQL_DATABASE: master
           MSSQL_USERNAME: sa
-          MSSQL_SA_PASSWORD: YourStrong!Passw0rd
+          MSSQL_PASSWORD: YourStrong!Passw0rd

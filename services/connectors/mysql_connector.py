@@ -5,7 +5,9 @@ from pymysql import Error
 class ConnectorError(Exception):
     """Custom error for connector failures."""
 
-    pass
+    def __init__(self, message, retryable=False):
+        super().__init__(message)
+        self.retryable = retryable
 
 
 class ConnectionConfig:
@@ -35,7 +37,7 @@ class MySQLConnector:
                 password=self.config.password,
             )
         except Error as e:
-            raise ConnectorError(f"Connection failed: {e}")
+            raise ConnectorError(f"Connection failed: {e}", retryable=False)
 
     def disconnect(self):
         """Close the current database connection."""
@@ -46,14 +48,17 @@ class MySQLConnector:
     def execute_query(self, sql, params=None):
         """Run a SELECT query and return rows as dictionaries."""
         if self.connection is None:
-            raise ConnectorError("Not connected. Call connect() first.")
+            raise ConnectorError(
+                "Not connected. Call connect() first.",
+                retryable=False,
+            )
         cursor = None
         try:
             cursor = self.connection.cursor(pymysql.cursors.DictCursor)
             cursor.execute(sql, params)
             return cursor.fetchall()
         except Error as e:
-            raise ConnectorError(f"Query failed: {e}")
+            raise ConnectorError(f"Query failed: {e}", retryable=False)
         finally:
             if cursor is not None:
                 cursor.close()
@@ -61,8 +66,10 @@ class MySQLConnector:
     def execute_write(self, sql, params=None):
         """Run INSERT, UPDATE or DELETE and return affected row count."""
         if self.connection is None:
-            raise ConnectorError("Not connected. Call connect() first.")
-        cursor = None
+            raise ConnectorError(
+                "Not connected. Call connect() first.",
+                retryable=False,
+            )
         try:
             cursor = self.connection.cursor()
             cursor.execute(sql, params)
@@ -71,7 +78,7 @@ class MySQLConnector:
             return affected_rows
         except Error as e:
             self.connection.rollback()
-            raise ConnectorError(f"Write failed: {e}")
+            raise ConnectorError(f"Write failed: {e}", retryable=False)
         finally:
             if cursor is not None:
                 cursor.close()
