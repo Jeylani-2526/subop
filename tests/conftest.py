@@ -16,7 +16,7 @@ from services.connectors.postgres_connector import (  # noqa: E402
 def test_db_connection():
     config = ConnectionConfig(
         host=os.getenv("POSTGRES_HOST", "127.0.0.1"),
-        port=int(os.getenv("POSTGRES_PORT", 5432)),
+        port=int(os.getenv("POSTGRES_PORT", 5433)),
         database=os.getenv("POSTGRES_DB", "subop"),
         username=os.getenv("POSTGRES_USER", "subop"),
         password=os.getenv("POSTGRES_PASSWORD", "subop_dev"),
