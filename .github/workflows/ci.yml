@@ -112,7 +112,7 @@ jobs:
           DATABASE_URL: postgresql://subop_test:subop_test@localhost:5432/subop_test
       - name: Run connector tests
         run: |
-          pytest tests/test_postgres_connector.py tests/test_mysql_connector.py tests/test_mssql_connector.py -v --tb=short
+          pytest tests/test_postgres_connector.py tests/test_mysql_connector.py tests/test_mssql_connector.py tests/test_type_mapping.py tests/test_abstraction_layer.py -v --tb=short
         env:
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
