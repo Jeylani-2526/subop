@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 interface NavItem {
   label: string;
@@ -25,6 +25,7 @@ export default function NavigationSidebar({
   userRole,
 }: NavigationSidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const isAdmin = userRole === "admin";
   const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
@@ -32,17 +33,22 @@ export default function NavigationSidebar({
     <nav
       style={{
         width: "240px",
-        minHeight: "100vh",
+        minWidth: "240px",
+        height: "100vh",
         backgroundColor: "var(--color-primary)",
         display: "flex",
         flexDirection: "column",
         flexShrink: 0,
+        overflow: "hidden",
       }}
     >
+      {/* Logo — tıklanınca ana sayfaya gider */}
       <div
+        onClick={() => navigate("/")}
         style={{
           padding: "24px 16px",
           borderBottom: "1px solid rgba(255,255,255,0.1)",
+          cursor: "pointer",
         }}
       >
         <span
@@ -56,12 +62,15 @@ export default function NavigationSidebar({
           SUBOP
         </span>
       </div>
-      <div style={{ flex: 1, padding: "8px 0" }}>
+
+      {/* Nav Items */}
+      <div style={{ flex: 1, padding: "8px 0", overflowY: "auto" }}>
         {visibleItems.map((item) => {
           const isActive =
             item.path === "/"
               ? location.pathname === "/"
               : location.pathname.startsWith(item.path);
+
           return (
             <NavLink
               key={item.path}
