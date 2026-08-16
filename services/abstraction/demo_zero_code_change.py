@@ -130,7 +130,6 @@ def create_mssql_connector() -> MSSQLConnector:
     return MSSQLConnector(config)
 
 
-
 def execute_database_demo(
     database: str,
     connector: Any,
