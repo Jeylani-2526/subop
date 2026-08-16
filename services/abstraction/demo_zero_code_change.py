@@ -129,8 +129,6 @@ def create_mssql_connector() -> MSSQLConnector:
     # Return the connector without opening the connection yet.
     return MSSQLConnector(config)
 
-    # Return the connector without opening the connection yet.
-    return MSSQLConnector(config)
 
 
 def execute_database_demo(
