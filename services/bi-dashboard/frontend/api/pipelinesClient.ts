@@ -1,25 +1,65 @@
-// ─────────────────────────────────────────────
-// SUBOP — Frontend API Client
 // services/bi-dashboard/frontend/api/pipelinesClient.ts
-//
-// Şimdilik mock response'larla çalışıyor.
-// Week 15'te BASE_URL aktif edilip mock'lar kaldırılacak.
-// ─────────────────────────────────────────────
+// T5 — Live wiring: mock'lar kaldırılacak, BASE_URL aktif edilecek
 
-const BASE_URL = "/api"; // Week 15'te aktif olacak
+const BASE_URL = "/api";
 
 // ─── Tipler ───────────────────────────────────
 
-export type PipelineStatus = "Running" | "Completed" | "Failed" | "Pending";
+export type ConnectorType = "postgresql" | "mysql" | "mssql" | "mongodb";
+export type WriteMode = "upsert" | "append";
+export type RunStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "completed_with_quarantine"
+  | "failed"
+  | "cancelled";
+
+export interface PipelineSource {
+  connector_type: ConnectorType;
+  connection_ref: string;
+  object: string;
+  query: string | null;
+}
+
+export interface PipelineTarget {
+  connector_type: ConnectorType;
+  connection_ref: string;
+  object: string;
+  write_mode: WriteMode;
+}
+
+export interface TransformationStep {
+  step_id: string;
+  type: string;
+  params: Record<string, unknown>;
+}
+
+export interface CreatePipelinePayload {
+  name: string;
+  source: PipelineSource;
+  transformations: TransformationStep[];
+  target: PipelineTarget;
+  processing_purpose: string;
+  data_subject_categories: string[];
+  transfer_recipients: string[];
+}
 
 export interface Pipeline {
   id: string;
-  pipelineName: string;
-  source: string;
-  target: string;
-  status: PipelineStatus;
-  lastRunTime: string;
-  processingPurpose: string;
+  name: string;
+  status: "created";
+  created_at: string;
+  source: PipelineSource;
+  transformations: TransformationStep[];
+  target: PipelineTarget;
+}
+
+export interface ErrorEnvelope {
+  error_code: string;
+  message: string;
+  connector_type: ConnectorType | null;
+  retryable: boolean;
 }
 
 export interface RunLog {
@@ -28,22 +68,18 @@ export interface RunLog {
   message: string;
 }
 
-export interface RunStatus {
-  runId: string;
-  pipelineId: string;
-  status: PipelineStatus;
-  rowsProcessed: number | null;
-  startedAt: string;
-  finishedAt: string | null;
-  logs: RunLog[];
-}
-
-export interface CreatePipelinePayload {
-  pipelineName: string;
-  source: string;
-  target: string;
-  transformations: string[];
-  processingPurpose: string;
+export interface PipelineRun {
+  run_id: string;
+  pipeline_id: string;
+  status: RunStatus;
+  started_at: string | null;
+  finished_at: string | null;
+  rows_read: number;
+  rows_written: number;
+  rows_quarantined: number;
+  quality_score: number | null;
+  logs: string[];
+  error?: ErrorEnvelope;
 }
 
 export interface KPISummary {
@@ -63,95 +99,80 @@ export interface CatalogAsset {
   lastUpdated: string;
 }
 
-// ─── Mock Data ────────────────────────────────
+// ─── Mock Data (Week 15'te kaldırılacak) ──────
 
 const MOCK_PIPELINES: Pipeline[] = [
   {
     id: "1",
-    pipelineName: "Orders ETL",
-    source: "PostgreSQL",
-    target: "Data Warehouse",
-    status: "Running",
-    lastRunTime: "2 min ago",
-    processingPurpose: "Sipariş verisi entegrasyonu",
+    name: "Orders ETL",
+    status: "created",
+    created_at: "2026-08-12T10:00:00Z",
+    source: {
+      connector_type: "postgresql",
+      connection_ref: "pg-main",
+      object: "orders",
+      query: null,
+    },
+    transformations: [],
+    target: {
+      connector_type: "postgresql",
+      connection_ref: "dw-main",
+      object: "fact_orders",
+      write_mode: "upsert",
+    },
   },
   {
     id: "2",
-    pipelineName: "Customer Sync",
-    source: "MySQL",
-    target: "Data Warehouse",
-    status: "Completed",
-    lastRunTime: "1 hr ago",
-    processingPurpose: "Müşteri verisi senkronizasyonu",
-  },
-  {
-    id: "3",
-    pipelineName: "Inventory Load",
-    source: "MSSQL",
-    target: "Data Warehouse",
-    status: "Failed",
-    lastRunTime: "3 hr ago",
-    processingPurpose: "Envanter verisi yükleme",
+    name: "Customer Sync",
+    status: "created",
+    created_at: "2026-08-12T09:00:00Z",
+    source: {
+      connector_type: "mysql",
+      connection_ref: "mysql-main",
+      object: "customers",
+      query: null,
+    },
+    transformations: [],
+    target: {
+      connector_type: "postgresql",
+      connection_ref: "dw-main",
+      object: "dim_customers",
+      write_mode: "upsert",
+    },
   },
 ];
 
-const MOCK_RUN_STATUS: Record<string, RunStatus> = {
+const MOCK_RUNS: Record<string, PipelineRun> = {
   "1": {
-    runId: "run-001",
-    pipelineId: "1",
-    status: "Running",
-    rowsProcessed: null,
-    startedAt: "2026-08-12T10:00:00Z",
-    finishedAt: null,
+    run_id: "run-001",
+    pipeline_id: "1",
+    status: "running",
+    started_at: "2026-08-12T10:00:00Z",
+    finished_at: null,
+    rows_read: 0,
+    rows_written: 0,
+    rows_quarantined: 0,
+    quality_score: null,
     logs: [
-      { timestamp: "10:00:01", level: "INFO", message: "Pipeline başlatıldı" },
-      {
-        timestamp: "10:00:02",
-        level: "INFO",
-        message: "Kaynak bağlantısı kuruldu: PostgreSQL",
-      },
-      {
-        timestamp: "10:00:03",
-        level: "INFO",
-        message: "Veri çekme başladı...",
-      },
+      "Pipeline başlatıldı",
+      "Kaynak bağlantısı kuruldu: postgresql",
+      "Veri çekme başladı...",
     ],
   },
   "2": {
-    runId: "run-002",
-    pipelineId: "2",
-    status: "Completed",
-    rowsProcessed: 42381,
-    startedAt: "2026-08-12T09:00:00Z",
-    finishedAt: "2026-08-12T09:04:22Z",
+    run_id: "run-002",
+    pipeline_id: "2",
+    status: "succeeded",
+    started_at: "2026-08-12T09:00:00Z",
+    finished_at: "2026-08-12T09:04:22Z",
+    rows_read: 42381,
+    rows_written: 42381,
+    rows_quarantined: 0,
+    quality_score: 0.97,
     logs: [
-      { timestamp: "09:00:01", level: "INFO", message: "Pipeline başlatıldı" },
-      {
-        timestamp: "09:00:02",
-        level: "INFO",
-        message: "Kaynak bağlantısı kuruldu: MySQL",
-      },
-      {
-        timestamp: "09:04:22",
-        level: "SUCCESS",
-        message: "Pipeline tamamlandı — 42.381 satır",
-      },
-    ],
-  },
-  "3": {
-    runId: "run-003",
-    pipelineId: "3",
-    status: "Failed",
-    rowsProcessed: null,
-    startedAt: "2026-08-12T07:00:00Z",
-    finishedAt: "2026-08-12T07:01:10Z",
-    logs: [
-      { timestamp: "07:00:01", level: "INFO", message: "Pipeline başlatıldı" },
-      {
-        timestamp: "07:01:10",
-        level: "ERROR",
-        message: "Bağlantı zaman aşımına uğradı: MSSQL",
-      },
+      "Pipeline başlatıldı",
+      "42.381 satır işlendi",
+      "Pipeline tamamlandı",
     ],
   },
 };
@@ -195,43 +216,48 @@ const MOCK_CATALOG: CatalogAsset[] = [
 
 // ─── API Fonksiyonları ────────────────────────
 
-// Tüm pipeline'ları getir
 export async function getPipelines(): Promise<Pipeline[]> {
-  // Week 15: return fetch(`${BASE_URL}/pipelines/`).then(r => r.json());
+  // Week 15 live: return fetch(`${BASE_URL}/pipelines/`).then(r => r.json());
   return Promise.resolve(MOCK_PIPELINES);
 }
 
-// Yeni pipeline oluştur
 export async function createPipeline(
   payload: CreatePipelinePayload,
 ): Promise<Pipeline> {
-  // Week 15: return fetch(`${BASE_URL}/pipelines/`, { method: "POST", body: JSON.stringify(payload) }).then(r => r.json());
-  const newPipeline: Pipeline = {
+  // Week 15 live:
+  // const res = await fetch(`${BASE_URL}/pipelines/`, {
+  //   method: "POST",
+  //   headers: { "Content-Type": "application/json" },
+  //   body: JSON.stringify(payload),
+  // });
+  // if (!res.ok) throw await res.json();
+  // return res.json();
+  const mock: Pipeline = {
     id: String(Date.now()),
-    pipelineName: payload.pipelineName,
+    name: payload.name,
+    status: "created",
+    created_at: new Date().toISOString(),
     source: payload.source,
+    transformations: payload.transformations,
     target: payload.target,
-    status: "Pending",
-    lastRunTime: "Az önce",
-    processingPurpose: payload.processingPurpose,
   };
-  return Promise.resolve(newPipeline);
+  return Promise.resolve(mock);
 }
 
-// Belirli bir pipeline'ın run durumunu getir
-export async function getRunStatus(pipelineId: string): Promise<RunStatus> {
-  // Week 15: return fetch(`${BASE_URL}/pipelines/${pipelineId}/runs/latest`).then(r => r.json());
-  return Promise.resolve(MOCK_RUN_STATUS[pipelineId]);
+export async function getRunStatus(
+  pipelineId: string,
+  runId: string,
+): Promise<PipelineRun> {
+  // Week 15 live: return fetch(`${BASE_URL}/pipelines/${pipelineId}/runs/${runId}`).then(r => r.json());
+  return Promise.resolve(MOCK_RUNS[pipelineId]);
 }
 
-// KPI özeti getir (HomePage için)
 export async function getKPISummary(): Promise<KPISummary> {
-  // Week 15: return fetch(`${BASE_URL}/kpi/summary`).then(r => r.json());
+  // Week 15 live: return fetch(`${BASE_URL}/kpi/summary`).then(r => r.json());
   return Promise.resolve(MOCK_KPI);
 }
 
-// Catalog asset listesi getir (CatalogBrowserPage için)
 export async function getCatalogAssets(): Promise<CatalogAsset[]> {
-  // Week 15: return fetch(`${BASE_URL}/catalog/assets/`).then(r => r.json());
+  // Week 15 live: return fetch(`${BASE_URL}/catalog/assets/`).then(r => r.json());
   return Promise.resolve(MOCK_CATALOG);
 }
