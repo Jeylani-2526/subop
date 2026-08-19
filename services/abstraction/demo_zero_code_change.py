@@ -179,7 +179,7 @@ def execute_database_demo(
 
     finally:
         # Always close the database connection,
-        # even if the demo raises an exception.
+        # even if the demo raises an exception
         connector.disconnect()
 
 
