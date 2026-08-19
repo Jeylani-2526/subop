@@ -21,7 +21,7 @@ def mssql_config():
     )
 
 
-# Create a connected MSSQL connector for each test.
+# Create a connected MSSQL connector for each test
 @pytest.fixture
 def mssql_connector(mssql_config):
     connector = MSSQLConnector(mssql_config)
