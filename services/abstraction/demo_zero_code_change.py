@@ -20,7 +20,7 @@ from services.connectors.mysql_connector import (
 )
 from services.connectors.mysql_connector import MySQLConnector
 
-# Import the PostgreSQL connector and its database-specific configuration class.
+# Import the PostgreSQL connector and its database-specific configuration class
 from services.connectors.postgres_connector import (
     ConnectionConfig as PostgresConnectionConfig,
 )
@@ -58,8 +58,7 @@ def run_demo(layer: AbstractionLayer) -> list[dict[str, Any]]:
     # No database-specific parameter placeholder is required here.
     layer.execute_write(f"""
         INSERT INTO {TABLE_NAME} (id, name, email, phone)
-        VALUES 
-            (1, 'Alice', 'alice@example.com', '+491111111111'),
+        VALUES (1, 'Alice', 'alice@example.com', '+491111111111'),
             (2, 'Bob', 'bob@example.com', '+492222222222'),
             (3, 'Charlie', 'charlie@example.com', '+493333333333'),
             (4, 'David', 'david@example.com', '+494444444444'),
@@ -82,8 +81,6 @@ def create_postgres_connector() -> PostgresConnector:
     Create a PostgreSQL connector using environment variables
     with local development defaults.
     """
-
-    #bir sonraki toplantıya connectorların çalışma prensibine odaklan her bir fonksiyon ne iş yapıyor bunu açıklayan bir sunum hazırla(cuma günü toplantı ama sen çarşambaya kadar hazırla)
 
     # Build the PostgreSQL-specific connection configuration.
     config = PostgresConnectionConfig(
