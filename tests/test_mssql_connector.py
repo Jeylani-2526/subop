@@ -17,7 +17,7 @@ def mssql_config():
         port=int(os.getenv("MSSQL_PORT", "1433")),
         database=os.getenv("MSSQL_DATABASE", "master"),
         username=os.getenv("MSSQL_USERNAME", "sa"),
-        password=os.getenv("MSSQL_PASSWORD", "YourOwn$trongDevPass1!"),
+        password=os.getenv("MSSQL_PASSWORD", "YourStrong!Passw0rd"),
     )
 
 
