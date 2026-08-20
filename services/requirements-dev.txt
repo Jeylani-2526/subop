@@ -8,8 +8,13 @@ psycopg2-binary
 PyMySQL
 pyodbc
 
+# --- ETL Engine API (Module 3, M5W15T4) ---
+fastapi
+uvicorn[standard]
+
 # --- Testing ---
 pytest
+httpx
 
 # --- Code quality (matches .github/workflows/ci.yml and lint.yml) ---
 black

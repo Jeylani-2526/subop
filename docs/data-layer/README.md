@@ -2,7 +2,7 @@
 
 Research, interface sketches, and contracts for the connector, abstraction, and ETL modules —
 maps to [`services/connectors/`](../../services/connectors/), [`services/abstraction/`](../../services/abstraction/),
-and [`services/etl-engine/`](../../services/etl-engine/).
+and [`services/etl_engine/`](../../services/etl_engine/).
 
 | File | Covers |
 |------|--------|
