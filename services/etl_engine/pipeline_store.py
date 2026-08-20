@@ -1,0 +1,70 @@
+"""
+In-memory persistence layer for created ETL pipelines.
+
+Mirrors run_store.py's pattern (M5W15T2) so both stores behave
+consistently — defensive copies in and out, KeyError for unknown ids.
+Holds the 201-response shape from etl_engine_api_spec_v1.md Section
+3.2 so GET .../runs/{run_id} (Section 4) can confirm a pipeline_id
+exists before looking up a run under it.
+"""
+
+from __future__ import annotations
+
+from copy import deepcopy
+from datetime import datetime, timezone
+from typing import Any, Dict, List
+from uuid import uuid4
+
+_pipelines: Dict[str, Dict[str, Any]] = {}
+
+
+def _current_timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def create_pipeline(
+    *,
+    name: str,
+    source: Dict[str, Any],
+    transformations: List[Dict[str, Any]],
+    target: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Create and persist a new pipeline record.
+
+    Returns the exact 201 response shape (API spec Section 3.2):
+    {id, name, status: "created", created_at, source, transformations,
+    target}.
+    """
+    pipeline_id = str(uuid4())
+
+    record = {
+        "id": pipeline_id,
+        "name": name,
+        "status": "created",
+        "created_at": _current_timestamp(),
+        "source": deepcopy(source),
+        "transformations": deepcopy(transformations),
+        "target": deepcopy(target),
+    }
+
+    _pipelines[pipeline_id] = record
+
+    return deepcopy(record)
+
+
+def get_pipeline(pipeline_id: str) -> Dict[str, Any]:
+    """Return a stored pipeline record by its id. Raises KeyError if unknown."""
+    if pipeline_id not in _pipelines:
+        raise KeyError(f"Pipeline '{pipeline_id}' not found.")
+
+    return deepcopy(_pipelines[pipeline_id])
+
+
+def pipeline_exists(pipeline_id: str) -> bool:
+    return pipeline_id in _pipelines
+
+
+def clear_pipelines() -> None:
+    """Remove all stored pipelines from the in-memory store (test support)."""
+    _pipelines.clear()
