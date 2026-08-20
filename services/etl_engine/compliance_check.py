@@ -23,7 +23,7 @@ from typing import List
 
 
 class ComplianceCheckFailed(Exception):
-    """Raised when a processing activity has no completed VERBİS registration."""
+    # Raised when a processing activity has no completed VERBİS registration.
 
     def __init__(self, message: str):
         super().__init__(message)

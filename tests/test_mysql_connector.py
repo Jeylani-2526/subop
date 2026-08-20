@@ -20,18 +20,19 @@ pytest.ini / .env-loading conftest if your local values differ.
 """
 
 import os
+
 import pytest
 
+from services.connectors.errors import ConnectorError
 from services.connectors.mysql_connector import (
     MySQLConnector,
     ConnectionConfig,
-    ConnectorError,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def mysql_config():
@@ -55,15 +56,13 @@ def mysql_connection(mysql_config):
     connector = MySQLConnector(mysql_config)
     connector.connect()
 
-    connector.execute_write(
-        """
+    connector.execute_write("""
         CREATE TABLE IF NOT EXISTS test_connection (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        """
-    )
+        """)
     connector.execute_write("TRUNCATE TABLE test_connection")
 
     yield connector
@@ -74,6 +73,7 @@ def mysql_connection(mysql_config):
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_connect_success(mysql_config):
     """A valid config should connect without raising, and hold an open connection."""
@@ -114,7 +114,9 @@ def test_execute_query_returns_list(mysql_connection):
 
 def test_execute_write_insert(mysql_connection):
     """INSERT should increase the row count by exactly 1."""
-    before = mysql_connection.execute_query("SELECT COUNT(*) AS total FROM test_connection")
+    before = mysql_connection.execute_query(
+        "SELECT COUNT(*) AS total FROM test_connection"
+    )
     before_count = before[0]["total"]
 
     affected = mysql_connection.execute_write(
@@ -122,7 +124,9 @@ def test_execute_write_insert(mysql_connection):
     )
     assert affected == 1
 
-    after = mysql_connection.execute_query("SELECT COUNT(*) AS total FROM test_connection")
+    after = mysql_connection.execute_query(
+        "SELECT COUNT(*) AS total FROM test_connection"
+    )
     after_count = after[0]["total"]
 
     assert after_count == before_count + 1
