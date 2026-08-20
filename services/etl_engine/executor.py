@@ -83,7 +83,9 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _unknown_transformation_envelope(step: TransformationStep) -> Dict[str, Any]:
+def _unknown_transformation_envelope(
+    step: TransformationStep,
+) -> Dict[str, Any]:
     return {
         "error_code": "UNKNOWN_TRANSFORMATION_TYPE",
         "message": (
@@ -116,7 +118,7 @@ def execute_pipeline(pipeline: PipelineDefinition, pipeline_id: str) -> Dict[str
         run_store.update_run(run_id, status="running", started_at=_now())
         logs.append(f"Run started for pipeline '{pipeline.name}'.")
 
-        # --- Resolve connections (contracts Section 4: only via AbstractionLayer) ---
+        # Resolve connections(contracts Section 4: only via AbstractionLayer)
         source_layer, _ = connection_resolver.resolve_connection(
             pipeline.source.connector_type, pipeline.source.connection_ref
         )
@@ -132,7 +134,7 @@ def execute_pipeline(pipeline: PipelineDefinition, pipeline_id: str) -> Dict[str
         rows_read = len(rows)
         logs.append(f"Read {rows_read} row(s) from '{pipeline.source.object}'.")
 
-        # --- Execute transformations in array order (Section 2.1: order matters) ---
+        # Execute transformations in array order (Section 2.1: order matters)
         rows, step_logs = _run_transformations(rows, pipeline.transformations)
         logs.extend(step_logs)
 
