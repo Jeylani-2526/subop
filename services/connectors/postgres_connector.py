@@ -3,7 +3,6 @@ from psycopg2.extras import RealDictCursor
 
 from services.connectors.errors import (
     ConnectionError as ConnectorConnectionError,
-    ConnectorError,
     QueryError,
     WriteError,
 )

@@ -2,7 +2,6 @@ import pyodbc
 
 from services.connectors.errors import (
     ConnectionError as ConnectorConnectionError,
-    ConnectorError,
     QueryError,
     WriteError,
 )
