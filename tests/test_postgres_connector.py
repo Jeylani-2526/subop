@@ -1,8 +1,8 @@
 import pytest
 
+from services.connectors.errors import ConnectorError
 from services.connectors.postgres_connector import (
     ConnectionConfig,
-    ConnectorError,
     PostgresConnector,
 )
 
@@ -40,14 +40,12 @@ def test_execute_query_returns_list(test_db_connection):
 
 def test_execute_write_insert(test_db_connection):
     """Test INSERT, UPDATE, and DELETE operations in sequence."""
-    test_db_connection.execute_write(
-        """
+    test_db_connection.execute_write("""
         CREATE TABLE IF NOT EXISTS test_users (
             id SERIAL PRIMARY KEY,
             name TEXT
         )
-        """
-    )
+        """)
 
     inserted_rows = test_db_connection.execute_write(
         "INSERT INTO test_users (name) VALUES (%s)",

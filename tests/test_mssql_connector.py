@@ -2,10 +2,10 @@ import os
 
 import pytest
 
+from services.connectors.errors import ConnectorError
 from services.connectors.mssql_connector import (
     MSSQLConnector,
     ConnectionConfig,
-    ConnectorError,
 )
 
 

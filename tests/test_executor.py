@@ -8,10 +8,14 @@ from typing import Any, Dict, List
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services" / "etl_engine"))
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[1] / "services" / "etl_engine")
+)
 
 import run_store  # noqa: E402
-from services.abstraction.abstraction_layer import AbstractionLayer  # noqa: E402
+from services.abstraction.abstraction_layer import (
+    AbstractionLayer,
+)  # noqa: E402
 from services.connectors.errors import QueryError  # noqa: E402
 from pipeline import parse_pipeline  # noqa: E402
 import executor  # noqa: E402
@@ -106,9 +110,13 @@ def patch_resolver(monkeypatch):
             )
         return layers[connection_ref], connector_type
 
-    monkeypatch.setattr(connection_resolver, "resolve_connection", _fake_resolve)
+    monkeypatch.setattr(
+        connection_resolver, "resolve_connection", _fake_resolve
+    )
 
-    def _register(connection_ref: str, connector: FakeConnector, database="postgresql"):
+    def _register(
+        connection_ref: str, connector: FakeConnector, database="postgresql"
+    ):
         layers[connection_ref] = AbstractionLayer(
             connector=connector, database=database
         )
@@ -178,7 +186,9 @@ def test_unregistered_transformation_type_fails_the_run(patch_resolver):
     patch_resolver("warehouse", FakeConnector())
 
     doc = _valid_doc(
-        transformations=[{"step_id": "s1", "type": "does_not_exist", "params": {}}]
+        transformations=[
+            {"step_id": "s1", "type": "does_not_exist", "params": {}}
+        ]
     )
     pipeline = parse_pipeline(doc)
 
@@ -229,7 +239,9 @@ def test_registered_transformation_is_applied_in_order(patch_resolver):
 # ---------------------------------------------------------------------------
 
 
-def test_source_query_failure_marks_run_failed_with_connector_error(patch_resolver):
+def test_source_query_failure_marks_run_failed_with_connector_error(
+    patch_resolver,
+):
     patch_resolver("app-db", FakeConnector(fail_on_query=True))
     patch_resolver("warehouse", FakeConnector())
 
@@ -278,7 +290,9 @@ def test_connection_resolution_failure_still_creates_a_run_record(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_connection_missing_env_var_raises_connector_error(monkeypatch):
+def test_resolve_connection_missing_env_var_raises_connector_error(
+    monkeypatch,
+):
     monkeypatch.delenv("SUBOP_CONN_MISSING_REF", raising=False)
 
     from services.connectors.errors import ConnectorError
@@ -300,8 +314,12 @@ def test_resolve_connection_malformed_json_raises_connector_error(monkeypatch):
     assert exc_info.value.error_code == "CONNECTION_REF_MALFORMED"
 
 
-def test_resolve_connection_incomplete_credentials_raises_connector_error(monkeypatch):
-    monkeypatch.setenv("SUBOP_CONN_PARTIAL_REF", json.dumps({"host": "localhost"}))
+def test_resolve_connection_incomplete_credentials_raises_connector_error(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "SUBOP_CONN_PARTIAL_REF", json.dumps({"host": "localhost"})
+    )
 
     from services.connectors.errors import ConnectorError
 
