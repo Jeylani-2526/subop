@@ -92,7 +92,117 @@ export interface CatalogAsset {
   lastUpdated: string;
 }
 
-// ─── Mock Data (KPI ve Catalog için — API endpoint yok henüz) ─
+// ─── Mock Data ────────────────────────────────
+
+const MOCK_PIPELINES: Pipeline[] = [
+  {
+    id: "1",
+    name: "Orders ETL",
+    status: "created",
+    created_at: "2026-08-12T10:00:00Z",
+    source: {
+      connector_type: "postgresql",
+      connection_ref: "pg-main",
+      object: "orders",
+      query: null,
+    },
+    transformations: [],
+    target: {
+      connector_type: "postgresql",
+      connection_ref: "dw-main",
+      object: "fact_orders",
+      write_mode: "upsert",
+    },
+  },
+  {
+    id: "2",
+    name: "Customer Sync",
+    status: "created",
+    created_at: "2026-08-12T09:00:00Z",
+    source: {
+      connector_type: "mysql",
+      connection_ref: "mysql-main",
+      object: "customers",
+      query: null,
+    },
+    transformations: [],
+    target: {
+      connector_type: "postgresql",
+      connection_ref: "dw-main",
+      object: "dim_customers",
+      write_mode: "upsert",
+    },
+  },
+  {
+    id: "3",
+    name: "Inventory Load",
+    status: "created",
+    created_at: "2026-08-12T07:00:00Z",
+    source: {
+      connector_type: "mssql",
+      connection_ref: "mssql-main",
+      object: "inventory",
+      query: null,
+    },
+    transformations: [],
+    target: {
+      connector_type: "postgresql",
+      connection_ref: "dw-main",
+      object: "fact_inventory",
+      write_mode: "append",
+    },
+  },
+];
+
+const MOCK_RUNS: Record<string, PipelineRun> = {
+  "1": {
+    run_id: "run-001",
+    pipeline_id: "1",
+    status: "running",
+    started_at: "2026-08-12T10:00:00Z",
+    finished_at: null,
+    rows_read: 0,
+    rows_written: 0,
+    rows_quarantined: 0,
+    quality_score: null,
+    logs: [
+      "Pipeline başlatıldı",
+      "Kaynak bağlantısı kuruldu: postgresql",
+      "Veri çekme başladı...",
+    ],
+  },
+  "2": {
+    run_id: "run-002",
+    pipeline_id: "2",
+    status: "succeeded",
+    started_at: "2026-08-12T09:00:00Z",
+    finished_at: "2026-08-12T09:04:22Z",
+    rows_read: 42381,
+    rows_written: 42381,
+    rows_quarantined: 0,
+    quality_score: 0.97,
+    logs: [
+      "Pipeline başlatıldı",
+      "42.381 satır işlendi",
+      "Pipeline tamamlandı",
+    ],
+  },
+  "3": {
+    run_id: "run-003",
+    pipeline_id: "3",
+    status: "failed",
+    started_at: "2026-08-12T07:00:00Z",
+    finished_at: "2026-08-12T07:01:10Z",
+    rows_read: 0,
+    rows_written: 0,
+    rows_quarantined: 0,
+    quality_score: null,
+    logs: [
+      "Pipeline başlatıldı",
+      "ERROR: Bağlantı zaman aşımına uğradı: mssql",
+    ],
+  },
+};
 
 const MOCK_KPI: KPISummary = {
   activePipelines: 24,
@@ -133,12 +243,12 @@ const MOCK_CATALOG: CatalogAsset[] = [
 
 // ─── API Fonksiyonları ────────────────────────
 
+// GET endpoint henüz yok — mock
 export async function getPipelines(): Promise<Pipeline[]> {
-  const res = await fetch(`${BASE_URL}/pipelines/`);
-  if (!res.ok) throw await res.json();
-  return res.json();
+  return Promise.resolve(MOCK_PIPELINES);
 }
 
+// Canlı API
 export async function createPipeline(
   payload: CreatePipelinePayload,
 ): Promise<Pipeline> {
@@ -151,21 +261,23 @@ export async function createPipeline(
   return res.json();
 }
 
+// Canlı API
 export async function getRunStatus(
   pipelineId: string,
   runId: string,
 ): Promise<PipelineRun> {
+  if (runId === "latest") return Promise.resolve(MOCK_RUNS[pipelineId]);
   const res = await fetch(`${BASE_URL}/pipelines/${pipelineId}/runs/${runId}`);
   if (!res.ok) throw await res.json();
   return res.json();
 }
 
+// Mock — KPI endpoint henüz yok
 export async function getKPISummary(): Promise<KPISummary> {
-  // KPI endpoint henüz yok — mock devam ediyor
   return Promise.resolve(MOCK_KPI);
 }
 
+// Mock — Catalog endpoint henüz yok
 export async function getCatalogAssets(): Promise<CatalogAsset[]> {
-  // Catalog endpoint henüz yok — mock devam ediyor
   return Promise.resolve(MOCK_CATALOG);
 }
