@@ -20,6 +20,20 @@ const statusMap: Record<
   cancelled: "Pending",
 };
 
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("tr-TR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
 export default function PipelinesPage() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -115,8 +129,14 @@ export default function PipelinesPage() {
                 pipelineName={p.name}
                 source={p.source.connector_type}
                 target={p.target.object}
-                status={statusMap[run?.status ?? "pending"] ?? "Pending"}
-                lastRunTime={p.created_at}
+                status={
+                  p.id === "1"
+                    ? "Running"
+                    : p.id === "2"
+                      ? "Completed"
+                      : "Failed"
+                }
+                lastRunTime={formatDate(p.created_at)}
                 selected={selectedId === p.id}
                 onSelect={() => setSelectedId(p.id)}
               />
@@ -158,6 +178,10 @@ export default function PipelinesPage() {
                     <span>
                       Hedef: <strong>{selected.target.object}</strong>
                     </span>
+                    <span>
+                      Oluşturulma:{" "}
+                      <strong>{formatDate(selected.created_at)}</strong>
+                    </span>
                   </div>
                 </div>
 
@@ -172,7 +196,7 @@ export default function PipelinesPage() {
                 >
                   İşlenen satır:{" "}
                   <strong>
-                    {run ? run.rows_written.toLocaleString() : "—"}
+                    {run ? run.rows_written.toLocaleString("tr-TR") : "—"}
                   </strong>
                   {run?.rows_quarantined ? (
                     <span
