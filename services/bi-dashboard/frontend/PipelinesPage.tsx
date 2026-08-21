@@ -1,37 +1,43 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "./components/AppShell";
 import PipelineRow from "./components/PipelineRow";
+import {
+  getPipelines,
+  getRunStatus,
+  Pipeline,
+  PipelineRun,
+} from "./api/pipelinesClient";
 
-const PIPELINES = [
-  {
-    id: "1",
-    pipelineName: "Orders ETL",
-    source: "PostgreSQL",
-    target: "Data Warehouse",
-    status: "Running" as const,
-    lastRunTime: "2 min ago",
-  },
-  {
-    id: "2",
-    pipelineName: "Customer Sync",
-    source: "MySQL",
-    target: "Data Warehouse",
-    status: "Completed" as const,
-    lastRunTime: "1 hr ago",
-  },
-  {
-    id: "3",
-    pipelineName: "Inventory Load",
-    source: "MSSQL",
-    target: "Data Warehouse",
-    status: "Failed" as const,
-    lastRunTime: "3 hr ago",
-  },
-];
+const statusMap: Record<
+  string,
+  "Running" | "Completed" | "Failed" | "Pending"
+> = {
+  running: "Running",
+  succeeded: "Completed",
+  completed_with_quarantine: "Completed",
+  failed: "Failed",
+  pending: "Pending",
+  cancelled: "Pending",
+};
 
 export default function PipelinesPage() {
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = PIPELINES.find((p) => p.id === selectedId) ?? null;
+  const [run, setRun] = useState<PipelineRun | null>(null);
+
+  useEffect(() => {
+    getPipelines().then(setPipelines);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    setRun(null);
+    getRunStatus(selectedId, "latest")
+      .then(setRun)
+      .catch(() => setRun(null));
+  }, [selectedId]);
+
+  const selected = pipelines.find((p) => p.id === selectedId) ?? null;
 
   return (
     <AppShell pageTitle="Pipeline Monitor" userRole="admin">
@@ -74,7 +80,7 @@ export default function PipelinesPage() {
           >
             <option value="">Tüm Durumlar</option>
             <option value="running">Running</option>
-            <option value="completed">Completed</option>
+            <option value="succeeded">Completed</option>
             <option value="failed">Failed</option>
             <option value="pending">Pending</option>
           </select>
@@ -103,10 +109,14 @@ export default function PipelinesPage() {
               overflowY: "auto",
             }}
           >
-            {PIPELINES.map((p) => (
+            {pipelines.map((p) => (
               <PipelineRow
                 key={p.id}
-                {...p}
+                pipelineName={p.name}
+                source={p.source.connector_type}
+                target={p.target.object}
+                status={statusMap[run?.status ?? "pending"] ?? "Pending"}
+                lastRunTime={p.created_at}
                 selected={selectedId === p.id}
                 onSelect={() => setSelectedId(p.id)}
               />
@@ -132,7 +142,7 @@ export default function PipelinesPage() {
                       marginBottom: "8px",
                     }}
                   >
-                    {selected.pipelineName}
+                    {selected.name}
                   </div>
                   <div
                     style={{
@@ -143,18 +153,15 @@ export default function PipelinesPage() {
                     }}
                   >
                     <span>
-                      Kaynak: <strong>{selected.source}</strong>
+                      Kaynak: <strong>{selected.source.connector_type}</strong>
                     </span>
                     <span>
-                      Hedef: <strong>{selected.target}</strong>
-                    </span>
-                    <span>
-                      Son çalışma: <strong>{selected.lastRunTime}</strong>
+                      Hedef: <strong>{selected.target.object}</strong>
                     </span>
                   </div>
                 </div>
 
-                {/* Row count — static placeholder */}
+                {/* Row count */}
                 <div
                   style={{
                     padding: "10px 14px",
@@ -163,7 +170,20 @@ export default function PipelinesPage() {
                     fontSize: "12px",
                   }}
                 >
-                  İşlenen satır sayısı: <strong>— (M5'te bağlanacak)</strong>
+                  İşlenen satır:{" "}
+                  <strong>
+                    {run ? run.rows_written.toLocaleString() : "—"}
+                  </strong>
+                  {run?.rows_quarantined ? (
+                    <span
+                      style={{
+                        color: "var(--color-warning)",
+                        marginLeft: "12px",
+                      }}
+                    >
+                      Karantina: {run.rows_quarantined}
+                    </span>
+                  ) : null}
                 </div>
 
                 {/* Execution Log */}
@@ -188,27 +208,23 @@ export default function PipelinesPage() {
                       lineHeight: "1.8",
                     }}
                   >
-                    <div>
-                      [INFO] Pipeline başlatıldı — {selected.lastRunTime}
-                    </div>
-                    <div>
-                      [INFO] Kaynak bağlantısı kuruldu: {selected.source}
-                    </div>
-                    <div>[INFO] Veri çekme başladı...</div>
-                    {selected.status === "Failed" && (
-                      <div style={{ color: "#f87171" }}>
-                        [ERROR] Bağlantı zaman aşımına uğradı
-                      </div>
-                    )}
-                    {selected.status === "Completed" && (
-                      <div style={{ color: "#4ade80" }}>
-                        [SUCCESS] Pipeline tamamlandı
-                      </div>
-                    )}
-                    {selected.status === "Running" && (
-                      <div style={{ color: "#60a5fa" }}>
-                        [INFO] Çalışıyor...
-                      </div>
+                    {run ? (
+                      run.logs.map((log, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            color: log.includes("ERROR")
+                              ? "#f87171"
+                              : log.includes("SUCCESS")
+                                ? "#4ade80"
+                                : "#94a3b8",
+                          }}
+                        >
+                          {log}
+                        </div>
+                      ))
+                    ) : (
+                      <div>Yükleniyor...</div>
                     )}
                   </div>
                 </div>

@@ -1,7 +1,15 @@
+import { useEffect, useState } from "react";
 import AppShell from "./components/AppShell";
 import KPISummaryCard from "./components/KPISummaryCard";
+import { getKPISummary, KPISummary } from "./api/pipelinesClient";
 
 export default function HomePage() {
+  const [kpi, setKpi] = useState<KPISummary | null>(null);
+
+  useEffect(() => {
+    getKPISummary().then(setKpi);
+  }, []);
+
   return (
     <AppShell pageTitle="Home / Overview" userRole="admin">
       <div
@@ -13,14 +21,14 @@ export default function HomePage() {
       >
         <KPISummaryCard
           label="Active Pipelines"
-          value={24}
+          value={kpi?.activePipelines ?? "—"}
           trend="up"
           trendValue="+3 from yesterday"
           status="healthy"
         />
         <KPISummaryCard
           label="Data Quality Score"
-          value={87}
+          value={kpi?.dataQualityScore ?? "—"}
           unit="%"
           trend="up"
           trendValue="+2 from last week"
@@ -28,14 +36,16 @@ export default function HomePage() {
         />
         <KPISummaryCard
           label="Records Processed Today"
-          value="4.8M"
+          value={
+            kpi ? `${(kpi.recordsProcessedToday / 1_000_000).toFixed(1)}M` : "—"
+          }
           trend="neutral"
           trendValue="Updated 5 min ago"
           status="healthy"
         />
         <KPISummaryCard
           label="CDC Latency"
-          value={12}
+          value={kpi?.cdcLatencyMs ?? "—"}
           unit="ms"
           trend="down"
           trendValue="Above threshold"
