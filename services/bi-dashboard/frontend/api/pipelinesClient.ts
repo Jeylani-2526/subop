@@ -1,7 +1,6 @@
 // services/bi-dashboard/frontend/api/pipelinesClient.ts
-// T5 — Live wiring: mock'lar kaldırılacak, BASE_URL aktif edilecek
 
-const BASE_URL = "/api";
+const BASE_URL = "http://localhost:8000/api";
 
 // ─── Tipler ───────────────────────────────────
 
@@ -62,12 +61,6 @@ export interface ErrorEnvelope {
   retryable: boolean;
 }
 
-export interface RunLog {
-  timestamp: string;
-  level: "INFO" | "ERROR" | "SUCCESS";
-  message: string;
-}
-
 export interface PipelineRun {
   run_id: string;
   pipeline_id: string;
@@ -99,83 +92,7 @@ export interface CatalogAsset {
   lastUpdated: string;
 }
 
-// ─── Mock Data (Week 15'te kaldırılacak) ──────
-
-const MOCK_PIPELINES: Pipeline[] = [
-  {
-    id: "1",
-    name: "Orders ETL",
-    status: "created",
-    created_at: "2026-08-12T10:00:00Z",
-    source: {
-      connector_type: "postgresql",
-      connection_ref: "pg-main",
-      object: "orders",
-      query: null,
-    },
-    transformations: [],
-    target: {
-      connector_type: "postgresql",
-      connection_ref: "dw-main",
-      object: "fact_orders",
-      write_mode: "upsert",
-    },
-  },
-  {
-    id: "2",
-    name: "Customer Sync",
-    status: "created",
-    created_at: "2026-08-12T09:00:00Z",
-    source: {
-      connector_type: "mysql",
-      connection_ref: "mysql-main",
-      object: "customers",
-      query: null,
-    },
-    transformations: [],
-    target: {
-      connector_type: "postgresql",
-      connection_ref: "dw-main",
-      object: "dim_customers",
-      write_mode: "upsert",
-    },
-  },
-];
-
-const MOCK_RUNS: Record<string, PipelineRun> = {
-  "1": {
-    run_id: "run-001",
-    pipeline_id: "1",
-    status: "running",
-    started_at: "2026-08-12T10:00:00Z",
-    finished_at: null,
-    rows_read: 0,
-    rows_written: 0,
-    rows_quarantined: 0,
-    quality_score: null,
-    logs: [
-      "Pipeline başlatıldı",
-      "Kaynak bağlantısı kuruldu: postgresql",
-      "Veri çekme başladı...",
-    ],
-  },
-  "2": {
-    run_id: "run-002",
-    pipeline_id: "2",
-    status: "succeeded",
-    started_at: "2026-08-12T09:00:00Z",
-    finished_at: "2026-08-12T09:04:22Z",
-    rows_read: 42381,
-    rows_written: 42381,
-    rows_quarantined: 0,
-    quality_score: 0.97,
-    logs: [
-      "Pipeline başlatıldı",
-      "42.381 satır işlendi",
-      "Pipeline tamamlandı",
-    ],
-  },
-};
+// ─── Mock Data (KPI ve Catalog için — API endpoint yok henüz) ─
 
 const MOCK_KPI: KPISummary = {
   activePipelines: 24,
@@ -217,47 +134,38 @@ const MOCK_CATALOG: CatalogAsset[] = [
 // ─── API Fonksiyonları ────────────────────────
 
 export async function getPipelines(): Promise<Pipeline[]> {
-  // Week 15 live: return fetch(`${BASE_URL}/pipelines/`).then(r => r.json());
-  return Promise.resolve(MOCK_PIPELINES);
+  const res = await fetch(`${BASE_URL}/pipelines/`);
+  if (!res.ok) throw await res.json();
+  return res.json();
 }
 
 export async function createPipeline(
   payload: CreatePipelinePayload,
 ): Promise<Pipeline> {
-  // Week 15 live:
-  // const res = await fetch(`${BASE_URL}/pipelines/`, {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify(payload),
-  // });
-  // if (!res.ok) throw await res.json();
-  // return res.json();
-  const mock: Pipeline = {
-    id: String(Date.now()),
-    name: payload.name,
-    status: "created",
-    created_at: new Date().toISOString(),
-    source: payload.source,
-    transformations: payload.transformations,
-    target: payload.target,
-  };
-  return Promise.resolve(mock);
+  const res = await fetch(`${BASE_URL}/pipelines/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw await res.json();
+  return res.json();
 }
 
 export async function getRunStatus(
   pipelineId: string,
   runId: string,
 ): Promise<PipelineRun> {
-  // Week 15 live: return fetch(`${BASE_URL}/pipelines/${pipelineId}/runs/${runId}`).then(r => r.json());
-  return Promise.resolve(MOCK_RUNS[pipelineId]);
+  const res = await fetch(`${BASE_URL}/pipelines/${pipelineId}/runs/${runId}`);
+  if (!res.ok) throw await res.json();
+  return res.json();
 }
 
 export async function getKPISummary(): Promise<KPISummary> {
-  // Week 15 live: return fetch(`${BASE_URL}/kpi/summary`).then(r => r.json());
+  // KPI endpoint henüz yok — mock devam ediyor
   return Promise.resolve(MOCK_KPI);
 }
 
 export async function getCatalogAssets(): Promise<CatalogAsset[]> {
-  // Week 15 live: return fetch(`${BASE_URL}/catalog/assets/`).then(r => r.json());
+  // Catalog endpoint henüz yok — mock devam ediyor
   return Promise.resolve(MOCK_CATALOG);
 }
