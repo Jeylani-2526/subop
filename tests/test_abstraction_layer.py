@@ -46,9 +46,7 @@ def test_execute_query_delegates_to_connector():
     )
 
     assert result == [{"id": 1, "name": "Alice"}]
-    assert connector.query_calls == [
-        ("SELECT * FROM users", {"active": True})
-    ]
+    assert connector.query_calls == [("SELECT * FROM users", {"active": True})]
 
 
 def test_execute_query_preserves_rows_without_column_metadata():
@@ -66,9 +64,7 @@ def test_execute_query_preserves_rows_without_column_metadata():
         database="postgresql",
     )
 
-    result = layer.execute_query(
-        "SELECT * FROM example"
-    )
+    result = layer.execute_query("SELECT * FROM example")
 
     assert result == connector.rows
 

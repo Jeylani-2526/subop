@@ -6,9 +6,14 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services" / "etl_engine"))
 sys.path.insert(
-    0, str(Path(__file__).resolve().parents[1] / "services" / "etl_engine" / "api")
+    0, str(Path(__file__).resolve().parents[1] / "services" / "etl_engine")
+)
+sys.path.insert(
+    0,
+    str(
+        Path(__file__).resolve().parents[1] / "services" / "etl_engine" / "api"
+    ),
 )
 
 import run_store  # noqa: E402
@@ -62,7 +67,9 @@ def reset_state(monkeypatch):
             retryable=False,
         )
 
-    monkeypatch.setattr(connection_resolver, "resolve_connection", _fail_resolve)
+    monkeypatch.setattr(
+        connection_resolver, "resolve_connection", _fail_resolve
+    )
     yield
     run_store.clear_runs()
     pipeline_store.clear_pipelines()
@@ -125,7 +132,9 @@ def test_create_pipeline_compliance_failure_returns_422(monkeypatch):
             "No completed VERBİS registration found."
         )
 
-    monkeypatch.setattr(compliance_check, "check_verbis_registration", _fail_check)
+    monkeypatch.setattr(
+        compliance_check, "check_verbis_registration", _fail_check
+    )
     # app.py imported the function by name, so patch it there too.
     import app as app_module
 
@@ -184,7 +193,9 @@ def test_get_run_status_reachable_after_creation():
 
 
 def test_get_run_status_unknown_pipeline_returns_404():
-    response = client.get("/api/pipelines/does-not-exist/runs/does-not-exist-either")
+    response = client.get(
+        "/api/pipelines/does-not-exist/runs/does-not-exist-either"
+    )
 
     assert response.status_code == 404
     assert response.json()["error_code"] == "PIPELINE_NOT_FOUND"

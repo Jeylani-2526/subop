@@ -66,11 +66,11 @@ jobs:
         env:
           ACCEPT_EULA: Y
           MSSQL_PID: Developer
-          MSSQL_SA_PASSWORD: YourStrong!Passw0rd
+          MSSQL_SA_PASSWORD: SubopDev123!
         ports:
           - 1433:1433
         options: >-
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' -C -N"
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'SubopDev123!' -Q 'SELECT 1' -C -N"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
@@ -101,31 +101,26 @@ jobs:
             pip install pytest psycopg2-binary pymysql pyodbc
           fi
           
-      - name: Run tests
+      - name: Run full test suite
         run: |
-          if find services/ -name "test_*.py" | grep -q .; then
-            pytest services/ -v --tb=short
-          else
-            echo "No test files yet — skipping pytest."
-          fi
+          python -m pytest -v --tb=short
         env:
           DATABASE_URL: postgresql://subop_test:subop_test@localhost:5432/subop_test
-      - name: Run connector tests
-        run: |
-          pytest tests/test_postgres_connector.py tests/test_mysql_connector.py tests/test_mssql_connector.py tests/test_type_mapping.py tests/test_abstraction_layer.py -v --tb=short
-        env:
+
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
           POSTGRES_DB: subop_test
           POSTGRES_USER: subop_test
           POSTGRES_PASSWORD: subop_test
+
           MYSQL_HOST: localhost
           MYSQL_PORT: 3306
           MYSQL_DATABASE: subop
           MYSQL_USER: subop_app
           MYSQL_PASSWORD: mysql_dev
+
           MSSQL_HOST: localhost
           MSSQL_PORT: 1433
           MSSQL_DATABASE: master
           MSSQL_USERNAME: sa
-          MSSQL_PASSWORD: YourStrong!Passw0rd
+          MSSQL_SA_PASSWORD: SubopDev123!
