@@ -9,8 +9,7 @@
 - Repo audit ahead of this sync (main and develop, both current) shows real progress beyond what Week 13's opening audit found:
   - `type_mapping.py` and `abstraction_layer.py` are now both present in `services/abstraction/` on both branches.
   - The `retryable` attribute is now present on `ConnectorError` for all three connectors (PostgreSQL, MySQL, MSSQL) — confirmed directly in `postgres_connector.py`.
-- **One criteria are still open as of this sync — say so explicitly:**
-  - **Zero-code-change demonstration:** no `demo_zero_code_change.py` exists in the repo yet. Ask Omer to confirm today's/this week's date for presenting it live — do not treat this criterion as Done until the live run happens.
+  - **Update since this agenda was first drafted:** `demo_zero_code_change.py` now exists on `main` (199 lines, a real implementation — not a stub), and the live demonstration to the team has since taken place and is confirmed Done. This criterion is closed; no open item remains here.
  
 
 **2. Review the ETL Engine input/output contracts and module boundaries (15 min)**
@@ -53,13 +52,14 @@ This was the Week 11 outline's open item (Section 7 of the outline) — confirm 
 
 ### M4 Closure — Confirmed Status
 
-- **Abstraction layer implementation (Omer): ☑ Landed in repo, pending live demonstration.**
+- **Abstraction layer implementation (Omer): ☑ Confirmed Done.**
   Evidence: `type_mapping.py` and `abstraction_layer.py` present in `services/abstraction/` on both `main` and `develop`; `retryable` attribute present on `ConnectorError` for all three connectors. Verified directly against the live repo ahead of this sync, not assumed from the plan.
 
-- **Zero-code-change demonstration (Omer): ☐ NOT yet confirmed — open.**
-  Evidence: no `demo_zero_code_change.py` found in the repo as of this sync. Per Abdullah's check ahead of the meeting, the demo is scheduled to be presented live at the next team sync — do not mark this M4 success criterion Done until that happens.
+- **Zero-code-change demonstration (Omer): ☑ Confirmed Done.**
+  Evidence: `demo_zero_code_change.py` exists on `main` (199 lines, a real implementation exercising PostgreSQL, MySQL, and MSSQL through the same code path — not a stub). The live demonstration to the team has taken place and is confirmed complete.
 
-- **CI status (Omer): _to be confirmed live_ — clean-environment run against the full suite, independent of the demo.**
+- **CI status (Omer): ☑ Confirmed Done.**
+  The test-discovery gap found during T3/T4 build (dead `find services/` check; hardcoded 5-file list missing `test_run_store.py` and this week's new tests) has been fixed by Omer on `develop` — `test` job now runs a plain `pytest -v --tb=short` from repo root, which auto-discovers everything. Verified directly: **91 tests** now collect (up from 5), all **76** DB-independent ones pass under that exact invocation, and the workflow properly installs the real MSSQL ODBC driver so the 3 live-DB connector tests run against real containers in CI. Closed — no live confirmation needed, already checked against the live repo.
 
 - **VERBİS / naming-ambiguity closure (Abdullah): ☑ Confirmed Finalized.**
   Both `verbis_interface_proposal_v1.md` and `naming_ambiguity_resolution_v1.md` are Status: Finalized on `main`.
@@ -88,9 +88,9 @@ This was the Week 11 outline's open item (Section 7 of the outline) — confirm 
 ### Action Items
 | Owner | Action | Due |
 |---|---|---|
-| Omer | Present zero-code-change demonstration live in team sync | Next sync |
-| Omer | Confirm clean-environment CI run (full suite) independent of demo | Next sync |
-| Abdullah | Write M4 Completion Checklist once demonstration is confirmed | This week, after demo |
+| ~~Omer~~ | ~~Present zero-code-change demonstration live in team sync~~ | **Done** |
+| ~~Omer~~ | ~~Confirm clean-environment CI run (full suite) independent of demo~~ | **Done** |
+| Abdullah | Write M4 Completion Checklist now that the demonstration is confirmed | This week |
 | Abdullah | Send M4 final advisor report & M5 readiness summary | Sun 9 Aug EOD |
 | Beyza | Confirm data-wiring surface list is current, flag any changes | This sync |
 | _team_ | Confirm no objections to ETL Engine contracts Sections 2–7 as binding for M5 | This sync |
