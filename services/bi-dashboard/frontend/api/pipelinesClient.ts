@@ -1,6 +1,6 @@
 // services/bi-dashboard/frontend/api/pipelinesClient.ts
 
-const BASE_URL = "http://localhost:8000/api";
+const BASE_URL = "http://localhost:5433/api";
 
 // ─── Tipler ───────────────────────────────────
 
