@@ -243,9 +243,11 @@ const MOCK_CATALOG: CatalogAsset[] = [
 
 // ─── API Fonksiyonları ────────────────────────
 
-// GET endpoint henüz yok — mock
+// Canlı API
 export async function getPipelines(): Promise<Pipeline[]> {
-  return Promise.resolve(MOCK_PIPELINES);
+  const res = await fetch(`${BASE_URL}/pipelines/`);
+  if (!res.ok) throw await res.json();
+  return res.json();
 }
 
 // Canlı API
