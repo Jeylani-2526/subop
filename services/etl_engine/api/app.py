@@ -6,10 +6,9 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from fastapi import Body, FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -28,14 +27,6 @@ from compliance_check import (  # noqa: E402
 from pipeline import PipelineValidationError, parse_pipeline  # noqa: E402
 
 app = FastAPI(title="SUBOP ETL Engine API")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -59,6 +50,12 @@ def _error_envelope(
         "connector_type": connector_type,
         "retryable": retryable,
     }
+
+
+@app.get("/api/pipelines/")
+def list_pipelines_route():
+    """GET /api/pipelines/ — tüm pipeline'ları listele."""
+    return JSONResponse(status_code=200, content=pipeline_store.list_pipelines())
 
 
 @app.post("/api/pipelines/", status_code=201)

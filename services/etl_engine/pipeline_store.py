@@ -68,3 +68,8 @@ def pipeline_exists(pipeline_id: str) -> bool:
 def clear_pipelines() -> None:
     """Remove all stored pipelines from the in-memory store (test support)."""
     _pipelines.clear()
+
+
+def list_pipelines() -> List[Dict[str, Any]]:
+    """Return all stored pipelines as a list."""
+    return [deepcopy(p) for p in _pipelines.values()]
