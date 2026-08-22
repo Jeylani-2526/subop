@@ -52,6 +52,7 @@ export interface Pipeline {
   source: PipelineSource;
   transformations: TransformationStep[];
   target: PipelineTarget;
+  run_id?: string; // API'den geliyor
 }
 
 export interface ErrorEnvelope {
@@ -268,7 +269,6 @@ export async function getRunStatus(
   pipelineId: string,
   runId: string,
 ): Promise<PipelineRun> {
-  if (runId === "latest") return Promise.resolve(MOCK_RUNS[pipelineId]);
   const res = await fetch(`${BASE_URL}/pipelines/${pipelineId}/runs/${runId}`);
   if (!res.ok) throw await res.json();
   return res.json();

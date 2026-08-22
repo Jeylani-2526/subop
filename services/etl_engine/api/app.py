@@ -90,6 +90,16 @@ def create_pipeline_route(payload: Dict[str, Any] = Body(...)):
 
     executor.execute_pipeline(parsed, pipeline_id=record["id"])
 
+    # run_id'yi response'a ve pipeline_store'a ekle
+    all_runs = [
+        run_store.get_run(rid)
+        for rid in run_store._runs
+        if run_store._runs[rid]["pipeline_id"] == record["id"]
+    ]
+    if all_runs:
+        record["run_id"] = all_runs[0]["run_id"]
+        pipeline_store._pipelines[record["id"]]["run_id"] = all_runs[0]["run_id"]
+
     return JSONResponse(status_code=201, content=record)
 
 

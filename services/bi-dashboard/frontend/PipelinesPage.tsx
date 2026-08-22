@@ -37,19 +37,38 @@ function formatDate(iso: string): string {
 export default function PipelinesPage() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [run, setRun] = useState<PipelineRun | null>(null);
+  const [runs, setRuns] = useState<Record<string, PipelineRun>>({});
+  const [selectedRun, setSelectedRun] = useState<PipelineRun | null>(null);
+  const [loadingRun, setLoadingRun] = useState(false);
 
   useEffect(() => {
     getPipelines().then(setPipelines);
   }, []);
 
+  // Her pipeline için run_id varsa status çek
+  useEffect(() => {
+    pipelines.forEach((p) => {
+      if (!p.run_id) return;
+      getRunStatus(p.id, p.run_id)
+        .then((run) => setRuns((prev) => ({ ...prev, [p.id]: run })))
+        .catch(() => {});
+    });
+  }, [pipelines]);
+
+  // Seçili pipeline'ın run'ını göster
   useEffect(() => {
     if (!selectedId) return;
-    setRun(null);
-    getRunStatus(selectedId, "latest")
-      .then(setRun)
-      .catch(() => setRun(null));
-  }, [selectedId]);
+    const pipeline = pipelines.find((p) => p.id === selectedId);
+    if (!pipeline?.run_id) return;
+    setLoadingRun(true);
+    getRunStatus(selectedId, pipeline.run_id)
+      .then((run) => {
+        setSelectedRun(run);
+        setRuns((prev) => ({ ...prev, [selectedId]: run }));
+      })
+      .catch(() => setSelectedRun(null))
+      .finally(() => setLoadingRun(false));
+  }, [selectedId, pipelines]);
 
   const selected = pipelines.find((p) => p.id === selectedId) ?? null;
 
@@ -63,7 +82,7 @@ export default function PipelinesPage() {
           minHeight: 0,
         }}
       >
-        {/* Zone 1 — Filtre Bar */}
+        {/* Zone 1 */}
         <div
           style={{
             display: "flex",
@@ -109,11 +128,11 @@ export default function PipelinesPage() {
           />
         </div>
 
-        {/* Zone 2 + Zone 3 */}
+        {/* Zone 2 + 3 */}
         <div
           style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}
         >
-          {/* Zone 2 — Sol Panel */}
+          {/* Zone 2 */}
           <div
             style={{
               width: "320px",
@@ -123,27 +142,27 @@ export default function PipelinesPage() {
               overflowY: "auto",
             }}
           >
-            {pipelines.map((p) => (
-              <PipelineRow
-                key={p.id}
-                pipelineName={p.name}
-                source={p.source.connector_type}
-                target={p.target.object}
-                status={
-                  p.id === "1"
-                    ? "Running"
-                    : p.id === "2"
-                      ? "Completed"
-                      : "Failed"
-                }
-                lastRunTime={formatDate(p.created_at)}
-                selected={selectedId === p.id}
-                onSelect={() => setSelectedId(p.id)}
-              />
-            ))}
+            {pipelines.map((p) => {
+              const run = runs[p.id];
+              const status = run
+                ? (statusMap[run.status] ?? "Pending")
+                : "Pending";
+              return (
+                <PipelineRow
+                  key={p.id}
+                  pipelineName={p.name}
+                  source={p.source.connector_type}
+                  target={p.target.object}
+                  status={status}
+                  lastRunTime={formatDate(p.created_at)}
+                  selected={selectedId === p.id}
+                  onSelect={() => setSelectedId(p.id)}
+                />
+              );
+            })}
           </div>
 
-          {/* Zone 3 — Sağ Detay Panel */}
+          {/* Zone 3 */}
           <div style={{ flex: 1, padding: "20px", overflowY: "auto" }}>
             {selected ? (
               <div
@@ -153,7 +172,6 @@ export default function PipelinesPage() {
                   gap: "16px",
                 }}
               >
-                {/* Metadata */}
                 <div>
                   <div
                     style={{
@@ -185,7 +203,6 @@ export default function PipelinesPage() {
                   </div>
                 </div>
 
-                {/* Row count */}
                 <div
                   style={{
                     padding: "10px 14px",
@@ -196,21 +213,22 @@ export default function PipelinesPage() {
                 >
                   İşlenen satır:{" "}
                   <strong>
-                    {run ? run.rows_written.toLocaleString("tr-TR") : "—"}
+                    {selectedRun
+                      ? selectedRun.rows_written.toLocaleString("tr-TR")
+                      : "—"}
                   </strong>
-                  {run?.rows_quarantined ? (
+                  {selectedRun?.rows_quarantined ? (
                     <span
                       style={{
                         color: "var(--color-warning)",
                         marginLeft: "12px",
                       }}
                     >
-                      Karantina: {run.rows_quarantined}
+                      Karantina: {selectedRun.rows_quarantined}
                     </span>
                   ) : null}
                 </div>
 
-                {/* Execution Log */}
                 <div>
                   <div
                     style={{
@@ -232,28 +250,35 @@ export default function PipelinesPage() {
                       lineHeight: "1.8",
                     }}
                   >
-                    {run ? (
-                      run.logs.map((log, i) => (
+                    {loadingRun ? (
+                      <div>Yükleniyor...</div>
+                    ) : selectedRun ? (
+                      selectedRun.logs.map((log, i) => (
                         <div
                           key={i}
                           style={{
-                            color: log.includes("ERROR")
-                              ? "#f87171"
-                              : log.includes("SUCCESS")
-                                ? "#4ade80"
-                                : "#94a3b8",
+                            color:
+                              log.includes("ERROR") || log.includes("failed")
+                                ? "#f87171"
+                                : log.includes("succeeded") ||
+                                    log.includes("Wrote")
+                                  ? "#4ade80"
+                                  : "#94a3b8",
                           }}
                         >
                           {log}
                         </div>
                       ))
                     ) : (
-                      <div>Yükleniyor...</div>
+                      <div>
+                        {selected.run_id
+                          ? "Log bulunamadı"
+                          : "Bu pipeline için henüz run yok"}
+                      </div>
                     )}
                   </div>
                 </div>
 
-                {/* BI Analyst kısıtlı görünüm notu */}
                 <div
                   style={{
                     fontSize: "11px",
