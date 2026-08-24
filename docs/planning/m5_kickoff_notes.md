@@ -69,7 +69,7 @@ This was the Week 11 outline's open item (Section 7 of the outline) — confirm 
 
 - **Frontend components / shell (Beyza): ☑ Confirmed built and wired**, per repo audit and `component_status_m5_handoff_v1.md`.
 
-- **M4 Completion Checklist (Abdullah): ☐ Not yet written — correctly scheduled for after the demonstration, not before.**
+- **M4 Completion Checklist (Abdullah):☑ Confirmed .**
 
 - Any other M4 loose end raised in the sync: _to be filled live_
 
