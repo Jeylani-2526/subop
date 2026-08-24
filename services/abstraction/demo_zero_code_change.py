@@ -45,38 +45,32 @@ def run_demo(layer: AbstractionLayer) -> list[dict[str, Any]]:
     layer.execute_write(f"DROP TABLE IF EXISTS {TABLE_NAME}")
 
     # Create the same simple demo table on every supported database.
-    layer.execute_write(
-        f"""
+    layer.execute_write(f"""
         CREATE TABLE {TABLE_NAME} (
             id INT PRIMARY KEY,
             name VARCHAR(100),
             email VARCHAR(255),
             phone VARCHAR(50)
         )
-        """
-    )
+        """)
 
     # Insert the same demo record using the shared abstraction interface.
     # No database-specific parameter placeholder is required here.
-    layer.execute_write(
-        f"""
+    layer.execute_write(f"""
         INSERT INTO {TABLE_NAME} (id, name, email, phone)
         VALUES (1, 'Alice', 'alice@example.com', '+491111111111'),
             (2, 'Bob', 'bob@example.com', '+492222222222'),
             (3, 'Charlie', 'charlie@example.com', '+493333333333'),
             (4, 'David', 'david@example.com', '+494444444444'),
             (5, 'Emma', 'emma@example.com', '+495555555555')
-        """
-    )
+        """)
 
     # Read the inserted record back using exactly the same query logic.
-    rows = layer.execute_query(
-        f"""
+    rows = layer.execute_query(f"""
         SELECT id, name, email, phone
         FROM {TABLE_NAME}
         ORDER BY id
-        """
-    )
+        """)
 
     # Return the database-independent List[Dict[str, Any]] result.
     return rows
