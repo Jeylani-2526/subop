@@ -324,9 +324,9 @@ class UniversalTypeMapper:
         # Approximate floating-point values must be marked as inexact.
         if condition == "inexact":
             metadata["inexact"] = True
-            metadata["reason"] = (
-                "PostgreSQL source type uses binary floating-point semantics."
-            )
+            metadata[
+                "reason"
+            ] = "PostgreSQL source type uses binary floating-point semantics."
 
         # UUID has no dedicated canonical v1 type.
         if normalized_type == "uuid":
@@ -423,9 +423,9 @@ class UniversalTypeMapper:
         # They map to DECIMAL but are marked as inexact as required by v1.
         if condition == "inexact":
             metadata["inexact"] = True
-            metadata["reason"] = (
-                "MySQL source type uses binary floating-point semantics."
-            )
+            metadata[
+                "reason"
+            ] = "MySQL source type uses binary floating-point semantics."
 
         # ENUM falls back to VARCHAR while retaining its schema identity
         # through metadata when the abstraction layer needs it.
@@ -513,9 +513,9 @@ class UniversalTypeMapper:
         # FLOAT and REAL map to DECIMAL but must remain visibly inexact.
         if condition == "inexact":
             metadata["inexact"] = True
-            metadata["reason"] = (
-                "SQL Server source type uses binary floating-point semantics."
-            )
+            metadata[
+                "reason"
+            ] = "SQL Server source type uses binary floating-point semantics."
 
         # Keep deprecated native-type information for compatibility and
         # migration diagnostics without adding columns to query results.

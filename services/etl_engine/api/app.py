@@ -107,9 +107,7 @@ def create_pipeline_route(payload: Dict[str, Any] = Body(...)):
     ]
     if all_runs:
         record["run_id"] = all_runs[0]["run_id"]
-        pipeline_store._pipelines[record["id"]]["run_id"] = (
-            all_runs[0]["run_id"]
-        )
+        pipeline_store._pipelines[record["id"]]["run_id"] = all_runs[0]["run_id"]
 
     return JSONResponse(status_code=201, content=record)
 
