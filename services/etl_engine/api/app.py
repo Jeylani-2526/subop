@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,19 +54,25 @@ def _error_envelope(
 
 @app.get("/api/pipelines/")
 def list_pipelines_route():
-    """GET /api/pipelines/ — tüm pipeline'ları listele."""
-    return JSONResponse(status_code=200, content=pipeline_store.list_pipelines())
+    """GET /api/pipelines/ - tum pipeline'lari listele."""
+    return JSONResponse(
+        status_code=200,
+        content=pipeline_store.list_pipelines(),
+    )
 
 
 @app.post("/api/pipelines/", status_code=201)
 def create_pipeline_route(payload: Dict[str, Any] = Body(...)):
-    """POST /api/pipelines/ — API spec Section 3."""
+    """POST /api/pipelines/ - API spec Section 3."""
     try:
         parsed = parse_pipeline(payload)
     except PipelineValidationError as exc:
         return JSONResponse(
             status_code=400,
-            content=_error_envelope("DSL_VALIDATION_FAILED", "; ".join(exc.errors)),
+            content=_error_envelope(
+                "DSL_VALIDATION_FAILED",
+                "; ".join(exc.errors),
+            ),
         )
 
     try:
@@ -78,7 +84,10 @@ def create_pipeline_route(payload: Dict[str, Any] = Body(...)):
     except ComplianceCheckFailed as exc:
         return JSONResponse(
             status_code=422,
-            content=_error_envelope("VERBIS_REGISTRATION_INCOMPLETE", exc.message),
+            content=_error_envelope(
+                "VERBIS_REGISTRATION_INCOMPLETE",
+                exc.message,
+            ),
         )
 
     record = pipeline_store.create_pipeline(
@@ -98,19 +107,22 @@ def create_pipeline_route(payload: Dict[str, Any] = Body(...)):
     ]
     if all_runs:
         record["run_id"] = all_runs[0]["run_id"]
-        pipeline_store._pipelines[record["id"]]["run_id"] = all_runs[0]["run_id"]
+        pipeline_store._pipelines[record["id"]]["run_id"] = (
+            all_runs[0]["run_id"]
+        )
 
     return JSONResponse(status_code=201, content=record)
 
 
 @app.get("/api/pipelines/{pipeline_id}/runs/{run_id}")
 def get_run_status_route(pipeline_id: str, run_id: str):
-    """GET /api/pipelines/{id}/runs/{run_id} — API spec Section 4."""
+    """GET /api/pipelines/{id}/runs/{run_id} - API spec Section 4."""
     if not pipeline_store.pipeline_exists(pipeline_id):
         return JSONResponse(
             status_code=404,
             content=_error_envelope(
-                "PIPELINE_NOT_FOUND", f"Pipeline '{pipeline_id}' not found."
+                "PIPELINE_NOT_FOUND",
+                f"Pipeline '{pipeline_id}' not found.",
             ),
         )
 
@@ -119,7 +131,10 @@ def get_run_status_route(pipeline_id: str, run_id: str):
     except KeyError:
         return JSONResponse(
             status_code=404,
-            content=_error_envelope("RUN_NOT_FOUND", f"Run '{run_id}' not found."),
+            content=_error_envelope(
+                "RUN_NOT_FOUND",
+                f"Run '{run_id}' not found.",
+            ),
         )
 
     if run["pipeline_id"] != pipeline_id:

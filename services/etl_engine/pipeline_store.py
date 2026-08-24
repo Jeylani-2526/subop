@@ -1,11 +1,5 @@
 """
 In-memory persistence layer for created ETL pipelines.
-
-Mirrors run_store.py's pattern (M5W15T2) so both stores behave
-consistently — defensive copies in and out, KeyError for unknown ids.
-Holds the 201-response shape from etl_engine_api_spec_v1.md Section
-3.2 so GET .../runs/{run_id} (Section 4) can confirm a pipeline_id
-exists before looking up a run under it.
 """
 
 from __future__ import annotations
@@ -29,13 +23,7 @@ def create_pipeline(
     transformations: List[Dict[str, Any]],
     target: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """
-    Create and persist a new pipeline record.
-
-    Returns the exact 201 response shape (API spec Section 3.2):
-    {id, name, status: "created", created_at, source, transformations,
-    target}.
-    """
+    """Create and persist a new pipeline record."""
     pipeline_id = str(uuid4())
 
     record = {
@@ -54,7 +42,7 @@ def create_pipeline(
 
 
 def get_pipeline(pipeline_id: str) -> Dict[str, Any]:
-    """Return a stored pipeline record by its id. Raises KeyError if unknown."""
+    """Return a stored pipeline record by id. Raises KeyError if unknown."""
     if pipeline_id not in _pipelines:
         raise KeyError(f"Pipeline '{pipeline_id}' not found.")
 
@@ -66,7 +54,7 @@ def pipeline_exists(pipeline_id: str) -> bool:
 
 
 def clear_pipelines() -> None:
-    """Remove all stored pipelines from the in-memory store (test support)."""
+    """Remove all stored pipelines (test support)."""
     _pipelines.clear()
 
 
