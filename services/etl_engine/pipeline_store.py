@@ -61,3 +61,14 @@ def clear_pipelines() -> None:
 def list_pipelines() -> List[Dict[str, Any]]:
     """Return all stored pipelines as a list."""
     return [deepcopy(p) for p in _pipelines.values()]
+
+
+def set_latest_run_id(pipeline_id: str, run_id: str) -> Dict[str, Any]:
+    """
+    Attach the id of a pipeline's most recent run to its record.
+    """
+    if pipeline_id not in _pipelines:
+        raise KeyError(f"Pipeline '{pipeline_id}' not found.")
+
+    _pipelines[pipeline_id]["run_id"] = run_id
+    return deepcopy(_pipelines[pipeline_id])
