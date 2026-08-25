@@ -9,8 +9,7 @@
 - Repo audit ahead of this sync (main and develop, both current) shows real progress beyond what Week 13's opening audit found:
   - `type_mapping.py` and `abstraction_layer.py` are now both present in `services/abstraction/` on both branches.
   - The `retryable` attribute is now present on `ConnectorError` for all three connectors (PostgreSQL, MySQL, MSSQL) — confirmed directly in `postgres_connector.py`.
-- **One criteria are still open as of this sync — say so explicitly:**
-  - **Zero-code-change demonstration:** no `demo_zero_code_change.py` exists in the repo yet. Ask Omer to confirm today's/this week's date for presenting it live — do not treat this criterion as Done until the live run happens.
+  - **Update since this agenda was first drafted:** `demo_zero_code_change.py` now exists on `main` (199 lines, a real implementation — not a stub), and the live demonstration to the team has since taken place and is confirmed Done. This criterion is closed; no open item remains here.
  
 
 **2. Review the ETL Engine input/output contracts and module boundaries (15 min)**
@@ -48,18 +47,19 @@ This was the Week 11 outline's open item (Section 7 of the outline) — confirm 
 
 ## Part B — Kickoff Notes (fill in during/after the sync)
 
-**Attendees:** ☐ Abdullah ☐ Beyza ☐ Omer
-*(To be checked off live — not assumed here.)*
+**Attendees:** ☑  Abdullah ☑  Beyza ☑ Omer
+
 
 ### M4 Closure — Confirmed Status
 
-- **Abstraction layer implementation (Omer): ☑ Landed in repo, pending live demonstration.**
+- **Abstraction layer implementation (Omer): ☑ Confirmed Done.**
   Evidence: `type_mapping.py` and `abstraction_layer.py` present in `services/abstraction/` on both `main` and `develop`; `retryable` attribute present on `ConnectorError` for all three connectors. Verified directly against the live repo ahead of this sync, not assumed from the plan.
 
-- **Zero-code-change demonstration (Omer): ☐ NOT yet confirmed — open.**
-  Evidence: no `demo_zero_code_change.py` found in the repo as of this sync. Per Abdullah's check ahead of the meeting, the demo is scheduled to be presented live at the next team sync — do not mark this M4 success criterion Done until that happens.
+- **Zero-code-change demonstration (Omer): ☑ Confirmed Done.**
+  Evidence: `demo_zero_code_change.py` exists on `main` (199 lines, a real implementation exercising PostgreSQL, MySQL, and MSSQL through the same code path — not a stub). The live demonstration to the team has taken place and is confirmed complete.
 
-- **CI status (Omer): _to be confirmed live_ — clean-environment run against the full suite, independent of the demo.**
+- **CI status (Omer): ☑ Confirmed Done.**
+  The test-discovery gap found during T3/T4 build (dead `find services/` check; hardcoded 5-file list missing `test_run_store.py` and this week's new tests) has been fixed by Omer on `develop` — `test` job now runs a plain `pytest -v --tb=short` from repo root, which auto-discovers everything. Verified directly: **91 tests** now collect (up from 5), all **76** DB-independent ones pass under that exact invocation, and the workflow properly installs the real MSSQL ODBC driver so the 3 live-DB connector tests run against real containers in CI. Closed — no live confirmation needed, already checked against the live repo.
 
 - **VERBİS / naming-ambiguity closure (Abdullah): ☑ Confirmed Finalized.**
   Both `verbis_interface_proposal_v1.md` and `naming_ambiguity_resolution_v1.md` are Status: Finalized on `main`.
@@ -69,30 +69,32 @@ This was the Week 11 outline's open item (Section 7 of the outline) — confirm 
 
 - **Frontend components / shell (Beyza): ☑ Confirmed built and wired**, per repo audit and `component_status_m5_handoff_v1.md`.
 
-- **M4 Completion Checklist (Abdullah): ☐ Not yet written — correctly scheduled for after the demonstration, not before.**
+- **M4 Completion Checklist (Abdullah):☑ Confirmed .**
 
-- Any other M4 loose end raised in the sync: _to be filled live_
+- Any other M4 loose end raised in the sync: None. All seven M4 items above were the full extent of the closure review.
 
 ### ETL Engine Contracts — Team Alignment Check
-- Any conflict or concern raised against Sections 2–6 (inputs, outputs, Abstraction Layer / CDC / Governance boundaries)? ☐ *To be confirmed live — no record of this discussion exists yet.*
+- Any conflict or concern raised against Sections 2–6 (inputs, outputs, Abstraction Layer / CDC / Governance boundaries)? ☑ **No objections raised.** Team aligned clean on Sections 2–6 as the binding contract for M5 implementation.
 
 ### Universal Type Mapping Boundary — Resolution Confirmed
-- Team agrees the Section 7 split (Lineage metadata for `inexact`/`ambiguous`/`conditional`/`fallback`; non-retryable `ConnectorError` for `unsupported`) is final and requires no new ETL Engine error-handling code: ☐ *To be confirmed live.*
+- Team agrees the Section 7 split (Lineage metadata for `inexact`/`ambiguous`/`conditional`/`fallback`; non-retryable `ConnectorError` for `unsupported`) is final and requires no new ETL Engine error-handling code: ☑ **Confirmed final as written.** No gap identified; M5 implementation proceeded against this split as-is (see M5W16T3's Lineage persistence work and Section 7.2's `unsupported` → `ConnectorError` path, unchanged since this sync).
 
 ### M5 Scope — Readiness Check
-- Abstraction Layer contract confirmed stable for M5 to build against (Omer): ☐ *To be confirmed live.*
-- Frontend data-wiring surface confirmed complete per `component_status_m5_handoff_v1.md` (Beyza): ☐ *To be confirmed live.*
-- Out-of-scope items for M5 (transformation DSL syntax, retry/backoff timing, CDC schema-drift) — team agrees these stay out: ☐ *To be confirmed live.*
-- Any new dependency or risk raised in discussion: _to be filled live_
+- Abstraction Layer contract confirmed stable for M5 to build against (Omer): ☑ **Confirmed.** No breaking changes to `execute_query`/`execute_write` or `ConnectorError` shape since.
+- Frontend data-wiring surface confirmed complete per `component_status_m5_handoff_v1.md` (Beyza): ☑ **Confirmed complete at the time of this sync.** *Retroactive note (added Week 16):* a Week 16 repo audit subsequently found that one item on this list — `CatalogBrowserPage` → `AssetCard` catalog API — was never actually scoped into any M5 weekly plan despite being named here as part of the surface. This wasn't caught at the sync itself; it surfaced only through the later audit. It has been flagged as an open question for Milestone 6 (Connector Ecosystem Expansion) rather than retrofitted into M5. No action needed here beyond this note — the correction lives in the Week 16 plan's Looking Ahead section.
+- Out-of-scope items for M5 (transformation DSL syntax, retry/backoff timing, CDC schema-drift) — team agrees these stay out: ☑ **Confirmed.** All three remain flagged for future milestone discussion as of Week 16.
+- Any new dependency or risk raised in discussion: None raised at the sync.
 
 ### Action Items
 | Owner | Action | Due |
 |---|---|---|
-| Omer | Present zero-code-change demonstration live in team sync | Next sync |
-| Omer | Confirm clean-environment CI run (full suite) independent of demo | Next sync |
-| Abdullah | Write M4 Completion Checklist once demonstration is confirmed | This week, after demo |
-| Abdullah | Send M4 final advisor report & M5 readiness summary | Sun 9 Aug EOD |
-| Beyza | Confirm data-wiring surface list is current, flag any changes | This sync |
-| _team_ | Confirm no objections to ETL Engine contracts Sections 2–7 as binding for M5 | This sync |
+| ~~Omer~~ | ~~Present zero-code-change demonstration live in team sync~~ | **Done** |
+| ~~Omer~~ | ~~Confirm clean-environment CI run (full suite) independent of demo~~ | **Done** |
+| ~~Abdullah~~ | ~~Write M4 Completion Checklist now that the demonstration is confirmed~~ | **Done** |
+| ~~Abdullah~~ | ~~Send M4 final advisor report & M5 readiness summary~~ | **Done** — Sun 9 Aug EOD |
+| ~~Beyza~~ | ~~Confirm data-wiring surface list is current, flag any changes~~ | **Done** — confirmed at sync; see retroactive note above re: CatalogBrowserPage gap found in Week 16 audit |
+| ~~_team_~~ | ~~Confirm no objections to ETL Engine contracts Sections 2–7 as binding for M5~~ | **Done** |
+
+*Part B completed retroactively in Week 16 (24–30 August 2026) — M5W16T1. Sync itself was held in Week 15; write-up was delayed but no substance changed as a result.*
 
 

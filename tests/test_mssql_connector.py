@@ -2,10 +2,10 @@ import os
 
 import pytest
 
+from services.connectors.errors import ConnectorError
 from services.connectors.mssql_connector import (
     MSSQLConnector,
     ConnectionConfig,
-    ConnectorError,
 )
 
 
@@ -17,11 +17,11 @@ def mssql_config():
         port=int(os.getenv("MSSQL_PORT", "1433")),
         database=os.getenv("MSSQL_DATABASE", "master"),
         username=os.getenv("MSSQL_USERNAME", "sa"),
-        password=os.getenv("MSSQL_PASSWORD", "YourOwn$trongDevPass1!"),
+        password=os.getenv("MSSQL_PASSWORD", "SubopDev123!"),
     )
 
 
-# Create a connected MSSQL connector for each test.
+# Create a connected MSSQL connector for each test
 @pytest.fixture
 def mssql_connector(mssql_config):
     connector = MSSQLConnector(mssql_config)
@@ -62,9 +62,7 @@ def test_health_check(mssql_connector):
 # Verify that SELECT queries return rows as dictionaries.
 def test_execute_query(mssql_connector):
     # Execute a simple MSSQL SELECT query with named result columns.
-    result = mssql_connector.execute_query(
-        "SELECT 1 AS id, 'SubOP' AS name"
-    )
+    result = mssql_connector.execute_query("SELECT 1 AS id, 'SubOP' AS name")
 
     # Confirm that exactly one row was returned.
     assert len(result) == 1
@@ -80,22 +78,18 @@ def test_execute_query(mssql_connector):
 # Verify that INSERT, UPDATE and DELETE operations can be executed.
 def test_execute_write(mssql_connector):
     # Remove the temporary test table if it already exists.
-    mssql_connector.execute_write(
-        """
+    mssql_connector.execute_write("""
         IF OBJECT_ID('dbo.subop_test', 'U') IS NOT NULL
             DROP TABLE dbo.subop_test
-        """
-    )
+        """)
 
     # Create a temporary table for the write test.
-    mssql_connector.execute_write(
-        """
+    mssql_connector.execute_write("""
         CREATE TABLE dbo.subop_test (
             id INT PRIMARY KEY,
             name VARCHAR(100)
         )
-        """
-    )
+        """)
 
     try:
         # Insert one test record into the table.
@@ -122,21 +116,17 @@ def test_execute_write(mssql_connector):
 
     finally:
         # Always remove the test table, even if an assertion fails.
-        mssql_connector.execute_write(
-            """
+        mssql_connector.execute_write("""
             IF OBJECT_ID('dbo.subop_test', 'U') IS NOT NULL
                 DROP TABLE dbo.subop_test
-            """
-        )
+            """)
 
 
 # Verify that malformed SQL raises a non-retryable ConnectorError.
 def test_malformed_query_raises_connector_error(mssql_connector):
     # Execute intentionally invalid SQL syntax.
     with pytest.raises(ConnectorError) as exc_info:
-        mssql_connector.execute_query(
-            "SELECT FROM WHERE"
-        )
+        mssql_connector.execute_query("SELECT FROM WHERE")
 
     # Confirm that the connector marks the error as non-retryable.
     assert exc_info.value.retryable is False

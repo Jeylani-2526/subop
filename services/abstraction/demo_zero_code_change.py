@@ -20,7 +20,7 @@ from services.connectors.mysql_connector import (
 )
 from services.connectors.mysql_connector import MySQLConnector
 
-# Import the PostgreSQL connector and its database-specific configuration class.
+# Import the PostgreSQL connector and its database-specific configuration class
 from services.connectors.postgres_connector import (
     ConnectionConfig as PostgresConnectionConfig,
 )
@@ -48,22 +48,28 @@ def run_demo(layer: AbstractionLayer) -> list[dict[str, Any]]:
     layer.execute_write(f"""
         CREATE TABLE {TABLE_NAME} (
             id INT PRIMARY KEY,
-            name VARCHAR(100)
+            name VARCHAR(100),
+            email VARCHAR(255),
+            phone VARCHAR(50)
         )
         """)
 
     # Insert the same demo record using the shared abstraction interface.
     # No database-specific parameter placeholder is required here.
     layer.execute_write(f"""
-        INSERT INTO {TABLE_NAME} (id, name)
-        VALUES (1, 'SubOP')
+        INSERT INTO {TABLE_NAME} (id, name, email, phone)
+        VALUES (1, 'Alice', 'alice@example.com', '+491111111111'),
+            (2, 'Bob', 'bob@example.com', '+492222222222'),
+            (3, 'Charlie', 'charlie@example.com', '+493333333333'),
+            (4, 'David', 'david@example.com', '+494444444444'),
+            (5, 'Emma', 'emma@example.com', '+495555555555')
         """)
 
     # Read the inserted record back using exactly the same query logic.
     rows = layer.execute_query(f"""
-        SELECT id, name
+        SELECT id, name, email, phone
         FROM {TABLE_NAME}
-        WHERE id = 1
+        ORDER BY id
         """)
 
     # Return the database-independent List[Dict[str, Any]] result.
@@ -170,7 +176,7 @@ def execute_database_demo(
 
     finally:
         # Always close the database connection,
-        # even if the demo raises an exception.
+        # even if the demo raises an exception
         connector.disconnect()
 
 

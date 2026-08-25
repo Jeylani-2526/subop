@@ -1,13 +1,13 @@
 import pymysql
 from pymysql import Error
 
+from services.connectors.errors import (
+    ConnectionError as ConnectorConnectionError,
+    QueryError,
+    WriteError,
+)
 
-class ConnectorError(Exception):
-    """Custom error for connector failures."""
-
-    def __init__(self, message, retryable=False):
-        super().__init__(message)
-        self.retryable = retryable
+_CONNECTOR_TYPE = "mysql"
 
 
 class ConnectionConfig:
@@ -37,7 +37,12 @@ class MySQLConnector:
                 password=self.config.password,
             )
         except Error as e:
-            raise ConnectorError(f"Connection failed: {e}", retryable=False)
+            raise ConnectorConnectionError(
+                f"Connection failed: {e}",
+                error_code="MYSQL_CONNECTION_FAILED",
+                connector_type=_CONNECTOR_TYPE,
+                retryable=False,
+            )
 
     def disconnect(self):
         """Close the current database connection."""
@@ -48,8 +53,10 @@ class MySQLConnector:
     def execute_query(self, sql, params=None):
         """Run a SELECT query and return rows as dictionaries."""
         if self.connection is None:
-            raise ConnectorError(
+            raise QueryError(
                 "Not connected. Call connect() first.",
+                error_code="MYSQL_NOT_CONNECTED",
+                connector_type=_CONNECTOR_TYPE,
                 retryable=False,
             )
         cursor = None
@@ -58,7 +65,12 @@ class MySQLConnector:
             cursor.execute(sql, params)
             return cursor.fetchall()
         except Error as e:
-            raise ConnectorError(f"Query failed: {e}", retryable=False)
+            raise QueryError(
+                f"Query failed: {e}",
+                error_code="MYSQL_QUERY_FAILED",
+                connector_type=_CONNECTOR_TYPE,
+                retryable=False,
+            )
         finally:
             if cursor is not None:
                 cursor.close()
@@ -66,8 +78,10 @@ class MySQLConnector:
     def execute_write(self, sql, params=None):
         """Run INSERT, UPDATE or DELETE and return affected row count."""
         if self.connection is None:
-            raise ConnectorError(
+            raise WriteError(
                 "Not connected. Call connect() first.",
+                error_code="MYSQL_NOT_CONNECTED",
+                connector_type=_CONNECTOR_TYPE,
                 retryable=False,
             )
         try:
@@ -78,7 +92,12 @@ class MySQLConnector:
             return affected_rows
         except Error as e:
             self.connection.rollback()
-            raise ConnectorError(f"Write failed: {e}", retryable=False)
+            raise WriteError(
+                f"Write failed: {e}",
+                error_code="MYSQL_WRITE_FAILED",
+                connector_type=_CONNECTOR_TYPE,
+                retryable=False,
+            )
         finally:
             if cursor is not None:
                 cursor.close()
