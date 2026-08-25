@@ -15,11 +15,28 @@ semantics (what a given `type` actually does to a row) are explicitly
 out of scope for M5 Week 15 — flagged as Week 16 hardening in the task
 plan. This module therefore implements the dispatch mechanism only: an
 ordered loop over `transformations`, tracking each step_id, calling out
-to a pluggable registry. With zero transformation types registered
-today, any pipeline whose `transformations` array is non-empty fails
-clearly with UNKNOWN_TRANSFORMATION_TYPE rather than guessing at
-semantics that haven't been decided yet. Week 16 registers real types
-via `register_transformation()` without changing anything else here.
+to a pluggable registry.
+
+Week 16 registers a first set of real transformation types via
+`register_transformation()` — rename_columns, type_cast,
+drop_null_rows, drop_columns — without changing the dispatch mechanism
+itself. Each type's `params` shape is deliberately minimal and
+documented inline on its handler; it is provisional Week-16 scope, not
+a finalized DSL spec (transformation DSL syntax is still explicitly
+flagged out of scope project-wide per the M5 kickoff notes).
+
+Week 16 also wires a synchronous Data Quality pre-write hook
+(data_quality_hook.py) into execute_pipeline(), ahead of the target
+write (contracts Section 6). It follows the same interface-first stub
+pattern as compliance_check.py: fixed signature, always-pass logic for
+now, since the full Data Quality engine isn't built until M10.
+
+Week 16 additionally persists non-direct type-mapping conditions
+(contracts Section 7.2) as structured Lineage records via
+lineage_store.py, alongside the existing summary log line — see that
+module's docstring for why every entry today carries
+lineage_store.SOURCE_READ_STEP_ID rather than a transformation
+step_id.
 """
 
 from __future__ import annotations
@@ -34,6 +51,8 @@ if _THIS_DIR not in sys.path:
     sys.path.insert(0, _THIS_DIR)
 
 import connection_resolver  # noqa: E402
+import data_quality_hook  # noqa: E402
+import lineage_store  # noqa: E402
 import run_store  # noqa: E402
 
 from pipeline import PipelineDefinition, TransformationStep  # noqa: E402
@@ -138,6 +157,19 @@ def execute_pipeline(pipeline: PipelineDefinition, pipeline_id: str) -> Dict[str
         rows, step_logs = _run_transformations(rows, pipeline.transformations)
         logs.extend(step_logs)
 
+        # --- Data Quality pre-write hook (contracts Section 6) ---
+        # Stub today (M10 builds the real engine) — always passes, so
+        # dq_result.rows_quarantined is 0 and quality_score is None for
+        # every run right now. Called through a real function rather than
+        # hardcoded here so nothing above this call has to change once
+        # M10 lands.
+        dq_result = data_quality_hook.run_data_quality_check(rows, pipeline.name)
+        logs.append(
+            f"Data Quality pre-write check: {dq_result.rows_quarantined} row(s) "
+            "quarantined (stub check — always passes today; real rule "
+            "evaluation is M10 scope)."
+        )
+
         # --- Write target ---
         rows_written, write_logs = _write_target(target_layer, pipeline, rows)
         logs.extend(write_logs)
@@ -149,7 +181,8 @@ def execute_pipeline(pipeline: PipelineDefinition, pipeline_id: str) -> Dict[str
             finished_at=_now(),
             rows_read=rows_read,
             rows_written=rows_written,
-            rows_quarantined=0,
+            rows_quarantined=dq_result.rows_quarantined,
+            quality_score=dq_result.quality_score,
             logs=logs,
         )
 
@@ -159,6 +192,20 @@ def execute_pipeline(pipeline: PipelineDefinition, pipeline_id: str) -> Dict[str
                 "— recorded for Lineage, not treated as errors (contracts Section 7.2)."
             )
             run = run_store.update_run(run_id, logs=logs)
+
+            # Persist each one as a structured Lineage record (contracts
+            # Section 6) — see lineage_store.py module docstring for why
+            # step_id is SOURCE_READ_STEP_ID today rather than one of
+            # the pipeline's own transformation step_ids.
+            for record in lineage_records:
+                lineage_store.record_lineage_entry(
+                    run_id=run_id,
+                    step_id=lineage_store.SOURCE_READ_STEP_ID,
+                    column=record["column"],
+                    condition=record["condition"],
+                    canonical_type=record.get("canonical_type"),
+                    source_type=record.get("source_type"),
+                )
 
         return run
 
@@ -240,14 +287,14 @@ def _write_target(
 
     write_mode (upsert/append) is a DSL-level field (Section 2.1); the
     actual upsert-vs-append SQL construction (conflict targets, key
-    columns) is target-object-specific and out of scope for this pass
-    — same explicitly-deferred boundary as transformation semantics
-    (Section 6). Every row is written via a plain INSERT through
+    columns) is target-object-specific and remains out of scope —
+    Week 16 hardens transformation execution and the Data Quality hook
+    (see module docstring), not write_mode SQL generation, which stays
+    an open item. Every row is written via a plain INSERT through
     execute_write today, regardless of write_mode, so control flow and
     run accounting are correct now; this is logged explicitly (rather
     than silently claiming upsert behavior it doesn't yet have) so a
-    run's logs never overstate what happened. Week 16 swaps in real
-    upsert/append SQL generation without changing anything above it.
+    run's logs never overstate what happened.
     """
     logs: List[str] = []
     if pipeline.target.write_mode == "upsert":
@@ -267,3 +314,107 @@ def _write_target(
         written += 1
 
     return written, logs
+
+
+# ---------------------------------------------------------------------------
+# Week 16 transformation types
+#
+# Params shapes below are provisional Week-16 scope, not a finalized DSL
+# spec — transformation DSL syntax is still explicitly flagged out of
+# scope project-wide (M5 kickoff notes, contracts Section 9). Each
+# handler follows the TransformationHandler signature: (rows, params)
+# -> rows.
+# ---------------------------------------------------------------------------
+
+_TYPE_CASTERS: Dict[str, Callable[[Any], Any]] = {
+    "int": int,
+    "float": float,
+    "str": str,
+    "bool": lambda v: str(v).strip().lower() in ("true", "1", "yes"),
+}
+
+
+def _rename_columns(
+    rows: List[Dict[str, Any]], params: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """
+    params: {"mapping": {"old_name": "new_name", ...}}
+
+    Renames each row's matching keys. A row missing an old_name is left
+    untouched for that key (no error) — the row may simply not have
+    that column.
+    """
+    mapping = params.get("mapping", {})
+    new_rows = []
+    for row in rows:
+        new_row = dict(row)
+        for old_name, new_name in mapping.items():
+            if old_name in new_row:
+                new_row[new_name] = new_row.pop(old_name)
+        new_rows.append(new_row)
+    return new_rows
+
+
+def _type_cast(
+    rows: List[Dict[str, Any]], params: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """
+    params: {"casts": {"column_name": "int" | "float" | "str" | "bool"}}
+
+    Casts each listed column's value to the target type. A cast that
+    fails (e.g. casting "abc" to int) leaves the original value in
+    place rather than raising — real validation/quarantine of bad
+    values is the Data Quality engine's job (M10), not this stub-era
+    transformation step's. A null value is left as null, uncast.
+    """
+    casts = params.get("casts", {})
+    new_rows = []
+    for row in rows:
+        new_row = dict(row)
+        for column, target_type in casts.items():
+            if column not in new_row or new_row[column] is None:
+                continue
+            caster = _TYPE_CASTERS.get(target_type)
+            if caster is None:
+                continue
+            try:
+                new_row[column] = caster(new_row[column])
+            except (ValueError, TypeError):
+                pass
+        new_rows.append(new_row)
+    return new_rows
+
+
+def _drop_null_rows(
+    rows: List[Dict[str, Any]], params: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """
+    params: {"required_columns": ["col1", "col2", ...]}
+
+    Drops a row entirely if ANY of required_columns is null or missing
+    on it. A column not listed in required_columns is never checked,
+    even if it happens to be null.
+    """
+    required_columns = params.get("required_columns", [])
+    return [
+        row for row in rows if all(row.get(col) is not None for col in required_columns)
+    ]
+
+
+def _drop_columns(
+    rows: List[Dict[str, Any]], params: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """
+    params: {"columns": ["col1", "col2", ...]}
+
+    Removes the listed columns from every row. A row missing a listed
+    column is left untouched for that key (no error).
+    """
+    columns_to_drop = set(params.get("columns", []))
+    return [{k: v for k, v in row.items() if k not in columns_to_drop} for row in rows]
+
+
+register_transformation("rename_columns", _rename_columns)
+register_transformation("type_cast", _type_cast)
+register_transformation("drop_null_rows", _drop_null_rows)
+register_transformation("drop_columns", _drop_columns)
