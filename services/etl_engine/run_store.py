@@ -143,6 +143,16 @@ def get_run(run_id: str) -> dict[str, Any]:
     return deepcopy(_runs[run_id])
 
 
+def get_runs_for_pipeline(pipeline_id: str) -> list[dict[str, Any]]:
+    """
+    Return every run recorded for a pipeline, oldest first.
+
+    A pipeline can have more than one run over time — this returns all
+    of them so a caller can pick the latest one explicitly.
+    """
+    return [deepcopy(r) for r in _runs.values() if r["pipeline_id"] == pipeline_id]
+
+
 # ---------------------------------------------------------------------------
 # Store maintenance
 # ---------------------------------------------------------------------------
