@@ -1,37 +1,76 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "./components/AppShell";
 import PipelineRow from "./components/PipelineRow";
+import {
+  getPipelines,
+  getRunStatus,
+  Pipeline,
+  PipelineRun,
+} from "./api/pipelinesClient";
 
-const PIPELINES = [
-  {
-    id: "1",
-    pipelineName: "Orders ETL",
-    source: "PostgreSQL",
-    target: "Data Warehouse",
-    status: "Running" as const,
-    lastRunTime: "2 min ago",
-  },
-  {
-    id: "2",
-    pipelineName: "Customer Sync",
-    source: "MySQL",
-    target: "Data Warehouse",
-    status: "Completed" as const,
-    lastRunTime: "1 hr ago",
-  },
-  {
-    id: "3",
-    pipelineName: "Inventory Load",
-    source: "MSSQL",
-    target: "Data Warehouse",
-    status: "Failed" as const,
-    lastRunTime: "3 hr ago",
-  },
-];
+const statusMap: Record<
+  string,
+  "Running" | "Completed" | "Failed" | "Pending"
+> = {
+  running: "Running",
+  succeeded: "Completed",
+  completed_with_quarantine: "Completed",
+  failed: "Failed",
+  pending: "Pending",
+  cancelled: "Pending",
+};
+
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("tr-TR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
 
 export default function PipelinesPage() {
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = PIPELINES.find((p) => p.id === selectedId) ?? null;
+  const [runs, setRuns] = useState<Record<string, PipelineRun>>({});
+  const [selectedRun, setSelectedRun] = useState<PipelineRun | null>(null);
+  const [loadingRun, setLoadingRun] = useState(false);
+
+  useEffect(() => {
+    getPipelines().then(setPipelines);
+  }, []);
+
+  // Her pipeline için run_id varsa status çek
+  useEffect(() => {
+    pipelines.forEach((p) => {
+      if (!p.run_id) return;
+      getRunStatus(p.id, p.run_id)
+        .then((run) => setRuns((prev) => ({ ...prev, [p.id]: run })))
+        .catch(() => {});
+    });
+  }, [pipelines]);
+
+  // Seçili pipeline'ın run'ını göster
+  useEffect(() => {
+    if (!selectedId) return;
+    const pipeline = pipelines.find((p) => p.id === selectedId);
+    if (!pipeline?.run_id) return;
+    setLoadingRun(true);
+    getRunStatus(selectedId, pipeline.run_id)
+      .then((run) => {
+        setSelectedRun(run);
+        setRuns((prev) => ({ ...prev, [selectedId]: run }));
+      })
+      .catch(() => setSelectedRun(null))
+      .finally(() => setLoadingRun(false));
+  }, [selectedId, pipelines]);
+
+  const selected = pipelines.find((p) => p.id === selectedId) ?? null;
 
   return (
     <AppShell pageTitle="Pipeline Monitor" userRole="admin">
@@ -43,7 +82,7 @@ export default function PipelinesPage() {
           minHeight: 0,
         }}
       >
-        {/* Zone 1 — Filtre Bar */}
+        {/* Zone 1 */}
         <div
           style={{
             display: "flex",
@@ -74,7 +113,7 @@ export default function PipelinesPage() {
           >
             <option value="">Tüm Durumlar</option>
             <option value="running">Running</option>
-            <option value="completed">Completed</option>
+            <option value="succeeded">Completed</option>
             <option value="failed">Failed</option>
             <option value="pending">Pending</option>
           </select>
@@ -89,11 +128,11 @@ export default function PipelinesPage() {
           />
         </div>
 
-        {/* Zone 2 + Zone 3 */}
+        {/* Zone 2 + 3 */}
         <div
           style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}
         >
-          {/* Zone 2 — Sol Panel */}
+          {/* Zone 2 */}
           <div
             style={{
               width: "320px",
@@ -103,17 +142,27 @@ export default function PipelinesPage() {
               overflowY: "auto",
             }}
           >
-            {PIPELINES.map((p) => (
-              <PipelineRow
-                key={p.id}
-                {...p}
-                selected={selectedId === p.id}
-                onSelect={() => setSelectedId(p.id)}
-              />
-            ))}
+            {pipelines.map((p) => {
+              const run = runs[p.id];
+              const status = run
+                ? (statusMap[run.status] ?? "Pending")
+                : "Pending";
+              return (
+                <PipelineRow
+                  key={p.id}
+                  pipelineName={p.name}
+                  source={p.source.connector_type}
+                  target={p.target.object}
+                  status={status}
+                  lastRunTime={formatDate(p.created_at)}
+                  selected={selectedId === p.id}
+                  onSelect={() => setSelectedId(p.id)}
+                />
+              );
+            })}
           </div>
 
-          {/* Zone 3 — Sağ Detay Panel */}
+          {/* Zone 3 */}
           <div style={{ flex: 1, padding: "20px", overflowY: "auto" }}>
             {selected ? (
               <div
@@ -123,7 +172,6 @@ export default function PipelinesPage() {
                   gap: "16px",
                 }}
               >
-                {/* Metadata */}
                 <div>
                   <div
                     style={{
@@ -132,7 +180,7 @@ export default function PipelinesPage() {
                       marginBottom: "8px",
                     }}
                   >
-                    {selected.pipelineName}
+                    {selected.name}
                   </div>
                   <div
                     style={{
@@ -143,18 +191,18 @@ export default function PipelinesPage() {
                     }}
                   >
                     <span>
-                      Kaynak: <strong>{selected.source}</strong>
+                      Kaynak: <strong>{selected.source.connector_type}</strong>
                     </span>
                     <span>
-                      Hedef: <strong>{selected.target}</strong>
+                      Hedef: <strong>{selected.target.object}</strong>
                     </span>
                     <span>
-                      Son çalışma: <strong>{selected.lastRunTime}</strong>
+                      Oluşturulma:{" "}
+                      <strong>{formatDate(selected.created_at)}</strong>
                     </span>
                   </div>
                 </div>
 
-                {/* Row count — static placeholder */}
                 <div
                   style={{
                     padding: "10px 14px",
@@ -163,10 +211,24 @@ export default function PipelinesPage() {
                     fontSize: "12px",
                   }}
                 >
-                  İşlenen satır sayısı: <strong>— (M5'te bağlanacak)</strong>
+                  İşlenen satır:{" "}
+                  <strong>
+                    {selectedRun
+                      ? selectedRun.rows_written.toLocaleString("tr-TR")
+                      : "—"}
+                  </strong>
+                  {selectedRun?.rows_quarantined ? (
+                    <span
+                      style={{
+                        color: "var(--color-warning)",
+                        marginLeft: "12px",
+                      }}
+                    >
+                      Karantina: {selectedRun.rows_quarantined}
+                    </span>
+                  ) : null}
                 </div>
 
-                {/* Execution Log */}
                 <div>
                   <div
                     style={{
@@ -188,32 +250,35 @@ export default function PipelinesPage() {
                       lineHeight: "1.8",
                     }}
                   >
-                    <div>
-                      [INFO] Pipeline başlatıldı — {selected.lastRunTime}
-                    </div>
-                    <div>
-                      [INFO] Kaynak bağlantısı kuruldu: {selected.source}
-                    </div>
-                    <div>[INFO] Veri çekme başladı...</div>
-                    {selected.status === "Failed" && (
-                      <div style={{ color: "#f87171" }}>
-                        [ERROR] Bağlantı zaman aşımına uğradı
-                      </div>
-                    )}
-                    {selected.status === "Completed" && (
-                      <div style={{ color: "#4ade80" }}>
-                        [SUCCESS] Pipeline tamamlandı
-                      </div>
-                    )}
-                    {selected.status === "Running" && (
-                      <div style={{ color: "#60a5fa" }}>
-                        [INFO] Çalışıyor...
+                    {loadingRun ? (
+                      <div>Yükleniyor...</div>
+                    ) : selectedRun ? (
+                      selectedRun.logs.map((log, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            color:
+                              log.includes("ERROR") || log.includes("failed")
+                                ? "#f87171"
+                                : log.includes("succeeded") ||
+                                    log.includes("Wrote")
+                                  ? "#4ade80"
+                                  : "#94a3b8",
+                          }}
+                        >
+                          {log}
+                        </div>
+                      ))
+                    ) : (
+                      <div>
+                        {selected.run_id
+                          ? "Log bulunamadı"
+                          : "Bu pipeline için henüz run yok"}
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* BI Analyst kısıtlı görünüm notu */}
                 <div
                   style={{
                     fontSize: "11px",

@@ -1,13 +1,13 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+from services.connectors.errors import (
+    ConnectionError as ConnectorConnectionError,
+    QueryError,
+    WriteError,
+)
 
-class ConnectorError(Exception):
-    """Custom error for connector failures."""
-
-    def __init__(self, message, retryable=False):
-        super().__init__(message)
-        self.retryable = retryable
+_CONNECTOR_TYPE = "postgresql"
 
 
 class ConnectionConfig:
@@ -37,7 +37,12 @@ class PostgresConnector:
                 password=self.config.password,
             )
         except psycopg2.DatabaseError as e:
-            raise ConnectorError(f"Connection failed: {e}", retryable=False)
+            raise ConnectorConnectionError(
+                f"Connection failed: {e}",
+                error_code="POSTGRES_CONNECTION_FAILED",
+                connector_type=_CONNECTOR_TYPE,
+                retryable=False,
+            )
 
     def disconnect(self):
         """Close the current database connection."""
@@ -51,7 +56,12 @@ class PostgresConnector:
                 cursor.execute(sql, params)
                 return cursor.fetchall()
         except psycopg2.DatabaseError as e:
-            raise ConnectorError(f"Query failed: {e}", retryable=False)
+            raise QueryError(
+                f"Query failed: {e}",
+                error_code="POSTGRES_QUERY_FAILED",
+                connector_type=_CONNECTOR_TYPE,
+                retryable=False,
+            )
 
     def execute_write(self, sql, params=None):
         """Run INSERT, UPDATE or DELETE and return affected row count."""
@@ -63,7 +73,12 @@ class PostgresConnector:
                 return affected_rows
         except psycopg2.DatabaseError as e:
             self.connection.rollback()
-            raise ConnectorError(f"Write failed: {e}", retryable=False)
+            raise WriteError(
+                f"Write failed: {e}",
+                error_code="POSTGRES_WRITE_FAILED",
+                connector_type=_CONNECTOR_TYPE,
+                retryable=False,
+            )
 
     def health_check(self):
         """Check whether the database connection works."""

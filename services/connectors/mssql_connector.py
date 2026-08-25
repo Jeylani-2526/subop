@@ -1,13 +1,12 @@
 import pyodbc
 
+from services.connectors.errors import (
+    ConnectionError as ConnectorConnectionError,
+    QueryError,
+    WriteError,
+)
 
-# Custom exception used for all connector-related errors.
-class ConnectorError(Exception):
-    """Custom error for connector failures."""
-
-    def __init__(self, message, retryable=False):
-        super().__init__(message)
-        self.retryable = retryable
+_CONNECTOR_TYPE = "mssql"
 
 
 # Stores all database connection parameters.
@@ -39,8 +38,10 @@ class MSSQLConnector:
             elif "ODBC Driver 17 for SQL Server" in available_drivers:
                 driver = "ODBC Driver 17 for SQL Server"
             else:
-                raise ConnectorError(
+                raise ConnectorConnectionError(
                     "No supported SQL Server ODBC driver found.",
+                    error_code="MSSQL_NO_DRIVER",
+                    connector_type=_CONNECTOR_TYPE,
                     retryable=False,
                 )
 
@@ -56,7 +57,12 @@ class MSSQLConnector:
             self.connection = pyodbc.connect(connection_string)
 
         except pyodbc.Error as e:
-            raise ConnectorError(f"Connection failed: {e}", retryable=False)
+            raise ConnectorConnectionError(
+                f"Connection failed: {e}",
+                error_code="MSSQL_CONNECTION_FAILED",
+                connector_type=_CONNECTOR_TYPE,
+                retryable=False,
+            )
 
     # Close the active database connection.
     def disconnect(self):
@@ -69,8 +75,11 @@ class MSSQLConnector:
     def execute_query(self, sql, params=None):
         """Run a SELECT query and return rows as dictionaries."""
         if self.connection is None:
-            raise ConnectorError(
-                "Not connected. Call connect() first.", retryable=False
+            raise QueryError(
+                "Not connected. Call connect() first.",
+                error_code="MSSQL_NOT_CONNECTED",
+                connector_type=_CONNECTOR_TYPE,
+                retryable=False,
             )
 
         cursor = None
@@ -87,7 +96,12 @@ class MSSQLConnector:
             # Convert each row into a dictionary.
             return [dict(zip(columns, row)) for row in rows]
         except pyodbc.Error as e:
-            raise ConnectorError(f"Query failed: {e}", retryable=False)
+            raise QueryError(
+                f"Query failed: {e}",
+                error_code="MSSQL_QUERY_FAILED",
+                connector_type=_CONNECTOR_TYPE,
+                retryable=False,
+            )
 
         finally:
             if cursor is not None:
@@ -98,8 +112,11 @@ class MSSQLConnector:
         """Run INSERT, UPDATE or DELETE and return affected row count."""
 
         if self.connection is None:
-            raise ConnectorError(
-                "Not connected. Call connect() first.", retryable=False
+            raise WriteError(
+                "Not connected. Call connect() first.",
+                error_code="MSSQL_NOT_CONNECTED",
+                connector_type=_CONNECTOR_TYPE,
+                retryable=False,
             )
 
         cursor = None
@@ -117,7 +134,12 @@ class MSSQLConnector:
         except pyodbc.Error as e:
             # Undo changes if an error occurs.
             self.connection.rollback()
-            raise ConnectorError(f"Write failed: {e}", retryable=False)
+            raise WriteError(
+                f"Write failed: {e}",
+                error_code="MSSQL_WRITE_FAILED",
+                connector_type=_CONNECTOR_TYPE,
+                retryable=False,
+            )
 
         finally:
             if cursor is not None:

@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Dict, Optional
 
+from services.connectors.errors import ConnectorError
+
 
 # Represents the result of mapping a database-native type
 # to the canonical type system defined in Mapping Specification v1.
@@ -16,11 +18,26 @@ class TypeMappingResult:
     metadata: Optional[Dict[str, Any]] = None
 
 
-class UnsupportedTypeError(ValueError):
+class UnsupportedTypeError(ConnectorError):
     """
     Raised when a database-native type has no supported mapping
     and no registered override exists.
+
+    Per etl_engine_contracts_v1.md Section 7.2, an `unsupported` type
+    mapping is a failure and must surface as a non-retryable
+    ConnectorError — the exact same shape ETL Engine already handles
+    for connection/query/write errors, so no new error-handling code
+    path is needed downstream. (Previously this was a plain ValueError,
+    which broke that guarantee — fixed here.)
     """
+
+    def __init__(self, message: str, *, connector_type: Optional[str] = None):
+        super().__init__(
+            message,
+            error_code="UNSUPPORTED_TYPE_MAPPING",
+            connector_type=connector_type,
+            retryable=False,
+        )
 
 
 class UniversalTypeMapper:
@@ -252,7 +269,10 @@ class UniversalTypeMapper:
                 mapping_metadata,
             )
 
-        raise UnsupportedTypeError(f"Unsupported database: {database}")
+        raise UnsupportedTypeError(
+            f"Unsupported database: {database}",
+            connector_type=database,
+        )
 
     @staticmethod
     def _normalize_type_name(source_type: str) -> str:
@@ -289,7 +309,10 @@ class UniversalTypeMapper:
         mapping = cls.POSTGRESQL_MAPPING.get(normalized_type)
 
         if mapping is None:
-            raise UnsupportedTypeError(f"Unsupported PostgreSQL type: {original_type}")
+            raise UnsupportedTypeError(
+                f"Unsupported PostgreSQL type: {original_type}",
+                connector_type="postgresql",
+            )
 
         canonical_type, condition = mapping
 
@@ -389,7 +412,10 @@ class UniversalTypeMapper:
         # Unknown types must fail explicitly instead of being silently
         # coerced into an unrelated canonical representation.
         if mapping is None:
-            raise UnsupportedTypeError(f"Unsupported MySQL type: {original_type}")
+            raise UnsupportedTypeError(
+                f"Unsupported MySQL type: {original_type}",
+                connector_type="mysql",
+            )
 
         canonical_type, condition = mapping
 
@@ -465,7 +491,10 @@ class UniversalTypeMapper:
         mapping = cls.MSSQL_MAPPING.get(normalized_type)
 
         if mapping is None:
-            raise UnsupportedTypeError(f"Unsupported MSSQL type: {original_type}")
+            raise UnsupportedTypeError(
+                f"Unsupported MSSQL type: {original_type}",
+                connector_type="mssql",
+            )
 
         canonical_type, condition = mapping
 
@@ -473,7 +502,8 @@ class UniversalTypeMapper:
         # alone because individual rows can contain different native types.
         if normalized_type == "sql_variant":
             raise UnsupportedTypeError(
-                "SQL_VARIANT requires per-value native type resolution."
+                "SQL_VARIANT requires per-value native type resolution.",
+                connector_type="mssql",
             )
 
         # Preserve Unicode semantics for SQL Server N-types.
