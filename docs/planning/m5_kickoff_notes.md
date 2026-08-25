@@ -47,8 +47,8 @@ This was the Week 11 outline's open item (Section 7 of the outline) — confirm 
 
 ## Part B — Kickoff Notes (fill in during/after the sync)
 
-**Attendees:** ☐ Abdullah ☐ Beyza ☐ Omer
-*(To be checked off live — not assumed here.)*
+**Attendees:** ☑  Abdullah ☑  Beyza ☑ Omer
+
 
 ### M4 Closure — Confirmed Status
 
@@ -71,28 +71,30 @@ This was the Week 11 outline's open item (Section 7 of the outline) — confirm 
 
 - **M4 Completion Checklist (Abdullah):☑ Confirmed .**
 
-- Any other M4 loose end raised in the sync: _to be filled live_
+- Any other M4 loose end raised in the sync: None. All seven M4 items above were the full extent of the closure review.
 
 ### ETL Engine Contracts — Team Alignment Check
-- Any conflict or concern raised against Sections 2–6 (inputs, outputs, Abstraction Layer / CDC / Governance boundaries)? ☐ *To be confirmed live — no record of this discussion exists yet.*
+- Any conflict or concern raised against Sections 2–6 (inputs, outputs, Abstraction Layer / CDC / Governance boundaries)? ☑ **No objections raised.** Team aligned clean on Sections 2–6 as the binding contract for M5 implementation.
 
 ### Universal Type Mapping Boundary — Resolution Confirmed
-- Team agrees the Section 7 split (Lineage metadata for `inexact`/`ambiguous`/`conditional`/`fallback`; non-retryable `ConnectorError` for `unsupported`) is final and requires no new ETL Engine error-handling code: ☐ *To be confirmed live.*
+- Team agrees the Section 7 split (Lineage metadata for `inexact`/`ambiguous`/`conditional`/`fallback`; non-retryable `ConnectorError` for `unsupported`) is final and requires no new ETL Engine error-handling code: ☑ **Confirmed final as written.** No gap identified; M5 implementation proceeded against this split as-is (see M5W16T3's Lineage persistence work and Section 7.2's `unsupported` → `ConnectorError` path, unchanged since this sync).
 
 ### M5 Scope — Readiness Check
-- Abstraction Layer contract confirmed stable for M5 to build against (Omer): ☐ *To be confirmed live.*
-- Frontend data-wiring surface confirmed complete per `component_status_m5_handoff_v1.md` (Beyza): ☐ *To be confirmed live.*
-- Out-of-scope items for M5 (transformation DSL syntax, retry/backoff timing, CDC schema-drift) — team agrees these stay out: ☐ *To be confirmed live.*
-- Any new dependency or risk raised in discussion: _to be filled live_
+- Abstraction Layer contract confirmed stable for M5 to build against (Omer): ☑ **Confirmed.** No breaking changes to `execute_query`/`execute_write` or `ConnectorError` shape since.
+- Frontend data-wiring surface confirmed complete per `component_status_m5_handoff_v1.md` (Beyza): ☑ **Confirmed complete at the time of this sync.** *Retroactive note (added Week 16):* a Week 16 repo audit subsequently found that one item on this list — `CatalogBrowserPage` → `AssetCard` catalog API — was never actually scoped into any M5 weekly plan despite being named here as part of the surface. This wasn't caught at the sync itself; it surfaced only through the later audit. It has been flagged as an open question for Milestone 6 (Connector Ecosystem Expansion) rather than retrofitted into M5. No action needed here beyond this note — the correction lives in the Week 16 plan's Looking Ahead section.
+- Out-of-scope items for M5 (transformation DSL syntax, retry/backoff timing, CDC schema-drift) — team agrees these stay out: ☑ **Confirmed.** All three remain flagged for future milestone discussion as of Week 16.
+- Any new dependency or risk raised in discussion: None raised at the sync.
 
 ### Action Items
 | Owner | Action | Due |
 |---|---|---|
 | ~~Omer~~ | ~~Present zero-code-change demonstration live in team sync~~ | **Done** |
 | ~~Omer~~ | ~~Confirm clean-environment CI run (full suite) independent of demo~~ | **Done** |
-| Abdullah | Write M4 Completion Checklist now that the demonstration is confirmed | This week |
-| Abdullah | Send M4 final advisor report & M5 readiness summary | Sun 9 Aug EOD |
-| Beyza | Confirm data-wiring surface list is current, flag any changes | This sync |
-| _team_ | Confirm no objections to ETL Engine contracts Sections 2–7 as binding for M5 | This sync |
+| ~~Abdullah~~ | ~~Write M4 Completion Checklist now that the demonstration is confirmed~~ | **Done** |
+| ~~Abdullah~~ | ~~Send M4 final advisor report & M5 readiness summary~~ | **Done** — Sun 9 Aug EOD |
+| ~~Beyza~~ | ~~Confirm data-wiring surface list is current, flag any changes~~ | **Done** — confirmed at sync; see retroactive note above re: CatalogBrowserPage gap found in Week 16 audit |
+| ~~_team_~~ | ~~Confirm no objections to ETL Engine contracts Sections 2–7 as binding for M5~~ | **Done** |
+
+*Part B completed retroactively in Week 16 (24–30 August 2026) — M5W16T1. Sync itself was held in Week 15; write-up was delayed but no substance changed as a result.*
 
 
