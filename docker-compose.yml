@@ -159,36 +159,52 @@ services:
     ports:
       - "8080:8080"
 
+    # ---------------------------------------------------------------------------
+  # SUBOP ETL Engine API — FastAPI + Uvicorn
   # ---------------------------------------------------------------------------
-  # SUBOP API — FastAPI + Uvicorn backend
-  # Activated in M3 after CI/CD setup. Uncomment when Dockerfile is ready.
-  # ---------------------------------------------------------------------------
-  # subop-api:
-  #   build:
-  #     context:    ./services
-  #     dockerfile: ../infrastructure/docker/Dockerfile.api
-  #   container_name: subop-api
-  #   restart: unless-stopped
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     kafka:
-  #       condition: service_healthy
-  #   environment:
-  #     DATABASE_URL:   postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-  #     API_SECRET_KEY: ${API_SECRET_KEY}
-  #     API_DEBUG:      ${API_DEBUG}
-  #   ports:
-  #     - "8000:8000"
-  #   volumes:
-  #     - ./services:/app
-  #   healthcheck:
-  #     test:     ["CMD", "curl", "-f", "http://localhost:8000/health"]
-  #     interval: 15s
-  #     timeout:  5s
-  #     retries:  3
+  subop-api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: subop-api
+    restart: unless-stopped
 
-# =============================================================================
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      mssql:
+        condition: service_healthy
+
+    environment:
+      SUBOP_CONN_PG_MAIN: >-
+        {"host":"postgres","port":5432,"database":"${POSTGRES_DB}","username":"${POSTGRES_USER}","password":"${POSTGRES_PASSWORD}"}
+
+      SUBOP_CONN_DW_MAIN: >-
+        {"host":"postgres","port":5432,"database":"${POSTGRES_DB}","username":"${POSTGRES_USER}","password":"${POSTGRES_PASSWORD}"}
+
+      SUBOP_CONN_MYSQL_MAIN: >-
+        {"host":"mysql","port":3306,"database":"${MYSQL_DATABASE}","username":"${MYSQL_USER}","password":"${MYSQL_PASSWORD}"}
+
+      SUBOP_CONN_MSSQL_MAIN: >-
+        {"host":"mssql","port":1433,"database":"master","username":"sa","password":"${MSSQL_SA_PASSWORD}"}
+
+    ports:
+      - "8000:8000"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:8000/api/pipelines/"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 volumes:
   postgres_data:
     driver: local
