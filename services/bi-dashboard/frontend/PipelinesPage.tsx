@@ -10,11 +10,11 @@ import {
 
 const statusMap: Record<
   string,
-  "Running" | "Completed" | "Failed" | "Pending"
+  "Running" | "Completed" | "Failed" | "Pending" | "CompletedWithQuarantine"
 > = {
   running: "Running",
   succeeded: "Completed",
-  completed_with_quarantine: "Completed",
+  completed_with_quarantine: "CompletedWithQuarantine",
   failed: "Failed",
   pending: "Pending",
   cancelled: "Pending",
