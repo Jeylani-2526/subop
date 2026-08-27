@@ -1,19 +1,19 @@
 interface StatusBadgeProps {
-  status: 'running' | 'completed' | 'failed' | 'warning';
+  status: 'running' | 'completed' | 'failed' | 'warning' | 'completed_with_quarantine';
   label?: string;
   size?: 'default' | 'compact';
 }
 
 const STATUS_CONFIG: Record<StatusBadgeProps['status'], { bg: string; color: string; defaultLabel: string }> = {
-  running:   { bg: 'var(--color-row-alt)',       color: 'var(--color-secondary)', defaultLabel: 'Running' },
-  completed: { bg: 'var(--color-success-bg)',    color: 'var(--color-success)',   defaultLabel: 'Completed' },
-  failed:    { bg: 'var(--color-danger-bg)',     color: 'var(--color-danger)',    defaultLabel: 'Failed' },
-  warning:   { bg: 'var(--color-warning-bg)',    color: 'var(--color-warning)',   defaultLabel: 'Warning' },
+  running:                   { bg: 'var(--color-row-alt)',     color: 'var(--color-secondary)', defaultLabel: 'Running' },
+  completed:                 { bg: 'var(--color-success-bg)',  color: 'var(--color-success)',   defaultLabel: 'Completed' },
+  failed:                    { bg: 'var(--color-danger-bg)',   color: 'var(--color-danger)',     defaultLabel: 'Failed' },
+  warning:                   { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)',    defaultLabel: 'Warning' },
+  completed_with_quarantine: { bg: 'rgba(230,81,0,0.1)',      color: 'var(--color-warning)',    defaultLabel: 'Completed ⚠' },
 };
 
 export default function StatusBadge({ status, label, size = 'default' }: StatusBadgeProps) {
   const { bg, color, defaultLabel } = STATUS_CONFIG[status];
-
   return (
     <span
       style={{
