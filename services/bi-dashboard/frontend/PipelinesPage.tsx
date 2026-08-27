@@ -6,6 +6,7 @@ import {
   getRunStatus,
   Pipeline,
   PipelineRun,
+  PaginatedPipelines,
 } from "./api/pipelinesClient";
 
 const statusMap: Record<
@@ -36,15 +37,24 @@ function formatDate(iso: string): string {
 
 export default function PipelinesPage() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [paginationInfo, setPaginationInfo] = useState({
+    total: 0,
+    page: 1,
+    page_size: 20,
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [runs, setRuns] = useState<Record<string, PipelineRun>>({});
   const [selectedRun, setSelectedRun] = useState<PipelineRun | null>(null);
   const [loadingRun, setLoadingRun] = useState(false);
 
-  useEffect(() => {
-    getPipelines().then(setPipelines);
-  }, []);
-
+  getPipelines().then((data) => {
+    setPipelines(data.items);
+    setPaginationInfo({
+      total: data.total,
+      page: data.page,
+      page_size: data.page_size,
+    });
+  });
   // Her pipeline için run_id varsa status çek
   useEffect(() => {
     pipelines.forEach((p) => {
