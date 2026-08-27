@@ -1,6 +1,11 @@
 // services/bi-dashboard/frontend/api/pipelinesClient.ts
 
-const BASE_URL = "http://localhost:5433/api";
+// Fixed M5W16T7: this was pointing at 5433, which is Postgres's
+// host-mapped port (docker-compose.yml: "5433:5432"), not the API.
+// The ETL Engine API container exposes 8000 (Dockerfile.api EXPOSE
+// 8000; docker-compose.yml: "8000:8000"), matching the CORS
+// middleware's expected frontend origin of http://localhost:5173.
+const BASE_URL = "http://localhost:8000/api";
 
 // ─── Tipler ───────────────────────────────────
 
