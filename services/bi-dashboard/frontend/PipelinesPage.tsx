@@ -6,7 +6,6 @@ import {
   getRunStatus,
   Pipeline,
   PipelineRun,
-  PaginatedPipelines,
 } from "./api/pipelinesClient";
 
 const statusMap: Record<
@@ -47,25 +46,23 @@ export default function PipelinesPage() {
   const [selectedRun, setSelectedRun] = useState<PipelineRun | null>(null);
   const [loadingRun, setLoadingRun] = useState(false);
 
-  getPipelines().then((data) => {
-    setPipelines(data.items);
-    setPaginationInfo({
-      total: data.total,
-      page: data.page,
-      page_size: data.page_size,
-    });
-  });
-  // Her pipeline için run_id varsa status çek
   useEffect(() => {
-    pipelines.forEach((p) => {
-      if (!p.run_id) return;
-      getRunStatus(p.id, p.run_id)
-        .then((run) => setRuns((prev) => ({ ...prev, [p.id]: run })))
-        .catch(() => {});
+    getPipelines().then((data) => {
+      setPipelines(data.items);
+      setPaginationInfo({
+        total: data.total,
+        page: data.page,
+        page_size: data.page_size,
+      });
+      data.items.forEach((p) => {
+        if (!p.run_id) return;
+        getRunStatus(p.id, p.run_id)
+          .then((run) => setRuns((prev) => ({ ...prev, [p.id]: run })))
+          .catch(() => {});
+      });
     });
-  }, [pipelines]);
+  }, []);
 
-  // Seçili pipeline'ın run'ını göster
   useEffect(() => {
     if (!selectedId) return;
     const pipeline = pipelines.find((p) => p.id === selectedId);
@@ -78,7 +75,7 @@ export default function PipelinesPage() {
       })
       .catch(() => setSelectedRun(null))
       .finally(() => setLoadingRun(false));
-  }, [selectedId, pipelines]);
+  }, [selectedId]);
 
   const selected = pipelines.find((p) => p.id === selectedId) ?? null;
 
@@ -136,6 +133,15 @@ export default function PipelinesPage() {
               borderRadius: "6px",
             }}
           />
+          <span
+            style={{
+              fontSize: "11px",
+              color: "var(--color-neutral-400)",
+              marginLeft: "auto",
+            }}
+          >
+            {paginationInfo.total} pipeline
+          </span>
         </div>
 
         {/* Zone 2 + 3 */}
