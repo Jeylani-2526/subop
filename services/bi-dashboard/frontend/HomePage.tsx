@@ -7,7 +7,9 @@ export default function HomePage() {
   const [kpi, setKpi] = useState<KPISummary | null>(null);
 
   useEffect(() => {
-    getKPISummary().then(setKpi);
+    getKPISummary()
+      .then(setKpi)
+      .catch(() => {});
   }, []);
 
   return (
@@ -21,23 +23,31 @@ export default function HomePage() {
       >
         <KPISummaryCard
           label="Active Pipelines"
-          value={kpi?.activePipelines ?? "—"}
+          value={kpi?.pipeline_count ?? "—"}
           trend="up"
           trendValue="+3 from yesterday"
           status="healthy"
         />
         <KPISummaryCard
           label="Data Quality Score"
-          value={kpi?.dataQualityScore ?? "—"}
+          value={
+            kpi?.average_quality_score != null
+              ? `${(kpi.average_quality_score * 100).toFixed(0)}`
+              : "—"
+          }
           unit="%"
           trend="up"
-          trendValue="+2 from last week"
-          status="healthy"
+          trendValue={
+            kpi?.average_quality_score == null
+              ? "Henüz mevcut değil"
+              : "+2 from last week"
+          }
+          status={kpi?.average_quality_score == null ? "warning" : "healthy"}
         />
         <KPISummaryCard
           label="Records Processed Today"
           value={
-            kpi ? `${(kpi.recordsProcessedToday / 1_000_000).toFixed(1)}M` : "—"
+            kpi ? `${(kpi.rows_processed_today / 1_000_000).toFixed(1)}M` : "—"
           }
           trend="neutral"
           trendValue="Updated 5 min ago"
@@ -45,10 +55,10 @@ export default function HomePage() {
         />
         <KPISummaryCard
           label="CDC Latency"
-          value={kpi?.cdcLatencyMs ?? "—"}
+          value="—"
           unit="ms"
           trend="down"
-          trendValue="Above threshold"
+          trendValue="M7'de gelecek"
           status="warning"
         />
       </div>
