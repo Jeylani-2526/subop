@@ -12,7 +12,9 @@ import sys
 from typing import Any, Dict
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_REPO_ROOT = os.path.dirname(os.path.dirname(_THIS_DIR))  # services/etl_engine -> repo root
+_REPO_ROOT = os.path.dirname(
+    os.path.dirname(_THIS_DIR)
+)  # services/etl_engine -> repo root
 for path in (_REPO_ROOT, _THIS_DIR):
     if path not in sys.path:
         sys.path.insert(0, path)
@@ -20,6 +22,7 @@ for path in (_REPO_ROOT, _THIS_DIR):
 from fastapi.testclient import TestClient  # noqa: E402
 
 import lineage_store  # noqa: E402
+
 # import pipeline_store  # noqa: E402
 # import run_store  # noqa: E402
 from api.app import app  # noqa: E402
@@ -57,7 +60,9 @@ def _postgres_config() -> PostgresConnectionConfig:
     )
 
 
-def _register_connection_ref(connection_ref: str, config: PostgresConnectionConfig) -> None:
+def _register_connection_ref(
+    connection_ref: str, config: PostgresConnectionConfig
+) -> None:
     """
     Register a connection_ref the way connection_resolver.py expects:
     an env var SUBOP_CONN_<UPPERCASED_REF> holding a JSON blob of
@@ -108,10 +113,18 @@ def _seed_source_table(config: PostgresConnectionConfig) -> None:
             INSERT INTO {SOURCE_TABLE}
                 (id, full_name, contact_phone, age_text, is_active, email, internal_staging_notes)
             VALUES
-                (1, 'Ayşe Yilmaz', '+905551110001', '29', 'yes', 'ayse@example.com', 'staging-only'),
-                (2, 'Mehmet Demir', '+905551110002', '41', 'no',  'mehmet@example.com', 'staging-only'),
-                (3, 'Zeynep Kaya', '+905551110003', '35', 'yes', NULL, 'staging-only'),
-                (4, 'Ali Şahin', '+905551110004', '52', 'no',  'ali@example.com', 'staging-only')
+                (1,'Ayşe Yilmaz', '+905551110001', '29', 'yes', 'ayse@example.com', 'staging-only'),
+                (
+                    2,
+                    "Mehmet Demir",
+                    "+905551110002",
+                    "41",
+                    "no",
+                    "mehmet@example.com",
+                    "staging-only",
+                ),
+                (3,'Zeynep Kaya', '+905551110003', '35', 'yes', NULL, 'staging-only'),
+                (4,'Ali Şahin', '+905551110004', '52', 'no',  'ali@example.com', 'staging-only')
         """)
     finally:
         connector.disconnect()
@@ -238,7 +251,9 @@ def main() -> None:
 
     print(f"      status            = {run['status']}")
     print(f"      rows_read         = {run['rows_read']}  (4 rows in source table)")
-    print(f"      rows_written      = {run['rows_written']}  (1 row dropped by drop_null_rows)")
+    print(
+        f"      rows_written      = {run['rows_written']}  (1 row dropped by drop_null_rows)"
+    )
     print(f"      rows_quarantined  = {run['rows_quarantined']}")
     print(f"      quality_score     = {run['quality_score']}")
 
@@ -249,7 +264,9 @@ def main() -> None:
     # --- Step 3: check Lineage — honestly reporting the known gap ---------
     print(f"\n[3/3] lineage_store.get_lineage_for_run('{run_id}')")
     lineage_entries = lineage_store.get_lineage_for_run(run_id)
-    print(f"      -> {len(lineage_entries)} entr{'y' if len(lineage_entries) == 1 else 'ies'}")
+    print(
+        f"      -> {len(lineage_entries)} entr{'y' if len(lineage_entries) == 1 else 'ies'}"
+    )
     if not lineage_entries:
         print("      -- Expected today: executor.py's _read_source() calls")
         print("         AbstractionLayer.execute_query(capture_lineage=True) WITHOUT")
@@ -264,12 +281,31 @@ def main() -> None:
     print("\n" + "=" * 78)
     print("Summary — what this run demonstrated end to end:")
     print("=" * 78)
-    print(f"  - Source read via AbstractionLayer.execute_query          : rows_read={run['rows_read']}")
+    print(
+        "- Source read via AbstractionLayer.execute_query          : "
+        f"rows_read={run['rows_read']}"
+    )
     print("  - All four registered transformation types applied in order:")
-    print("      rename_columns -> type_cast -> drop_null_rows -> drop_columns")
-    print(f"  - Data Quality pre-write hook (stub) recorded              : rows_quarantined={run['rows_quarantined']}, quality_score={run['quality_score']}")
-    print(f"  - Run persisted via run_store.py and retrieved via the real GET route : status={run['status']}")
-    print(f"  - Lineage check via lineage_store.py (honest gap reported) : {len(lineage_entries)} entries")
+    (
+        "  - Lineage check via lineage_store.py (honest gap reported) : "
+        f"{len(lineage_entries)} entries"
+    )
+    print(
+        "  - Data Quality pre-write hook (stub) recorded              : "
+        "rows_quarantined="
+        f"{run['rows_quarantined']}, "
+        "quality_score="
+        f"{run['quality_score']}"
+    )
+    print(
+        "  - Run persisted via run_store.py and retrieved via the real GET route : "
+        "status="
+        f"{run['status']}"
+    )
+    print(
+        "  - Lineage check via lineage_store.py (honest gap reported) : "
+        f"{len(lineage_entries)} entries"
+    )
     print("=" * 78)
 
 

@@ -6,14 +6,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-sys.path.insert(
-    0, str(Path(__file__).resolve().parents[1] / "services" / "etl_engine")
-)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services" / "etl_engine"))
 sys.path.insert(
     0,
-    str(
-        Path(__file__).resolve().parents[1] / "services" / "etl_engine" / "api"
-    ),
+    str(Path(__file__).resolve().parents[1] / "services" / "etl_engine" / "api"),
 )
 
 import run_store  # noqa: E402
@@ -67,9 +63,7 @@ def reset_state(monkeypatch):
             retryable=False,
         )
 
-    monkeypatch.setattr(
-        connection_resolver, "resolve_connection", _fail_resolve
-    )
+    monkeypatch.setattr(connection_resolver, "resolve_connection", _fail_resolve)
     yield
     run_store.clear_runs()
     pipeline_store.clear_pipelines()
@@ -132,9 +126,7 @@ def test_create_pipeline_compliance_failure_returns_422(monkeypatch):
             "No completed VERBİS registration found."
         )
 
-    monkeypatch.setattr(
-        compliance_check, "check_verbis_registration", _fail_check
-    )
+    monkeypatch.setattr(compliance_check, "check_verbis_registration", _fail_check)
     # app.py imported the function by name, so patch it there too.
     import app as app_module
 
@@ -193,9 +185,7 @@ def test_get_run_status_reachable_after_creation():
 
 
 def test_get_run_status_unknown_pipeline_returns_404():
-    response = client.get(
-        "/api/pipelines/does-not-exist/runs/does-not-exist-either"
-    )
+    response = client.get("/api/pipelines/does-not-exist/runs/does-not-exist-either")
 
     assert response.status_code == 404
     assert response.json()["error_code"] == "PIPELINE_NOT_FOUND"
@@ -235,3 +225,91 @@ def test_get_run_status_run_belongs_to_different_pipeline_returns_404():
 
     assert response.status_code == 404
     assert response.json()["error_code"] == "RUN_NOT_FOUND"
+
+
+# ---------------------------------------------------------------------------
+# GET /api/pipelines/ pagination
+# ---------------------------------------------------------------------------
+
+
+def test_list_pipelines_paginates_results():
+    for i in range(5):
+        pipeline_store.create_pipeline(
+            name=f"pipeline-{i}",
+            source=_valid_doc()["source"],
+            transformations=[],
+            target=_valid_doc()["target"],
+        )
+
+    response = client.get("/api/pipelines/?page=2&page_size=2")
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["total"] == 5
+    assert body["page"] == 2
+    assert body["page_size"] == 2
+    assert len(body["items"]) == 2
+
+
+def test_list_pipelines_last_page_can_be_partial():
+    for i in range(5):
+        pipeline_store.create_pipeline(
+            name=f"pipeline-{i}",
+            source=_valid_doc()["source"],
+            transformations=[],
+            target=_valid_doc()["target"],
+        )
+
+    response = client.get("/api/pipelines/?page=3&page_size=2")
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["total"] == 5
+    assert body["page"] == 3
+    assert body["page_size"] == 2
+    assert len(body["items"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# GET /api/kpis
+# ---------------------------------------------------------------------------
+
+
+def test_get_kpis_returns_expected_shape():
+    pipeline = pipeline_store.create_pipeline(
+        name="pipeline-one",
+        source=_valid_doc()["source"],
+        transformations=[],
+        target=_valid_doc()["target"],
+    )
+
+    run_store.create_run(pipeline["id"])
+
+    response = client.get("/api/kpis")
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["pipeline_count"] == 1
+    assert "rows_processed_today" in body
+    assert "average_quality_score" in body
+
+
+def test_get_kpis_average_quality_score_is_null_when_no_scores_exist():
+    pipeline = pipeline_store.create_pipeline(
+        name="pipeline-one",
+        source=_valid_doc()["source"],
+        transformations=[],
+        target=_valid_doc()["target"],
+    )
+
+    run_store.create_run(pipeline["id"])
+
+    response = client.get("/api/kpis")
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["average_quality_score"] is None
