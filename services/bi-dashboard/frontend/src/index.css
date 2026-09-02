@@ -26,6 +26,9 @@
   --color-surface: #ffffff;
   --color-border: #dde4ee;
   --color-row-alt: #ebf3fb;
+  --color-success-bg: rgba(46, 125, 50, 0.1);
+  --color-danger-bg: rgba(198, 40, 40, 0.1);
+  --color-warning-bg: rgba(230, 81, 0, 0.1);
 }
 
 a {
@@ -78,4 +81,8 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
