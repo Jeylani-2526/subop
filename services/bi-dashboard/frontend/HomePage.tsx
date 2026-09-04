@@ -18,7 +18,9 @@ export default function HomePage() {
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "16px",
+          gap: "20px",
+          padding: "24px",
+          alignItems: "start",
         }}
       >
         <KPISummaryCard

@@ -3,19 +3,18 @@
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, List
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-sys.path.insert(
-    0, str(Path(__file__).resolve().parents[1] / "services" / "etl_engine")
-)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services" / "etl_engine"))
 
 import run_store  # noqa: E402
-from services.abstraction.abstraction_layer import (
+from services.abstraction.abstraction_layer import (  # noqa: E402
     AbstractionLayer,
-)  # noqa: E402
+)
 from services.connectors.errors import QueryError  # noqa: E402
 from pipeline import parse_pipeline  # noqa: E402
 import executor  # noqa: E402
@@ -110,13 +109,9 @@ def patch_resolver(monkeypatch):
             )
         return layers[connection_ref], connector_type
 
-    monkeypatch.setattr(
-        connection_resolver, "resolve_connection", _fake_resolve
-    )
+    monkeypatch.setattr(connection_resolver, "resolve_connection", _fake_resolve)
 
-    def _register(
-        connection_ref: str, connector: FakeConnector, database="postgresql"
-    ):
+    def _register(connection_ref: str, connector: FakeConnector, database="postgresql"):
         layers[connection_ref] = AbstractionLayer(
             connector=connector, database=database
         )
@@ -127,6 +122,45 @@ def patch_resolver(monkeypatch):
 # ---------------------------------------------------------------------------
 # Happy path
 # ---------------------------------------------------------------------------
+
+
+def test_data_quality_hook_updates_run_metrics(patch_resolver, monkeypatch):
+    """DQ hook results should be persisted on the completed run."""
+
+    source_connector = FakeConnector(
+        rows=[
+            {"id": 1},
+            {"id": 2},
+            {"id": 3},
+        ]
+    )
+    target_connector = FakeConnector()
+
+    patch_resolver("app-db", source_connector)
+    patch_resolver("warehouse", target_connector)
+
+    def fake_data_quality_check(rows, pipeline_name):
+        return SimpleNamespace(
+            rows_quarantined=2,
+            quality_score=0.75,
+        )
+
+    monkeypatch.setattr(
+        executor.data_quality_hook,
+        "run_data_quality_check",
+        fake_data_quality_check,
+    )
+
+    pipeline = parse_pipeline(_valid_doc())
+
+    run = executor.execute_pipeline(
+        pipeline,
+        pipeline_id="pipe-dq-1",
+    )
+
+    assert run["status"] == "succeeded"
+    assert run["rows_quarantined"] == 2
+    assert run["quality_score"] == 0.75
 
 
 def test_execute_pipeline_succeeds_with_no_transformations(patch_resolver):
@@ -186,9 +220,7 @@ def test_unregistered_transformation_type_fails_the_run(patch_resolver):
     patch_resolver("warehouse", FakeConnector())
 
     doc = _valid_doc(
-        transformations=[
-            {"step_id": "s1", "type": "does_not_exist", "params": {}}
-        ]
+        transformations=[{"step_id": "s1", "type": "does_not_exist", "params": {}}]
     )
     pipeline = parse_pipeline(doc)
 
@@ -317,9 +349,7 @@ def test_resolve_connection_malformed_json_raises_connector_error(monkeypatch):
 def test_resolve_connection_incomplete_credentials_raises_connector_error(
     monkeypatch,
 ):
-    monkeypatch.setenv(
-        "SUBOP_CONN_PARTIAL_REF", json.dumps({"host": "localhost"})
-    )
+    monkeypatch.setenv("SUBOP_CONN_PARTIAL_REF", json.dumps({"host": "localhost"}))
 
     from services.connectors.errors import ConnectorError
 
