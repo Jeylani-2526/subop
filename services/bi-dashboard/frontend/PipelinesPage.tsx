@@ -56,7 +56,6 @@ export default function PipelinesPage() {
   const [loadingRun, setLoadingRun] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [timeFilter, setTimeFilter] = useState("");
@@ -125,8 +124,19 @@ export default function PipelinesPage() {
     });
   }, [pipelines, runs, debouncedSearch, statusFilter, timeFilter]);
 
-  const hasFilter = searchTerm || statusFilter || timeFilter;
+  const hasFilter = !!(searchTerm || statusFilter || timeFilter);
   const selected = pipelines.find((p) => p.id === selectedId) ?? null;
+
+  const inputStyle: React.CSSProperties = {
+    fontSize: "12px",
+    padding: "5px 10px",
+    border: "1px solid var(--color-border)",
+    borderRadius: "6px",
+    background: "#fff",
+    color: "var(--color-neutral-dark)",
+    outline: "none",
+    cursor: "pointer",
+  };
 
   return (
     <AppShell pageTitle="Pipeline Monitor" userRole="admin">
@@ -142,34 +152,55 @@ export default function PipelinesPage() {
         <div
           style={{
             display: "flex",
-            gap: "10px",
             alignItems: "center",
-            padding: "12px 16px",
-            borderBottom: "1px solid var(--color-neutral-200)",
+            gap: "8px",
+            padding: "10px 16px",
             flexShrink: 0,
+            background: "var(--color-primary)",
+            flexWrap: "wrap",
+            borderBottom: "3px solid rgba(0,0,0,0.15)",
           }}
         >
+          {/* Search */}
           <input
             placeholder="Pipeline ara..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
-              fontSize: "12px",
-              padding: "6px 10px",
-              border: "1px solid var(--color-neutral-200)",
-              borderRadius: "6px",
+              ...inputStyle,
               width: "180px",
+              background: "rgba(255,255,255,0.15)",
+              color: "#fff",
             }}
           />
+
+          {/* Divider */}
+          <div
+            style={{
+              width: "1px",
+              height: "20px",
+              background: "rgba(255,255,255,0.2)",
+              flexShrink: 0,
+            }}
+          />
+
+          {/* Zaman */}
+          <select
+            value={timeFilter}
+            onChange={(e) => setTimeFilter(e.target.value)}
+            style={inputStyle}
+          >
+            <option value="">Tüm Zamanlar</option>
+            <option value="1">Son 1 Saat</option>
+            <option value="24">Son 24 Saat</option>
+            <option value="168">Son 7 Gün</option>
+          </select>
+
+          {/* Durum */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            style={{
-              fontSize: "12px",
-              padding: "6px 10px",
-              border: "1px solid var(--color-neutral-200)",
-              borderRadius: "6px",
-            }}
+            style={inputStyle}
           >
             <option value="">Tüm Durumlar</option>
             <option value="running">Running</option>
@@ -177,21 +208,31 @@ export default function PipelinesPage() {
             <option value="failed">Failed</option>
             <option value="pending">Pending</option>
           </select>
-          <select
-            value={timeFilter}
-            onChange={(e) => setTimeFilter(e.target.value)}
+
+          {/* Divider */}
+          <div
             style={{
-              fontSize: "12px",
-              padding: "6px 10px",
-              border: "1px solid var(--color-neutral-200)",
-              borderRadius: "6px",
+              width: "1px",
+              height: "20px",
+              background: "rgba(255,255,255,0.2)",
+              flexShrink: 0,
+            }}
+          />
+
+          {/* Yenile */}
+          <button
+            onClick={fetchPipelines}
+            style={{
+              ...inputStyle,
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
             }}
           >
-            <option value="">Tüm Zamanlar</option>
-            <option value="1">Son 1 Saat</option>
-            <option value="24">Son 24 Saat</option>
-            <option value="168">Son 7 Gün</option>
-          </select>
+            ↻ Yenile
+          </button>
+
+          {/* Temizle */}
           {hasFilter && (
             <button
               onClick={() => {
@@ -202,35 +243,23 @@ export default function PipelinesPage() {
               style={{
                 fontSize: "11px",
                 padding: "5px 10px",
-                border: "1px solid var(--color-neutral-200)",
+                border: "1px solid rgba(255,100,100,0.4)",
                 borderRadius: "6px",
+                background: "rgba(255,100,100,0.15)",
+                color: "#fca5a5",
                 cursor: "pointer",
-                background: "none",
-                color: "var(--color-neutral-500)",
               }}
             >
-              Filtreleri Temizle ✕
+              ✕ Temizle
             </button>
           )}
-          <button
-            onClick={fetchPipelines}
-            style={{
-              fontSize: "11px",
-              padding: "5px 10px",
-              border: "1px solid var(--color-neutral-200)",
-              borderRadius: "6px",
-              cursor: "pointer",
-              background: "none",
-              color: "var(--color-neutral-500)",
-            }}
-          >
-            ↻ Yenile
-          </button>
+
           <span
             style={{
               fontSize: "11px",
-              color: "var(--color-neutral-400)",
+              color: "rgba(255,255,255,0.6)",
               marginLeft: "auto",
+              whiteSpace: "nowrap",
             }}
           >
             {hasFilter ? `${filteredPipelines.length} / ` : ""}
@@ -246,7 +275,8 @@ export default function PipelinesPage() {
           <div
             style={{
               width: "320px",
-              minWidth: "320px",
+              minWidth: "240px",
+              maxWidth: "320px",
               flexShrink: 0,
               borderRight: "1px solid var(--color-neutral-200)",
               overflowY: "auto",
@@ -307,7 +337,9 @@ export default function PipelinesPage() {
           </div>
 
           {/* Zone 3 */}
-          <div style={{ flex: 1, padding: "20px", overflowY: "auto" }}>
+          <div
+            style={{ flex: 1, minWidth: 0, padding: "20px", overflowY: "auto" }}
+          >
             {selected ? (
               <div
                 style={{
@@ -329,7 +361,8 @@ export default function PipelinesPage() {
                   <div
                     style={{
                       display: "flex",
-                      gap: "24px",
+                      flexWrap: "wrap",
+                      gap: "16px",
                       fontSize: "12px",
                       color: "var(--color-neutral-500)",
                     }}
@@ -392,6 +425,7 @@ export default function PipelinesPage() {
                       padding: "12px",
                       borderRadius: "8px",
                       lineHeight: "1.8",
+                      overflowX: "auto",
                     }}
                   >
                     {loadingRun ? (

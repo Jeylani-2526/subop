@@ -10,10 +10,7 @@ import pytest
 # ---------------------------------------------------------------------------
 
 RUN_STORE_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "services"
-    / "etl_engine"
-    / "run_store.py"
+    Path(__file__).resolve().parents[1] / "services" / "etl_engine" / "run_store.py"
 )
 
 spec = importlib.util.spec_from_file_location("run_store", RUN_STORE_PATH)
