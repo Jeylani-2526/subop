@@ -116,12 +116,12 @@ def _seed_source_table(config: PostgresConnectionConfig) -> None:
                 (1,'Ayşe Yilmaz', '+905551110001', '29', 'yes', 'ayse@example.com', 'staging-only'),
                 (
                     2,
-                    "Mehmet Demir",
-                    "+905551110002",
-                    "41",
-                    "no",
-                    "mehmet@example.com",
-                    "staging-only",
+                    'Mehmet Demir',
+                    '+905551110002',
+                    '41',
+                    'no',
+                    'mehmet@example.com',
+                    'staging-only'
                 ),
                 (3,'Zeynep Kaya', '+905551110003', '35', 'yes', NULL, 'staging-only'),
                 (4,'Ali Şahin', '+905551110004', '52', 'no',  'ali@example.com', 'staging-only')
@@ -286,7 +286,7 @@ def main() -> None:
         f"rows_read={run['rows_read']}"
     )
     print("  - All four registered transformation types applied in order:")
-    (
+    print(
         "  - Lineage check via lineage_store.py (honest gap reported) : "
         f"{len(lineage_entries)} entries"
     )
