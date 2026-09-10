@@ -87,10 +87,17 @@ def _register_connection_ref(
 def _seed_source_table(config: PostgresConnectionConfig) -> None:
     """
     Reset and seed the demo source table with data deliberately shaped
-    to exercise all four Week 16 transformation types:
+    to exercise all four Week 16 transformation types, plus (M6W18T2)
+    one column that exercises the lineage fix end to end:
 
       - contact_phone / age_text: renamed by rename_columns
       - age (post-rename), is_active: cast by type_cast (str -> int, str -> bool)
+      - signup_score_text (post-rename: score): cast by type_cast (str -> float).
+        `float` maps to PostgreSQL `double precision`, an `inexact`
+        condition (type_mapping.py) — unlike age/is_active, which both
+        land on `direct` conditions — so this is the column that
+        actually produces a non-zero Lineage entry now that
+        column_types is wired through (M6W18T2).
       - email: one row is NULL, dropped by drop_null_rows
       - internal_staging_notes: removed by drop_columns
     """
@@ -105,26 +112,32 @@ def _seed_source_table(config: PostgresConnectionConfig) -> None:
                 contact_phone VARCHAR(50),
                 age_text VARCHAR(10),
                 is_active VARCHAR(10),
+                signup_score_text VARCHAR(10),
                 email VARCHAR(255),
                 internal_staging_notes VARCHAR(255)
             )
         """)
         connector.execute_write(f"""
             INSERT INTO {SOURCE_TABLE}
-                (id, full_name, contact_phone, age_text, is_active, email, internal_staging_notes)
+                (id, full_name, contact_phone, age_text, is_active,
+                 signup_score_text, email, internal_staging_notes)
             VALUES
-                (1,'Ayşe Yilmaz', '+905551110001', '29', 'yes', 'ayse@example.com', 'staging-only'),
                 (
-                    2,
-                    'Mehmet Demir',
-                    '+905551110002',
-                    '41',
-                    'no',
-                    'mehmet@example.com',
-                    'staging-only'
+                    1, 'Ayşe Yilmaz', '+905551110001', '29', 'yes',
+                    '87.50', 'ayse@example.com', 'staging-only'
                 ),
-                (3,'Zeynep Kaya', '+905551110003', '35', 'yes', NULL, 'staging-only'),
-                (4,'Ali Şahin', '+905551110004', '52', 'no',  'ali@example.com', 'staging-only')
+                (
+                    2, 'Mehmet Demir', '+905551110002', '41', 'no',
+                    '63.75', 'mehmet@example.com', 'staging-only'
+                ),
+                (
+                    3, 'Zeynep Kaya', '+905551110003', '35', 'yes',
+                    '91.00', NULL, 'staging-only'
+                ),
+                (
+                    4, 'Ali Şahin', '+905551110004', '52', 'no',
+                    '75.25', 'ali@example.com', 'staging-only'
+                )
         """)
     finally:
         connector.disconnect()
@@ -143,6 +156,7 @@ def _reset_target_table(config: PostgresConnectionConfig) -> None:
                 phone VARCHAR(50),
                 age INT,
                 is_active BOOLEAN,
+                score DECIMAL(6, 2),
                 email VARCHAR(255)
             )
         """)
@@ -172,12 +186,20 @@ def _pipeline_dsl_document() -> Dict[str, Any]:
             {
                 "step_id": "rename-contact-fields",
                 "type": "rename_columns",
-                "params": {"mapping": {"contact_phone": "phone", "age_text": "age"}},
+                "params": {
+                    "mapping": {
+                        "contact_phone": "phone",
+                        "age_text": "age",
+                        "signup_score_text": "score",
+                    }
+                },
             },
             {
                 "step_id": "cast-types",
                 "type": "type_cast",
-                "params": {"casts": {"age": "int", "is_active": "bool"}},
+                "params": {
+                    "casts": {"age": "int", "is_active": "bool", "score": "float"}
+                },
             },
             {
                 "step_id": "drop-incomplete-rows",
@@ -261,22 +283,27 @@ def main() -> None:
     for line in run["logs"]:
         print(f"        - {line}")
 
-    # --- Step 3: check Lineage — honestly reporting the known gap ---------
+    # --- Step 3: check Lineage — M6W18T2 fix, honestly reporting scope ----
     print(f"\n[3/3] lineage_store.get_lineage_for_run('{run_id}')")
     lineage_entries = lineage_store.get_lineage_for_run(run_id)
     print(
         f"      -> {len(lineage_entries)} entr{'y' if len(lineage_entries) == 1 else 'ies'}"
     )
-    if not lineage_entries:
-        print("      -- Expected today: executor.py's _read_source() calls")
-        print("         AbstractionLayer.execute_query(capture_lineage=True) WITHOUT")
-        print("         column_types. execute_query() only computes lineage_records")
-        print("         when column_types is supplied, so a real run's lineage list")
-        print("         is unconditionally empty until schema-catalog integration")
-        print("         wires column_types through. lineage_store.py itself (the")
-        print("         module, the source_read sentinel, record/get functions) is")
-        print("         implemented and unit-tested — the executor->AbstractionLayer")
-        print("         integration point is the open gap, tracked for M5 closure.")
+    if lineage_entries:
+        print("      -- One entry per row read for 'signup_score_text': the")
+        print("         type_cast step casts it to 'float', which executor.py's")
+        print("         _column_types_from_casts() maps to PostgreSQL")
+        print("         'double precision' — an `inexact` condition in")
+        print("         type_mapping.py, so it's recorded here rather than")
+        print("         treated as an error (contracts Section 7.2). age/")
+        print("         is_active are also cast but both land on `direct`")
+        print("         conditions, so they produce no lineage entries — that's")
+        print("         expected, not a gap.")
+    else:
+        print("      -- Unexpected: a type_cast column should have produced at")
+        print("         least one entry (see M6W18T2 / executor.py's")
+        print("         _column_types_from_casts()). Investigate before treating")
+        print("         this run as a clean demonstration of the fix.")
 
     print("\n" + "=" * 78)
     print("Summary — what this run demonstrated end to end:")
