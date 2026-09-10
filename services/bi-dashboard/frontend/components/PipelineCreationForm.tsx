@@ -13,6 +13,75 @@ interface PipelineCreationFormProps {
 const CONNECTOR_TYPES = ["postgresql", "mysql", "mssql", "mongodb"] as const;
 const WRITE_MODES = ["upsert", "append"] as const;
 
+function getInputStyle(hasError?: boolean): React.CSSProperties {
+  return {
+    width: "100%",
+    padding: "7px 10px",
+    fontSize: "12px",
+    border: `1px solid ${hasError ? "var(--color-danger)" : "var(--color-border)"}`,
+    borderRadius: "6px",
+    background: "var(--color-surface)",
+    color: "var(--color-neutral-dark)",
+    outline: "none",
+  };
+}
+
+const labelStyle: React.CSSProperties = {
+  fontSize: "10px",
+  fontWeight: 600,
+  color: "var(--color-neutral-500)",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+  marginBottom: "4px",
+  display: "block",
+};
+
+interface FieldProps {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}
+
+function Field({ label, error, children }: FieldProps) {
+  return (
+    <div>
+      <label style={labelStyle}>
+        {label}
+        {error && (
+          <span style={{ color: "var(--color-danger)", marginLeft: 4 }}>
+            — {error}
+          </span>
+        )}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+interface SectionTitleProps {
+  text: string;
+  color: string;
+}
+
+function SectionTitle({ text, color }: SectionTitleProps) {
+  return (
+    <div
+      style={{
+        fontSize: "11px",
+        fontWeight: 700,
+        color,
+        padding: "6px 10px",
+        background: color + "18",
+        borderRadius: "6px",
+        marginBottom: "10px",
+        borderLeft: `3px solid ${color}`,
+      }}
+    >
+      {text}
+    </div>
+  );
+}
+
 export default function PipelineCreationForm({
   onSuccess,
   onCancel,
@@ -36,25 +105,26 @@ export default function PipelineCreationForm({
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  function set(key: string) {
+    return (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >,
+    ) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  }
+
   function validate(): boolean {
     const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = "Pipeline adı zorunlu";
-    if (!form.source_connector_type)
-      e.source_connector_type = "Kaynak tipi zorunlu";
-    if (!form.source_connection_ref.trim())
-      e.source_connection_ref = "Kaynak bağlantı referansı zorunlu";
-    if (!form.source_object.trim())
-      e.source_object = "Kaynak tablo/koleksiyon zorunlu";
-    if (!form.target_connector_type)
-      e.target_connector_type = "Hedef tipi zorunlu";
-    if (!form.target_connection_ref.trim())
-      e.target_connection_ref = "Hedef bağlantı referansı zorunlu";
-    if (!form.target_object.trim())
-      e.target_object = "Hedef tablo/koleksiyon zorunlu";
-    if (!form.processing_purpose.trim())
-      e.processing_purpose = "İşleme amacı zorunlu";
+    if (!form.name.trim()) e.name = "Zorunlu";
+    if (!form.source_connector_type) e.source_connector_type = "Zorunlu";
+    if (!form.source_connection_ref.trim()) e.source_connection_ref = "Zorunlu";
+    if (!form.source_object.trim()) e.source_object = "Zorunlu";
+    if (!form.target_connector_type) e.target_connector_type = "Zorunlu";
+    if (!form.target_connection_ref.trim()) e.target_connection_ref = "Zorunlu";
+    if (!form.target_object.trim()) e.target_object = "Zorunlu";
+    if (!form.processing_purpose.trim()) e.processing_purpose = "Zorunlu";
     if (!form.data_subject_categories.trim())
-      e.data_subject_categories = "Veri konusu kategorisi zorunlu";
+      e.data_subject_categories = "Zorunlu";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -95,11 +165,11 @@ export default function PipelineCreationForm({
     try {
       await createPipeline(payload);
       setSuccess(true);
-      setTimeout(() => onSuccess(), 1500);
+      setTimeout(() => onSuccess(), 1200);
     } catch (err: unknown) {
       const envelope = err as ErrorEnvelope;
       if (envelope?.error_code === "DSL_VALIDATION_FAILED") {
-        setApiError(`Validation hatası: ${envelope.message}`);
+        setApiError(`Validation: ${envelope.message}`);
       } else if (envelope?.error_code === "VERBIS_REGISTRATION_INCOMPLETE") {
         setErrors((e) => ({
           ...e,
@@ -117,7 +187,7 @@ export default function PipelineCreationForm({
     return (
       <div
         style={{
-          padding: "32px",
+          padding: "24px",
           textAlign: "center",
           color: "var(--color-success)",
           fontSize: "14px",
@@ -135,292 +205,248 @@ export default function PipelineCreationForm({
         background: "var(--color-surface)",
         border: "1px solid var(--color-border)",
         borderRadius: "10px",
-        padding: "24px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "16px",
-        maxWidth: "560px",
+        overflow: "hidden",
         width: "100%",
+        maxWidth: "560px",
       }}
     >
+      {/* Header */}
       <div
         style={{
-          fontSize: "16px",
-          fontWeight: 700,
-          color: "var(--color-neutral-dark)",
+          padding: "12px 16px",
+          borderBottom: "1px solid var(--color-border)",
+          background: "var(--color-primary)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
-        Yeni Pipeline Oluştur
-      </div>
-
-      {apiError && (
-        <div
-          style={{
-            padding: "10px 14px",
-            borderRadius: "7px",
-            background: "rgba(198,40,40,0.08)",
-            border: "1px solid var(--color-danger)",
-            fontSize: "12px",
-            color: "var(--color-danger)",
-          }}
-        >
-          {apiError}
-        </div>
-      )}
-
-      <Field label="Pipeline Adı" error={errors.name}>
-        <input
-          value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          placeholder="Örn: Orders ETL"
-          style={inputStyle(!!errors.name)}
-        />
-      </Field>
-
-      <div
-        style={{
-          fontWeight: 600,
-          fontSize: "11px",
-          color: "var(--color-neutral-dark)",
-        }}
-      >
-        Kaynak
-      </div>
-
-      <Field label="Connector Tipi" error={errors.source_connector_type}>
-        <select
-          value={form.source_connector_type}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, source_connector_type: e.target.value }))
-          }
-          style={inputStyle(!!errors.source_connector_type)}
-        >
-          <option value="">Seçin</option>
-          {CONNECTOR_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </Field>
-
-      <Field label="Bağlantı Referansı" error={errors.source_connection_ref}>
-        <input
-          value={form.source_connection_ref}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, source_connection_ref: e.target.value }))
-          }
-          placeholder="Örn: pg-main"
-          style={inputStyle(!!errors.source_connection_ref)}
-        />
-      </Field>
-
-      <Field label="Tablo / Koleksiyon" error={errors.source_object}>
-        <input
-          value={form.source_object}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, source_object: e.target.value }))
-          }
-          placeholder="Örn: orders"
-          style={inputStyle(!!errors.source_object)}
-        />
-      </Field>
-
-      <div
-        style={{
-          fontWeight: 600,
-          fontSize: "11px",
-          color: "var(--color-neutral-dark)",
-        }}
-      >
-        Hedef
-      </div>
-
-      <Field label="Connector Tipi" error={errors.target_connector_type}>
-        <select
-          value={form.target_connector_type}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, target_connector_type: e.target.value }))
-          }
-          style={inputStyle(!!errors.target_connector_type)}
-        >
-          <option value="">Seçin</option>
-          {CONNECTOR_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </Field>
-
-      <Field label="Bağlantı Referansı" error={errors.target_connection_ref}>
-        <input
-          value={form.target_connection_ref}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, target_connection_ref: e.target.value }))
-          }
-          placeholder="Örn: dw-main"
-          style={inputStyle(!!errors.target_connection_ref)}
-        />
-      </Field>
-
-      <Field label="Tablo / Koleksiyon" error={errors.target_object}>
-        <input
-          value={form.target_object}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, target_object: e.target.value }))
-          }
-          placeholder="Örn: fact_orders"
-          style={inputStyle(!!errors.target_object)}
-        />
-      </Field>
-
-      <Field label="Write Mode" error={undefined}>
-        <select
-          value={form.target_write_mode}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, target_write_mode: e.target.value }))
-          }
-          style={inputStyle(false)}
-        >
-          {WRITE_MODES.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-      </Field>
-
-      <div
-        style={{
-          fontWeight: 600,
-          fontSize: "11px",
-          color: "var(--color-neutral-dark)",
-        }}
-      >
-        Uyumluluk
-      </div>
-
-      <Field label="İşleme Amacı" error={errors.processing_purpose}>
-        <textarea
-          value={form.processing_purpose}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, processing_purpose: e.target.value }))
-          }
-          placeholder="Bu pipeline verisi ne amaçla işliyor?"
-          rows={2}
-          style={{
-            ...inputStyle(!!errors.processing_purpose),
-            resize: "vertical",
-            fontFamily: "inherit",
-          }}
-        />
-      </Field>
-
-      <Field
-        label="Veri Konusu Kategorileri (virgülle ayırın)"
-        error={errors.data_subject_categories}
-      >
-        <input
-          value={form.data_subject_categories}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, data_subject_categories: e.target.value }))
-          }
-          placeholder="Örn: customers, employees"
-          style={inputStyle(!!errors.data_subject_categories)}
-        />
-      </Field>
-
-      <Field
-        label="Transfer Alıcıları (opsiyonel, virgülle ayırın)"
-        error={undefined}
-      >
-        <input
-          value={form.transfer_recipients}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, transfer_recipients: e.target.value }))
-          }
-          placeholder="Boş bırakılabilir"
-          style={inputStyle(false)}
-        />
-      </Field>
-
-      <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+        <span style={{ fontSize: "13px", fontWeight: 700, color: "#fff" }}>
+          Yeni Pipeline
+        </span>
         <button
           onClick={onCancel}
-          disabled={loading}
           style={{
-            padding: "8px 18px",
-            borderRadius: "7px",
-            border: "1px solid var(--color-border)",
             background: "none",
-            fontSize: "12px",
-            cursor: "pointer",
-          }}
-        >
-          İptal
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          style={{
-            padding: "8px 18px",
-            borderRadius: "7px",
             border: "none",
-            background: "var(--color-primary)",
-            color: "#fff",
-            fontSize: "12px",
-            fontWeight: 600,
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.7 : 1,
+            color: "rgba(255,255,255,0.7)",
+            cursor: "pointer",
+            fontSize: "16px",
+            padding: 0,
           }}
         >
-          {loading ? "Oluşturuluyor..." : "Oluştur"}
+          ✕
         </button>
+      </div>
+
+      <div
+        style={{
+          padding: "16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "14px",
+        }}
+      >
+        {apiError && (
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "6px",
+              background: "#ffebee",
+              border: "1px solid var(--color-danger)",
+              fontSize: "11px",
+              color: "var(--color-danger)",
+            }}
+          >
+            {apiError}
+          </div>
+        )}
+
+        {/* Pipeline Adı */}
+        <Field label="Pipeline Adı" error={errors.name}>
+          <input
+            value={form.name}
+            onChange={set("name")}
+            placeholder="Örn: Orders ETL"
+            style={getInputStyle(!!errors.name)}
+          />
+        </Field>
+
+        {/* Kaynak + Hedef — 2 sütun */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "12px",
+          }}
+        >
+          {/* Kaynak */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <SectionTitle text="Kaynak" color="var(--color-secondary)" />
+            <Field label="Connector" error={errors.source_connector_type}>
+              <select
+                value={form.source_connector_type}
+                onChange={set("source_connector_type")}
+                style={getInputStyle(!!errors.source_connector_type)}
+              >
+                <option value="">Seçin</option>
+                {CONNECTOR_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Connection Ref" error={errors.source_connection_ref}>
+              <input
+                value={form.source_connection_ref}
+                onChange={set("source_connection_ref")}
+                placeholder="pg-main"
+                style={getInputStyle(!!errors.source_connection_ref)}
+              />
+            </Field>
+            <Field label="Tablo / Koleksiyon" error={errors.source_object}>
+              <input
+                value={form.source_object}
+                onChange={set("source_object")}
+                placeholder="orders"
+                style={getInputStyle(!!errors.source_object)}
+              />
+            </Field>
+          </div>
+
+          {/* Hedef */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <SectionTitle text="Hedef" color="var(--color-success)" />
+            <Field label="Connector" error={errors.target_connector_type}>
+              <select
+                value={form.target_connector_type}
+                onChange={set("target_connector_type")}
+                style={getInputStyle(!!errors.target_connector_type)}
+              >
+                <option value="">Seçin</option>
+                {CONNECTOR_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Connection Ref" error={errors.target_connection_ref}>
+              <input
+                value={form.target_connection_ref}
+                onChange={set("target_connection_ref")}
+                placeholder="dw-main"
+                style={getInputStyle(!!errors.target_connection_ref)}
+              />
+            </Field>
+            <Field label="Tablo / Koleksiyon" error={errors.target_object}>
+              <input
+                value={form.target_object}
+                onChange={set("target_object")}
+                placeholder="fact_orders"
+                style={getInputStyle(!!errors.target_object)}
+              />
+            </Field>
+            <Field label="Write Mode" error={undefined}>
+              <select
+                value={form.target_write_mode}
+                onChange={set("target_write_mode")}
+                style={getInputStyle()}
+              >
+                {WRITE_MODES.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        </div>
+
+        {/* Uyumluluk */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <SectionTitle text="Uyumluluk" color="var(--color-warning)" />
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "12px",
+            }}
+          >
+            <Field label="İşleme Amacı" error={errors.processing_purpose}>
+              <input
+                value={form.processing_purpose}
+                onChange={set("processing_purpose")}
+                placeholder="Sipariş entegrasyonu"
+                style={getInputStyle(!!errors.processing_purpose)}
+              />
+            </Field>
+            <Field
+              label="Veri Konusu Kategorileri"
+              error={errors.data_subject_categories}
+            >
+              <input
+                value={form.data_subject_categories}
+                onChange={set("data_subject_categories")}
+                placeholder="customers, employees"
+                style={getInputStyle(!!errors.data_subject_categories)}
+              />
+            </Field>
+          </div>
+          <Field label="Transfer Alıcıları (opsiyonel)" error={undefined}>
+            <input
+              value={form.transfer_recipients}
+              onChange={set("transfer_recipients")}
+              placeholder="Boş bırakılabilir"
+              style={getInputStyle()}
+            />
+          </Field>
+        </div>
+
+        {/* Butonlar */}
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            justifyContent: "flex-end",
+            paddingTop: "4px",
+          }}
+        >
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            style={{
+              padding: "7px 16px",
+              borderRadius: "6px",
+              border: "1px solid var(--color-border)",
+              background: "none",
+              fontSize: "12px",
+              cursor: "pointer",
+              color: "var(--color-neutral-dark)",
+            }}
+          >
+            İptal
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            style={{
+              padding: "7px 16px",
+              borderRadius: "6px",
+              border: "none",
+              background: "var(--color-primary)",
+              color: "#fff",
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            {loading ? "Oluşturuluyor..." : "Oluştur"}
+          </button>
+        </div>
       </div>
     </div>
   );
-}
-
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-      <label
-        style={{
-          fontSize: "11px",
-          fontWeight: 600,
-          color: "var(--color-neutral-dark)",
-        }}
-      >
-        {label}
-      </label>
-      {children}
-      {error && (
-        <span style={{ fontSize: "10px", color: "var(--color-danger)" }}>
-          {error}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function inputStyle(hasError: boolean): React.CSSProperties {
-  return {
-    padding: "8px 10px",
-    borderRadius: "7px",
-    border: `1px solid ${hasError ? "var(--color-danger)" : "var(--color-border)"}`,
-    fontSize: "12px",
-    color: "var(--color-neutral-dark)",
-    background: "var(--color-surface)",
-    width: "100%",
-    outline: "none",
-  };
 }
