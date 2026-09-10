@@ -32,7 +32,12 @@ class PipelineValidationError(ValueError):
         self.errors = errors
 
 
-_VALID_CONNECTOR_TYPES = {"postgresql", "mysql", "mssql", "mongodb"}
+# mongodb removed (M6W18T3, M6 kickoff decision): no MongoDB connector
+# exists in services/connectors/, so a pipeline declaring connector_type
+# "mongodb" previously passed creation validation and could only fail
+# unpredictably at execution time. Add it back if/when a real connector
+# is built.
+_VALID_CONNECTOR_TYPES = {"postgresql", "mysql", "mssql"}
 _VALID_WRITE_MODES = {"upsert", "append"}
 
 
