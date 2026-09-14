@@ -35,6 +35,13 @@ Per `SUBOP_roadmap.docx`'s Success Metrics table: **8+ working connectors, owned
 
 ---
 
-## Part B — Kickoff Notes (fill in during/after the sync)
+## Part B — Kickoff Notes
 
-*To be completed live at the M6 kickoff sync.*
+**Attendees:** Abdullah, Beyza, Omer (full team)
+
+**Decisions confirmed:**
+1. **Lineage `column_types` wiring** — fix goes ahead now in M6. Owner: Abdullah. (M6W18T2)
+2. **CatalogBrowserPage → AssetCard** — stays M9 scope, no change. Verified against Beyza's `component_status_m6_handoff_v1.md`, which lists the page's content milestone as M9.
+3. **DSL `mongodb` connector_type`** — removed from validation rather than built. Owner: Abdullah. (M6W18T3)
+
+**Action items:** None beyond what's already scoped in this week's task plan (M6W18T2, M6W18T3 for Abdullah; SQLite/CSV for Omer; PipelineCreationForm mount + connection-ref env vars for Beyza).

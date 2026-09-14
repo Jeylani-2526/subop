@@ -237,6 +237,71 @@ def execute_pipeline(pipeline: PipelineDefinition, pipeline_id: str) -> Dict[str
             connection_resolver.release_connection(target_layer)
 
 
+# M6W18T2: maps a `type_cast` step's DSL-level target type (int / float /
+# str / bool — see _TYPE_CASTERS above) to a representative native SQL
+# type string per source dialect, so UniversalTypeMapper (type_mapping.py)
+# has something to classify. This is an approximation of the *intended*
+# post-cast type, not an introspected native type — there is no schema
+# catalog to introspect from yet. Only dialects with a real connector
+# today are listed; mongodb is being removed from validation this same
+# week (M6W18T3), not added here.
+_DSL_TYPE_TO_NATIVE_TYPE: Dict[str, Dict[str, str]] = {
+    "postgresql": {
+        "int": "integer",
+        "float": "double precision",
+        "str": "varchar",
+        "bool": "boolean",
+    },
+    "mysql": {"int": "int", "float": "float", "str": "varchar", "bool": "boolean"},
+    "mssql": {"int": "int", "float": "float", "str": "varchar", "bool": "bit"},
+}
+
+
+def _column_types_from_casts(pipeline: PipelineDefinition) -> Dict[str, str]:
+    """
+    Build a column_types map for the source read from any `type_cast`
+    transformation step(s) in `pipeline.transformations`.
+
+    Keys must be the RAW column names as they exist on the source
+    object at read time — before any `rename_columns` step runs — since
+    `_read_source()` executes before every transformation step. A
+    `type_cast` step's `casts` mapping is keyed by whatever name is
+    current *at that point in the pipeline*, which may already be a
+    renamed name (as in the M5/M6 demo pipeline: `age_text` is renamed
+    to `age` before `age` is cast). This walks the transformations in
+    order, tracking renames, so a cast on a renamed column resolves
+    back to its original raw column name.
+
+    A pipeline with no `type_cast` step returns an empty dict, which
+    keeps lineage capture a no-op for it — same behavior as before this
+    fix.
+    """
+    native_types = _DSL_TYPE_TO_NATIVE_TYPE.get(pipeline.source.connector_type, {})
+
+    # current_name -> raw_name, updated as rename_columns steps are seen.
+    raw_name_of: Dict[str, str] = {}
+    column_types: Dict[str, str] = {}
+
+    for step in pipeline.transformations:
+        if step.type == "rename_columns":
+            mapping = step.params.get("mapping", {})
+            for old_name, new_name in mapping.items():
+                # If old_name was itself already a renamed name, chain
+                # back to its raw source name; otherwise old_name IS
+                # the raw name.
+                raw_name_of[new_name] = raw_name_of.pop(old_name, old_name)
+
+        elif step.type == "type_cast":
+            casts = step.params.get("casts", {})
+            for column_name, dsl_type in casts.items():
+                raw_name = raw_name_of.get(column_name, column_name)
+                native_type = native_types.get(dsl_type)
+                if native_type is not None:
+                    column_types[raw_name] = native_type
+
+    return column_types
+
+
 def _read_source(
     source_layer: Any, pipeline: PipelineDefinition
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -244,14 +309,22 @@ def _read_source(
     Read all rows from the pipeline's source object.
 
     `source.query` (API spec Section 2.1) is an optional raw
-    filter/query; when absent, this reads the full object. Column-type
-    metadata for lineage-aware normalization isn't available at this
-    generic layer (no schema catalog integration yet — flagged as a
-    gap, not invented here), so this call doesn't pass column_types
-    and capture_lineage will be empty until that's wired up.
+    filter/query; when absent, this reads the full object.
+
+    M6W18T2: there is still no schema-catalog service (M9/M10 scope)
+    and neither SourceSpec nor TargetSpec carries a schema field, so
+    there remains no true source of native column types. The one
+    per-column type declaration that exists anywhere in the DSL today
+    is a `type_cast` transformation step's `params.casts` mapping —
+    see `_column_types_from_casts()`. This is a deliberately narrow
+    fix: a pipeline with no `type_cast` step still gets an empty
+    lineage list, same as before.
     """
     sql = pipeline.source.query or f"SELECT * FROM {pipeline.source.object}"
-    rows, lineage_records = source_layer.execute_query(sql, capture_lineage=True)
+    column_types = _column_types_from_casts(pipeline)
+    rows, lineage_records = source_layer.execute_query(
+        sql, column_types=column_types or None, capture_lineage=True
+    )
     return rows, lineage_records
 
 
