@@ -75,6 +75,30 @@ def test_invalid_connector_type_raises():
     assert any("source.connector_type" in e for e in exc_info.value.errors)
 
 
+def test_mongodb_connector_type_rejected():
+    """
+    M6W18T3 / M6 kickoff decision: mongodb was previously accepted by
+    validation even though no MongoDB connector exists in
+    services/connectors/, letting a pipeline pass creation and only
+    fail unpredictably at execution. Removed from _VALID_CONNECTOR_TYPES
+    rather than building a connector for it this milestone — this test
+    pins that a pipeline naming "mongodb" as either the source or the
+    target connector_type is rejected at creation time
+    (PipelineValidationError, which the API layer maps to a 400).
+    """
+    doc = _valid_doc()
+    doc["source"]["connector_type"] = "mongodb"
+    with pytest.raises(PipelineValidationError) as exc_info:
+        parse_pipeline(doc)
+    assert any("source.connector_type" in e for e in exc_info.value.errors)
+
+    doc = _valid_doc()
+    doc["target"]["connector_type"] = "mongodb"
+    with pytest.raises(PipelineValidationError) as exc_info:
+        parse_pipeline(doc)
+    assert any("target.connector_type" in e for e in exc_info.value.errors)
+
+
 def test_invalid_write_mode_raises():
     doc = _valid_doc()
     doc["target"]["write_mode"] = "replace"

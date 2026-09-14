@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import AppShell from "./components/AppShell";
 import PipelineRow from "./components/PipelineRow";
+import PipelineCreationForm from "./components/PipelineCreationForm";
 import {
   getPipelines,
   getRunStatus,
@@ -59,6 +60,7 @@ export default function PipelinesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [timeFilter, setTimeFilter] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
   const debouncedSearch = useDebounce(searchTerm, 300);
 
@@ -161,20 +163,13 @@ export default function PipelinesPage() {
             borderBottom: "3px solid rgba(0,0,0,0.15)",
           }}
         >
-          {/* Search */}
           <input
             placeholder="Pipeline ara..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              ...inputStyle,
-              width: "180px",
-              background: "rgba(255,255,255,0.15)",
-              color: "#fff",
-            }}
+            style={{ ...inputStyle, width: "180px" }}
           />
 
-          {/* Divider */}
           <div
             style={{
               width: "1px",
@@ -184,7 +179,6 @@ export default function PipelinesPage() {
             }}
           />
 
-          {/* Zaman */}
           <select
             value={timeFilter}
             onChange={(e) => setTimeFilter(e.target.value)}
@@ -196,7 +190,6 @@ export default function PipelinesPage() {
             <option value="168">Son 7 Gün</option>
           </select>
 
-          {/* Durum */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -209,7 +202,6 @@ export default function PipelinesPage() {
             <option value="pending">Pending</option>
           </select>
 
-          {/* Divider */}
           <div
             style={{
               width: "1px",
@@ -219,20 +211,10 @@ export default function PipelinesPage() {
             }}
           />
 
-          {/* Yenile */}
-          <button
-            onClick={fetchPipelines}
-            style={{
-              ...inputStyle,
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-            }}
-          >
+          <button onClick={fetchPipelines} style={inputStyle}>
             ↻ Yenile
           </button>
 
-          {/* Temizle */}
           {hasFilter && (
             <button
               onClick={() => {
@@ -243,7 +225,7 @@ export default function PipelinesPage() {
               style={{
                 fontSize: "11px",
                 padding: "5px 10px",
-                border: "1px solid rgba(255,100,100,0.4)",
+                border: "none",
                 borderRadius: "6px",
                 background: "rgba(255,100,100,0.15)",
                 color: "#fca5a5",
@@ -254,11 +236,30 @@ export default function PipelinesPage() {
             </button>
           )}
 
+          <button
+            onClick={() => {
+              setShowForm(true);
+              setSelectedId(null);
+            }}
+            style={{
+              marginLeft: "auto",
+              fontSize: "12px",
+              padding: "6px 14px",
+              borderRadius: "6px",
+              border: "none",
+              background: "var(--color-secondary)",
+              color: "#fff",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            + Yeni Pipeline
+          </button>
+
           <span
             style={{
               fontSize: "11px",
               color: "rgba(255,255,255,0.6)",
-              marginLeft: "auto",
               whiteSpace: "nowrap",
             }}
           >
@@ -329,7 +330,10 @@ export default function PipelinesPage() {
                     status={status}
                     lastRunTime={formatDate(p.created_at)}
                     selected={selectedId === p.id}
-                    onSelect={() => setSelectedId(p.id)}
+                    onSelect={() => {
+                      setSelectedId(p.id);
+                      setShowForm(false);
+                    }}
                   />
                 );
               })
@@ -340,7 +344,34 @@ export default function PipelinesPage() {
           <div
             style={{ flex: 1, minWidth: 0, padding: "20px", overflowY: "auto" }}
           >
-            {selected ? (
+            {showForm ? (
+              <div style={{ maxWidth: "600px" }}>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "var(--color-neutral-400)",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <span
+                    onClick={() => setShowForm(false)}
+                    style={{
+                      cursor: "pointer",
+                      color: "var(--color-secondary)",
+                    }}
+                  >
+                    ← Pipeline listesine dön
+                  </span>
+                </div>
+                <PipelineCreationForm
+                  onSuccess={() => {
+                    setShowForm(false);
+                    fetchPipelines();
+                  }}
+                  onCancel={() => setShowForm(false)}
+                />
+              </div>
+            ) : selected ? (
               <div
                 style={{
                   display: "flex",
