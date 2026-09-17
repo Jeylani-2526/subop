@@ -114,6 +114,42 @@ def test_mssql_uniqueidentifier_falls_back_to_varchar():
     assert result.metadata["uuid_semantics"] is True
 
 
+def test_sqlite_integer_maps_to_integer():
+    result = UniversalTypeMapper.map_type(
+        "sqlite",
+        "INTEGER",
+    )
+
+    assert result.canonical_type == "INTEGER"
+    assert result.condition == "direct"
+
+
+def test_sqlite_real_is_inexact_decimal():
+    """
+    M6W19T3: the case this dialect was added for — a sqlite source's
+    type_cast to "float" resolves to the declared type "real"
+    (executor.py's _DSL_TYPE_TO_NATIVE_TYPE), which must land on
+    "inexact" for the demo's lineage check to produce an entry, the
+    same way postgresql's "double precision" and mysql's "float" do.
+    """
+    result = UniversalTypeMapper.map_type(
+        "sqlite",
+        "REAL",
+    )
+
+    assert result.canonical_type == "DECIMAL"
+    assert result.condition == "inexact"
+    assert result.metadata["inexact"] is True
+
+
+def test_sqlite_unsupported_type_raises():
+    with pytest.raises(UnsupportedTypeError):
+        UniversalTypeMapper.map_type(
+            "sqlite",
+            "SOME_MADE_UP_TYPE",
+        )
+
+
 def test_sql_null_remains_none():
     assert normalize_value(None) is None
 

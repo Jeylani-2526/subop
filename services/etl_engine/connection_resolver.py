@@ -13,16 +13,30 @@ secrets-manager-backed resolver can replace the body of
 resolve_connection() without changing its signature, so nothing above
 this module needs to change if that happens later.
 
-Convention:
-    connection_ref -> env var named
-    SUBOP_CONN_<UPPERCASED_REF_WITH_NON_ALNUM_CHARS_AS_UNDERSCORE>,
-    holding a JSON object: {"host", "port", "database", "username",
-    "password"}.
+Convention — two shapes, chosen per connector_type's "kind"
+(_CONNECTOR_CLASSES below):
 
-    Example:
-        connection_ref "prod-warehouse" -> SUBOP_CONN_PROD_WAREHOUSE
-        SUBOP_CONN_PROD_WAREHOUSE='{"host":"db.internal","port":5432,
-            "database":"warehouse","username":"etl_svc","password":"..."}'
+    connection_ref -> env var named
+    SUBOP_CONN_<UPPERCASED_REF_WITH_NON_ALNUM_CHARS_AS_UNDERSCORE>
+
+    - "db"-kind (postgresql, mysql, mssql): env var holds a JSON object
+      {"host", "port", "database", "username", "password"}.
+
+        Example:
+            connection_ref "prod-warehouse" -> SUBOP_CONN_PROD_WAREHOUSE
+            SUBOP_CONN_PROD_WAREHOUSE='{"host":"db.internal","port":5432,
+                "database":"warehouse","username":"etl_svc","password":"..."}'
+
+    - "file"-kind (sqlite, csv — M6W19T1): env var holds a JSON object
+      with a single field, {"file_path"}, rather than the five-field
+      credential blob — sqlite/csv connectors take one path, not
+      host/port/user/pass, and forcing them through the db-kind shape
+      is what left them unreachable from a real pipeline through
+      Week 18 despite being built and unit-tested.
+
+        Example:
+            connection_ref "demo-sqlite" -> SUBOP_CONN_DEMO_SQLITE
+            SUBOP_CONN_DEMO_SQLITE='{"file_path":"/data/demo.db"}'
 """
 
 from __future__ import annotations
@@ -40,10 +54,25 @@ _ENV_PREFIX = "SUBOP_CONN_"
 # Populated lazily so importing this module never hard-requires a driver
 # (e.g. pyodbc/unixODBC) that may not be installed in every environment —
 # a pipeline that never touches MSSQL shouldn't fail to import over it.
-_CONNECTOR_CLASSES: Dict[str, Tuple[Any, Any]] = {}
+#
+# Each entry is (kind, config_cls, connector_cls):
+#   kind = "db"   -> config_cls built from the 5-field credential blob
+#                    (host, port, database, username, password), as
+#                    kwargs (field names vary slightly per connector's
+#                    own ConnectionConfig, so kwargs are used, not a
+#                    single positional value).
+#   kind = "file" -> config_cls built from a single resolved file path,
+#                    passed positionally: config_cls(path). This works
+#                    unchanged for both sqlite_connector.ConnectionConfig
+#                    (param named `database`) and file_connector_base's
+#                    FileConnectionConfig (param named `file_path`) —
+#                    both take that one value as their first positional
+#                    argument, so the resolver doesn't need to know
+#                    which kwarg name a given file-kind connector uses.
+_CONNECTOR_CLASSES: Dict[str, Tuple[str, Any, Any]] = {}
 
 
-def _connector_classes() -> Dict[str, Tuple[Any, Any]]:
+def _connector_classes() -> Dict[str, Tuple[str, Any, Any]]:
     global _CONNECTOR_CLASSES
     if _CONNECTOR_CLASSES:
         return _CONNECTOR_CLASSES
@@ -56,10 +85,22 @@ def _connector_classes() -> Dict[str, Tuple[Any, Any]]:
         ConnectionConfig as MyConfig,
         MySQLConnector,
     )
+    from services.connectors.sqlite_connector import (
+        ConnectionConfig as SqliteConfig,
+        SQLiteConnector,
+    )
+    from services.connectors.csv_connector import CSVConnector
+    from services.connectors.json_connector import JSONConnector
+    from services.connectors.file_connector_base import FileConnectionConfig
 
-    classes: Dict[str, Tuple[Any, Any]] = {
-        "postgresql": (PgConfig, PostgresConnector),
-        "mysql": (MyConfig, MySQLConnector),
+    classes: Dict[str, Tuple[str, Any, Any]] = {
+        "postgresql": ("db", PgConfig, PostgresConnector),
+        "mysql": ("db", MyConfig, MySQLConnector),
+        # sqlite / csv (M6W19T1), json (M6W19T2): all "file"-kind —
+        # they take a single file path, not host/port/user/pass.
+        "sqlite": ("file", SqliteConfig, SQLiteConnector),
+        "csv": ("file", FileConnectionConfig, CSVConnector),
+        "json": ("file", FileConnectionConfig, JSONConnector),
     }
 
     try:
@@ -68,7 +109,7 @@ def _connector_classes() -> Dict[str, Tuple[Any, Any]]:
             MSSQLConnector,
         )
 
-        classes["mssql"] = (MsConfig, MSSQLConnector)
+        classes["mssql"] = ("db", MsConfig, MSSQLConnector)
     except ImportError:
         # ODBC driver not available in this environment. An MSSQL
         # pipeline will fail clearly at resolve_connection() time with
@@ -135,7 +176,15 @@ def resolve_connection(
             retryable=False,
         )
 
-    required_fields = ("host", "port", "database", "username", "password")
+    kind, config_cls, connector_cls = classes[normalized_type]
+
+    if kind == "file":
+        # file-kind (sqlite, csv — M6W19T1): a single file_path field,
+        # not the five-field db credential blob.
+        required_fields = ("file_path",)
+    else:
+        required_fields = ("host", "port", "database", "username", "password")
+
     missing = [field for field in required_fields if field not in creds]
     if missing:
         raise ConnConnectionError(
@@ -145,14 +194,21 @@ def resolve_connection(
             retryable=False,
         )
 
-    config_cls, connector_cls = classes[normalized_type]
-    config = config_cls(
-        host=creds["host"],
-        port=creds["port"],
-        database=creds["database"],
-        username=creds["username"],
-        password=creds["password"],
-    )
+    if kind == "file":
+        # Passed positionally: works unchanged for both
+        # sqlite_connector.ConnectionConfig(database=...) and
+        # file_connector_base.FileConnectionConfig(file_path=...) since
+        # both take their path as the first positional argument — see
+        # the _CONNECTOR_CLASSES comment above.
+        config = config_cls(creds["file_path"])
+    else:
+        config = config_cls(
+            host=creds["host"],
+            port=creds["port"],
+            database=creds["database"],
+            username=creds["username"],
+            password=creds["password"],
+        )
 
     connector = connector_cls(config)
     connector.connect()  # raises a typed ConnectionError on failure
