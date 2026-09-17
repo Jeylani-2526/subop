@@ -99,6 +99,39 @@ def test_mongodb_connector_type_rejected():
     assert any("target.connector_type" in e for e in exc_info.value.errors)
 
 
+def test_sqlite_connector_type_accepted():
+    """
+    M6W19T1: sqlite was unit-tested (test_sqlite_connector.py) but
+    missing from _VALID_CONNECTOR_TYPES through Week 18, so a pipeline
+    naming it was rejected at creation before connection_resolver.py
+    ever saw it. Pins that source/target connector_type "sqlite" is now
+    accepted — reachability through the resolver's new file-kind path
+    is proven separately by M6W19T3's live pipeline rerun, not here.
+    """
+    doc = _valid_doc()
+    doc["source"]["connector_type"] = "sqlite"
+    p = parse_pipeline(doc)
+    assert p.source.connector_type == "sqlite"
+
+    doc = _valid_doc()
+    doc["target"]["connector_type"] = "sqlite"
+    p = parse_pipeline(doc)
+    assert p.target.connector_type == "sqlite"
+
+
+def test_csv_connector_type_accepted():
+    """M6W19T1: same gap and fix as sqlite, for csv."""
+    doc = _valid_doc()
+    doc["source"]["connector_type"] = "csv"
+    p = parse_pipeline(doc)
+    assert p.source.connector_type == "csv"
+
+    doc = _valid_doc()
+    doc["target"]["connector_type"] = "csv"
+    p = parse_pipeline(doc)
+    assert p.target.connector_type == "csv"
+
+
 def test_invalid_write_mode_raises():
     doc = _valid_doc()
     doc["target"]["write_mode"] = "replace"

@@ -37,7 +37,18 @@ class PipelineValidationError(ValueError):
 # "mongodb" previously passed creation validation and could only fail
 # unpredictably at execution time. Add it back if/when a real connector
 # is built.
-_VALID_CONNECTOR_TYPES = {"postgresql", "mysql", "mssql"}
+#
+# sqlite / csv added (M6W19T1): both connectors were built and
+# unit-tested in Week 18, but were missing here, so a pipeline
+# declaring either type was rejected at creation before it could ever
+# reach connection_resolver.py. connection_resolver.py is generalized
+# in the same task to resolve a file_path-based config for these two,
+# rather than the host/port/database/username/password shape the other
+# three connector_types use.
+#
+# json added (M6W19T2): same file-kind path as sqlite/csv, proving the
+# T1 generalization holds for a new connector, not just a retrofit.
+_VALID_CONNECTOR_TYPES = {"postgresql", "mysql", "mssql", "sqlite", "csv", "json"}
 _VALID_WRITE_MODES = {"upsert", "append"}
 
 
