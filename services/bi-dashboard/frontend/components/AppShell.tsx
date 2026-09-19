@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import NavigationSidebar from "./NavigationSidebar";
 
 interface AppShellProps {
@@ -12,46 +12,105 @@ export default function AppShell({
   userRole,
   pageTitle,
 }: AppShellProps) {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-      <NavigationSidebar userRole={userRole} />
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-          overflow: "hidden",
-        }}
-      >
-        <header
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        overflow: "hidden",
+        flexDirection: "column",
+      }}
+    >
+      {/* Mobile Header — sadece ≤767px'de görünür */}
+      <div className="subop-mobile-header">
+        <span>SUBOP</span>
+        <button
+          onClick={() => setMobileNavOpen(!mobileNavOpen)}
           style={{
-            height: "56px",
-            flexShrink: 0,
-            backgroundColor: "var(--color-primary)",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 24px",
-            justifyContent: "space-between",
+            background: "none",
+            border: "none",
+            color: "#fff",
+            fontSize: "20px",
+            cursor: "pointer",
+            padding: 0,
           }}
         >
-          <span style={{ color: "#fff", fontSize: "15px", fontWeight: 600 }}>
-            {pageTitle}
-          </span>
-          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "12px" }}>
-            SUBOP
-          </span>
-        </header>
-        <main
+          ☰
+        </button>
+      </div>
+
+      {/* Mobile Nav Overlay */}
+      {mobileNavOpen && (
+        <div
+          onClick={() => setMobileNavOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 200,
+          }}
+        />
+      )}
+      {mobileNavOpen && (
+        <div
+          style={{
+            position: "fixed",
+            left: 0,
+            top: 0,
+            zIndex: 300,
+            height: "100vh",
+          }}
+        >
+          <NavigationSidebar userRole={userRole} />
+        </div>
+      )}
+
+      {/* Desktop + Tablet Layout */}
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+        <div className="subop-sidebar">
+          <NavigationSidebar userRole={userRole} />
+        </div>
+
+        <div
           style={{
             flex: 1,
-            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 0,
             overflow: "hidden",
-            backgroundColor: "var(--color-background)",
           }}
         >
-          {children}
-        </main>
+          <header
+            style={{
+              height: "56px",
+              flexShrink: 0,
+              backgroundColor: "var(--color-primary)",
+              display: "flex",
+              alignItems: "center",
+              padding: "0 24px",
+              justifyContent: "space-between",
+            }}
+          >
+            <span style={{ color: "#fff", fontSize: "15px", fontWeight: 600 }}>
+              {pageTitle}
+            </span>
+            <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "12px" }}>
+              SUBOP
+            </span>
+          </header>
+          <main
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflow: "hidden",
+              backgroundColor: "var(--color-background)",
+            }}
+          >
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );
