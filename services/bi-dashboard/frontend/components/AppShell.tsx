@@ -23,7 +23,7 @@ export default function AppShell({
         flexDirection: "column",
       }}
     >
-      {/* Mobile Header — sadece ≤767px'de görünür */}
+      {/* Mobile Header */}
       <div className="subop-mobile-header">
         <span>SUBOP</span>
         <button
@@ -55,6 +55,7 @@ export default function AppShell({
       )}
       {mobileNavOpen && (
         <div
+          className="subop-mobile-overlay"
           style={{
             position: "fixed",
             left: 0,
@@ -67,11 +68,9 @@ export default function AppShell({
         </div>
       )}
 
-      {/* Desktop + Tablet Layout */}
+      {/* Desktop + Tablet */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        <div className="subop-sidebar">
-          <NavigationSidebar userRole={userRole} />
-        </div>
+        <NavigationSidebar userRole={userRole} />
 
         <div
           style={{

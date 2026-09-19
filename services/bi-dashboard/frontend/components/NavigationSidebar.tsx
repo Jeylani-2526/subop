@@ -31,9 +31,8 @@ export default function NavigationSidebar({
 
   return (
     <nav
+      className="subop-sidebar"
       style={{
-        width: "240px",
-        minWidth: "240px",
         height: "100vh",
         backgroundColor: "var(--color-primary)",
         display: "flex",
@@ -42,7 +41,7 @@ export default function NavigationSidebar({
         overflow: "hidden",
       }}
     >
-      {/* Logo — tıklanınca ana sayfaya gider */}
+      {/* Logo */}
       <div
         onClick={() => navigate("/")}
         style={{
@@ -52,6 +51,7 @@ export default function NavigationSidebar({
         }}
       >
         <span
+          className="nav-logo-text"
           style={{
             color: "#fff",
             fontWeight: 700,
@@ -87,7 +87,7 @@ export default function NavigationSidebar({
                 fontWeight: isActive ? 600 : 400,
               }}
             >
-              {item.label}
+              <span className="nav-label">{item.label}</span>
             </NavLink>
           );
         })}
