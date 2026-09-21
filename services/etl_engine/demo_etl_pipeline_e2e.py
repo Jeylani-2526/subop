@@ -7,8 +7,11 @@ Drives one full pipeline run through the real system, not a per-component check:
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import sys
+import tempfile
 from typing import Any, Dict
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -30,6 +33,10 @@ from services.connectors.postgres_connector import (  # noqa: E402
     ConnectionConfig as PostgresConnectionConfig,
     PostgresConnector,
 )
+from services.connectors.sqlite_connector import (  # noqa: E402
+    ConnectionConfig as SqliteConnectionConfig,
+    SQLiteConnector,
+)
 
 # ---------------------------------------------------------------------------
 # Demo configuration
@@ -43,6 +50,18 @@ TARGET_TABLE = "customers_clean_e2e_demo"
 # connection_resolver.py's module docstring for the exact convention.
 SOURCE_CONNECTION_REF = "demo-e2e-source"
 TARGET_CONNECTION_REF = "demo-e2e-target"
+
+# M6W19T3 — SQLite wiring confirmation leg. Self-contained: both source
+# and target are ephemeral SQLite files created fresh under a temp
+# directory each run (mirrors the unit tests' tmp_path pattern, per
+# Abdalla's steer — no docker/service dependency, no fixture files
+# committed to the repo). Deliberately mirrors the Postgres leg's table
+# shape, seed data, and all four transformation steps 1:1 so the two
+# legs' evidence is directly comparable.
+SQLITE_SOURCE_TABLE = "raw_customer_signups_sqlite"
+SQLITE_TARGET_TABLE = "customers_clean_e2e_demo_sqlite"
+SQLITE_SOURCE_CONNECTION_REF = "demo-e2e-sqlite-source"
+SQLITE_TARGET_CONNECTION_REF = "demo-e2e-sqlite-target"
 
 
 def _postgres_config() -> PostgresConnectionConfig:
@@ -68,9 +87,6 @@ def _register_connection_ref(
     an env var SUBOP_CONN_<UPPERCASED_REF> holding a JSON blob of
     {host, port, database, username, password}.
     """
-    import json
-    import re
-
     slug = re.sub(r"[^A-Za-z0-9]", "_", connection_ref.strip()).upper()
     env_var = f"SUBOP_CONN_{slug}"
     os.environ[env_var] = json.dumps(
@@ -82,6 +98,18 @@ def _register_connection_ref(
             "password": config.password,
         }
     )
+
+
+def _register_file_connection_ref(connection_ref: str, file_path: str) -> None:
+    """
+    Register a connection_ref for a file-kind connector (M6W19T1): an
+    env var SUBOP_CONN_<UPPERCASED_REF> holding a JSON blob of just
+    {file_path}, per connection_resolver.py's file-kind convention —
+    see that module's docstring.
+    """
+    slug = re.sub(r"[^A-Za-z0-9]", "_", connection_ref.strip()).upper()
+    env_var = f"SUBOP_CONN_{slug}"
+    os.environ[env_var] = json.dumps({"file_path": file_path})
 
 
 def _seed_source_table(config: PostgresConnectionConfig) -> None:
@@ -162,6 +190,152 @@ def _reset_target_table(config: PostgresConnectionConfig) -> None:
         """)
     finally:
         connector.disconnect()
+
+
+# ---------------------------------------------------------------------------
+# M6W19T3 — SQLite wiring confirmation leg
+# ---------------------------------------------------------------------------
+
+
+def _sqlite_db_paths() -> tuple[str, str]:
+    """
+    Fresh source/target SQLite file paths under a new temp directory,
+    created new each run — nothing persists between runs or gets
+    committed to the repo (data/samples/ exists for user-supplied
+    sample files, csv/xlsx/parquet/json/sql only, and doesn't cover
+    this use case).
+    """
+    tmpdir = tempfile.mkdtemp(prefix="subop_demo_sqlite_")
+    return (
+        os.path.join(tmpdir, "e2e_demo_source.db"),
+        os.path.join(tmpdir, "e2e_demo_target.db"),
+    )
+
+
+def _seed_sqlite_source_db(db_path: str) -> None:
+    """
+    Seed a fresh SQLite source file. Same shape, seed rows, and
+    transformation-exercising columns as _seed_source_table's Postgres
+    table — see that function's docstring for why each column exists.
+    """
+    connector = SQLiteConnector(SqliteConnectionConfig(db_path))
+    connector.connect()
+    try:
+        connector.execute_write(f"""
+            CREATE TABLE {SQLITE_SOURCE_TABLE} (
+                id INTEGER PRIMARY KEY,
+                full_name TEXT,
+                contact_phone TEXT,
+                age_text TEXT,
+                is_active TEXT,
+                signup_score_text TEXT,
+                email TEXT,
+                internal_staging_notes TEXT
+            )
+        """)
+        connector.execute_write(f"""
+            INSERT INTO {SQLITE_SOURCE_TABLE}
+                (id, full_name, contact_phone, age_text, is_active,
+                 signup_score_text, email, internal_staging_notes)
+            VALUES
+                (1, 'Ayşe Yilmaz', '+905551110001', '29', 'yes',
+                 '87.50', 'ayse@example.com', 'staging-only'),
+                (2, 'Mehmet Demir', '+905551110002', '41', 'no',
+                 '63.75', 'mehmet@example.com', 'staging-only'),
+                (3, 'Zeynep Kaya', '+905551110003', '35', 'yes',
+                 '91.00', NULL, 'staging-only'),
+                (4, 'Ali Şahin', '+905551110004', '52', 'no',
+                 '75.25', 'ali@example.com', 'staging-only')
+            """)
+    finally:
+        connector.disconnect()
+
+
+def _reset_sqlite_target_db(db_path: str) -> None:
+    """Create a fresh SQLite target file with the demo's target schema."""
+    connector = SQLiteConnector(SqliteConnectionConfig(db_path))
+    connector.connect()
+    try:
+        connector.execute_write(f"""
+            CREATE TABLE {SQLITE_TARGET_TABLE} (
+                id INTEGER,
+                full_name TEXT,
+                phone TEXT,
+                age INTEGER,
+                is_active BOOLEAN,
+                score REAL,
+                email TEXT
+            )
+        """)
+    finally:
+        connector.disconnect()
+
+
+def _sqlite_pipeline_dsl_document() -> Dict[str, Any]:
+    """
+    The SQLite-leg Pipeline DSL document (M6W19T3) — same four
+    transformation steps, in the same order, as the Postgres leg's
+    document, so the two runs' evidence is directly comparable.
+    connector_type "sqlite" on both source and target is what actually
+    exercises T1's generalized resolver end to end through executor.py,
+    not just at DSL-validation time (which test_pipeline.py already
+    covers).
+
+    Note: the actual source/target file paths aren't embedded here —
+    connection_ref stays a logical name, never a raw credential/path,
+    same contract every other connector_type follows. main() registers
+    the real paths against SQLITE_SOURCE_CONNECTION_REF /
+    SQLITE_TARGET_CONNECTION_REF via _register_file_connection_ref()
+    before this document is POSTed.
+    """
+    return {
+        "name": "m6w19t3-sqlite-wiring-confirmation",
+        "source": {
+            "connector_type": "sqlite",
+            "connection_ref": SQLITE_SOURCE_CONNECTION_REF,
+            "object": SQLITE_SOURCE_TABLE,
+            "query": None,
+        },
+        "transformations": [
+            {
+                "step_id": "rename-contact-fields",
+                "type": "rename_columns",
+                "params": {
+                    "mapping": {
+                        "contact_phone": "phone",
+                        "age_text": "age",
+                        "signup_score_text": "score",
+                    }
+                },
+            },
+            {
+                "step_id": "cast-types",
+                "type": "type_cast",
+                "params": {
+                    "casts": {"age": "int", "is_active": "bool", "score": "float"}
+                },
+            },
+            {
+                "step_id": "drop-incomplete-rows",
+                "type": "drop_null_rows",
+                "params": {"required_columns": ["email"]},
+            },
+            {
+                "step_id": "drop-internal-columns",
+                "type": "drop_columns",
+                "params": {"columns": ["internal_staging_notes"]},
+            },
+        ],
+        "target": {
+            "connector_type": "sqlite",
+            "connection_ref": SQLITE_TARGET_CONNECTION_REF,
+            "object": SQLITE_TARGET_TABLE,
+            "write_mode": "append",
+        },
+        "processing_purpose": "customer onboarding analytics (M6W19T3 sqlite wiring confirmation)",
+        "data_subject_categories": ["customer_pii"],
+        "transfer_recipients": [],
+    }
 
 
 def _pipeline_dsl_document() -> Dict[str, Any]:
@@ -306,7 +480,7 @@ def main() -> None:
         print("         this run as a clean demonstration of the fix.")
 
     print("\n" + "=" * 78)
-    print("Summary — what this run demonstrated end to end:")
+    print("Summary — Postgres leg (M5 Week 17):")
     print("=" * 78)
     print(
         "- Source read via AbstractionLayer.execute_query          : "
@@ -314,7 +488,7 @@ def main() -> None:
     )
     print("  - All four registered transformation types applied in order:")
     print(
-        "  - Lineage check via lineage_store.py (honest gap reported) : "
+        "  - Lineage check via lineage_store.py                       : "
         f"{len(lineage_entries)} entries"
     )
     print(
@@ -329,9 +503,111 @@ def main() -> None:
         "status="
         f"{run['status']}"
     )
+    print("=" * 78)
+
+    # =========================================================================
+    # M6W19T3 — SQLite wiring confirmation leg
+    #
+    # Proves T1's generalized resolver actually makes a sqlite-sourced
+    # pipeline reachable through the real executor.py, not just accepted
+    # by DSL validation (test_pipeline.py's job). Self-contained: no
+    # docker/service dependency, fresh SQLite files each run.
+    # =========================================================================
+    print("\n\n" + "=" * 78)
+    print("SUBOP ETL Engine — M6 Week 19 SQLite Wiring Confirmation (M6W19T3)")
+    print("=" * 78)
+
+    sqlite_source_db, sqlite_target_db = _sqlite_db_paths()
+
+    print(f"\n[setup] Seeding SQLite source file '{sqlite_source_db}' ...")
+    _seed_sqlite_source_db(sqlite_source_db)
+
+    print(f"[setup] Creating SQLite target file '{sqlite_target_db}' ...")
+    _reset_sqlite_target_db(sqlite_target_db)
+
+    print("[setup] Registering file-kind connection_ref env vars for the resolver ...")
+    _register_file_connection_ref(SQLITE_SOURCE_CONNECTION_REF, sqlite_source_db)
+    _register_file_connection_ref(SQLITE_TARGET_CONNECTION_REF, sqlite_target_db)
+
+    sqlite_payload = _sqlite_pipeline_dsl_document()
+
+    print("\n[1/3] POST /api/pipelines/  (creates the pipeline AND runs it)")
+    sqlite_create_response = client.post("/api/pipelines/", json=sqlite_payload)
+    print(f"      -> HTTP {sqlite_create_response.status_code}")
+    if sqlite_create_response.status_code != 201:
+        print(f"      -> Body: {sqlite_create_response.json()}")
+        raise SystemExit(
+            "SQLite-leg pipeline creation/execution failed — see body above."
+        )
+
+    sqlite_pipeline_record = sqlite_create_response.json()
+    sqlite_pipeline_id = sqlite_pipeline_record["id"]
+    sqlite_run_id = sqlite_pipeline_record["run_id"]
+    print(f"      pipeline_id = {sqlite_pipeline_id}")
+    print(f"      run_id      = {sqlite_run_id}")
+
+    print(f"\n[2/3] GET /api/pipelines/{sqlite_pipeline_id}/runs/{sqlite_run_id}")
+    sqlite_run_response = client.get(
+        f"/api/pipelines/{sqlite_pipeline_id}/runs/{sqlite_run_id}"
+    )
+    print(f"      -> HTTP {sqlite_run_response.status_code}")
+    sqlite_run = sqlite_run_response.json()
+
+    print(f"      status            = {sqlite_run['status']}")
     print(
-        "  - Lineage check via lineage_store.py (honest gap reported) : "
-        f"{len(lineage_entries)} entries"
+        f"      rows_read         = {sqlite_run['rows_read']}  (4 rows in source table)"
+    )
+    print(
+        f"      rows_written      = {sqlite_run['rows_written']}  (1 row dropped by drop_null_rows)"
+    )
+    print(f"      rows_quarantined  = {sqlite_run['rows_quarantined']}")
+    print(f"      quality_score     = {sqlite_run['quality_score']}")
+
+    print("      logs:")
+    for line in sqlite_run["logs"]:
+        print(f"        - {line}")
+
+    print(f"\n[3/3] lineage_store.get_lineage_for_run('{sqlite_run_id}')")
+    sqlite_lineage_entries = lineage_store.get_lineage_for_run(sqlite_run_id)
+    print(
+        f"      -> {len(sqlite_lineage_entries)} "
+        f"entr{'y' if len(sqlite_lineage_entries) == 1 else 'ies'}"
+    )
+    if sqlite_lineage_entries:
+        print("      -- Same pattern as the Postgres leg: 'score' (cast to 'float')")
+        print("         maps to SQLite's 'real' via executor.py's")
+        print("         _DSL_TYPE_TO_NATIVE_TYPE, an `inexact` condition in")
+        print("         type_mapping.py's new (M6W19T3, narrowly scoped)")
+        print("         SQLITE_MAPPING — recorded as lineage, not an error.")
+    else:
+        print("      -- Unexpected: the SQLite dialect mapping added this week")
+        print("         should have produced at least one entry for 'score'.")
+        print("         Investigate before treating this leg as passing.")
+
+    sqlite_leg_passed = (
+        sqlite_run["status"] == "succeeded"
+        and sqlite_run["rows_read"] == 4
+        and sqlite_run["rows_written"] == 3
+        and len(sqlite_lineage_entries) >= 1
+    )
+
+    print("\n" + "=" * 78)
+    print("Summary — SQLite leg (M6W19T3):")
+    print("=" * 78)
+    print(
+        f"- status                                                    : {sqlite_run['status']}"
+    )
+    print(
+        f"- rows_read / rows_written                                  : "
+        f"{sqlite_run['rows_read']} / {sqlite_run['rows_written']}"
+    )
+    print(
+        f"- Lineage entries                                           : "
+        f"{len(sqlite_lineage_entries)}"
+    )
+    print(
+        "- T3 success criteria (completed status, correct row counts, "
+        f"a lineage entry): {'PASS' if sqlite_leg_passed else 'FAIL — investigate above'}"
     )
     print("=" * 78)
 

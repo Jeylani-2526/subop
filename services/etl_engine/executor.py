@@ -254,7 +254,39 @@ _DSL_TYPE_TO_NATIVE_TYPE: Dict[str, Dict[str, str]] = {
     },
     "mysql": {"int": "int", "float": "float", "str": "varchar", "bool": "boolean"},
     "mssql": {"int": "int", "float": "float", "str": "varchar", "bool": "bit"},
+    # M6W19T3: added so a sqlite-sourced pipeline's type_cast steps can
+    # produce lineage entries at all — previously sqlite was entirely
+    # absent here, so _column_types_from_casts() always returned an
+    # empty dict for a sqlite source and lineage capture silently
+    # no-opped regardless of what was cast. See type_mapping.py's
+    # UniversalTypeMapper.SQLITE_MAPPING for the (narrowly scoped)
+    # dialect this maps into.
+    "sqlite": {"int": "integer", "float": "real", "str": "text", "bool": "boolean"},
 }
+
+# M6W19T3: maps connector_type to its underlying DB-API's parameter
+# placeholder style, for _write_target()'s generated INSERT SQL.
+# psycopg2 (postgresql) and PyMySQL (mysql) both use pyformat ("%s");
+# pyodbc (mssql — paramstyle "qmark") and the stdlib sqlite3 module
+# (also qmark) both use "?". Found while building this week's live
+# SQLite pipeline rerun: _write_target previously hardcoded "%s" for
+# every connector_type, which happened to work for the only two
+# connectors ever used as a target before now (postgresql, mysql) and
+# would have failed the same way for mssql as it does for sqlite —
+# confirmed directly: sqlite3 raises `OperationalError: near "%":
+# syntax error` on a "%s" placeholder. Not previously caught because
+# every existing target-write test uses a FakeConnector that ignores
+# the SQL string's placeholder syntax entirely.
+_PLACEHOLDER_STYLE: Dict[str, str] = {
+    "postgresql": "%s",
+    "mysql": "%s",
+    "mssql": "?",
+    "sqlite": "?",
+}
+# Any future connector_type not yet listed above keeps the prior
+# behavior (pyformat) rather than this map silently guessing a new
+# default for it.
+_DEFAULT_PLACEHOLDER_STYLE = "%s"
 
 
 def _column_types_from_casts(pipeline: PipelineDefinition) -> Dict[str, str]:
@@ -377,9 +409,12 @@ def _write_target(
         )
 
     written = 0
+    placeholder = _PLACEHOLDER_STYLE.get(
+        pipeline.target.connector_type, _DEFAULT_PLACEHOLDER_STYLE
+    )
     for row in rows:
         columns = ", ".join(row.keys())
-        placeholders = ", ".join(["%s"] * len(row))
+        placeholders = ", ".join([placeholder] * len(row))
         sql = (
             f"INSERT INTO {pipeline.target.object} ({columns}) VALUES ({placeholders})"
         )
