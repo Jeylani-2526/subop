@@ -15,6 +15,7 @@ export default function HomePage() {
   return (
     <AppShell pageTitle="Home / Overview" userRole="admin">
       <div
+        className="subop-kpi-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(4, 1fr)",

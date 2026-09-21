@@ -33,6 +33,7 @@ class FakeConnector:
         self.fail_on_query = fail_on_query
         self.fail_on_write = fail_on_write
         self.written_rows: List[Any] = []
+        self.written_sql: List[str] = []
         self.disconnected = False
 
     def execute_query(self, sql, params=None):
@@ -53,6 +54,7 @@ class FakeConnector:
                 connector_type="postgresql",
                 retryable=False,
             )
+        self.written_sql.append(sql)
         self.written_rows.append(params)
         return 1
 
@@ -208,6 +210,83 @@ def test_upsert_write_mode_logs_fallback_to_insert(patch_resolver):
 
     assert run["status"] == "succeeded"
     assert any("upsert" in line and "Week 16" in line for line in run["logs"])
+
+
+# ---------------------------------------------------------------------------
+# Target write placeholder style (M6W19T3)
+#
+# _write_target() previously hardcoded "%s" for every connector_type.
+# That's psycopg2/PyMySQL's pyformat style — correct for postgresql
+# and mysql, but wrong for mssql (pyodbc, qmark) and sqlite (stdlib
+# sqlite3, qmark), both of which need "?" instead. Confirmed directly
+# against the real sqlite3 module (not just inferred): it raises
+# `OperationalError: near "%": syntax error` on a "%s" placeholder.
+# These tests pin the fix by asserting on the actual generated SQL
+# text per target connector_type, which the pre-fix tests never did —
+# FakeConnector.execute_write only recorded params, not sql.
+# ---------------------------------------------------------------------------
+
+
+def test_write_target_uses_percent_s_placeholders_for_postgresql(patch_resolver):
+    patch_resolver("app-db", FakeConnector(rows=[{"id": 1, "name": "Ali"}]))
+    target_connector = FakeConnector()
+    patch_resolver("warehouse", target_connector)
+
+    pipeline = parse_pipeline(_valid_doc())  # target connector_type: postgresql
+    run = executor.execute_pipeline(pipeline, pipeline_id="pipe-ph-pg")
+
+    assert run["status"] == "succeeded"
+    assert target_connector.written_sql == [
+        "INSERT INTO dim_customers (id, name) VALUES (%s, %s)"
+    ]
+
+
+def test_write_target_uses_percent_s_placeholders_for_mysql(patch_resolver):
+    patch_resolver("app-db", FakeConnector(rows=[{"id": 1, "name": "Ali"}]))
+    target_connector = FakeConnector()
+    patch_resolver("warehouse", target_connector, database="mysql")
+
+    doc = _valid_doc()
+    doc["target"]["connector_type"] = "mysql"
+    pipeline = parse_pipeline(doc)
+    run = executor.execute_pipeline(pipeline, pipeline_id="pipe-ph-mysql")
+
+    assert run["status"] == "succeeded"
+    assert target_connector.written_sql == [
+        "INSERT INTO dim_customers (id, name) VALUES (%s, %s)"
+    ]
+
+
+def test_write_target_uses_qmark_placeholders_for_mssql(patch_resolver):
+    patch_resolver("app-db", FakeConnector(rows=[{"id": 1, "name": "Ali"}]))
+    target_connector = FakeConnector()
+    patch_resolver("warehouse", target_connector, database="mssql")
+
+    doc = _valid_doc()
+    doc["target"]["connector_type"] = "mssql"
+    pipeline = parse_pipeline(doc)
+    run = executor.execute_pipeline(pipeline, pipeline_id="pipe-ph-mssql")
+
+    assert run["status"] == "succeeded"
+    assert target_connector.written_sql == [
+        "INSERT INTO dim_customers (id, name) VALUES (?, ?)"
+    ]
+
+
+def test_write_target_uses_qmark_placeholders_for_sqlite(patch_resolver):
+    patch_resolver("app-db", FakeConnector(rows=[{"id": 1, "name": "Ali"}]))
+    target_connector = FakeConnector()
+    patch_resolver("warehouse", target_connector, database="sqlite")
+
+    doc = _valid_doc()
+    doc["target"]["connector_type"] = "sqlite"
+    pipeline = parse_pipeline(doc)
+    run = executor.execute_pipeline(pipeline, pipeline_id="pipe-ph-sqlite")
+
+    assert run["status"] == "succeeded"
+    assert target_connector.written_sql == [
+        "INSERT INTO dim_customers (id, name) VALUES (?, ?)"
+    ]
 
 
 # ---------------------------------------------------------------------------

@@ -42,9 +42,19 @@ class UnsupportedTypeError(ConnectorError):
 
 class UniversalTypeMapper:
     """
-    Maps PostgreSQL, MySQL, and Microsoft SQL Server native types
-    to the canonical type set defined in Universal Type Mapping
-    Specification v1.
+    Maps PostgreSQL, MySQL, Microsoft SQL Server, and (M6W19T3,
+    narrowly scoped) SQLite native types to the canonical type set
+    defined in Universal Type Mapping Specification v1.
+
+    SQLITE_MAPPING covers only the declared-type strings
+    executor.py's _DSL_TYPE_TO_NATIVE_TYPE can actually produce for a
+    type_cast step (int/float/str/bool), plus SQLite's five storage
+    classes and a handful of common declared-type aliases a real
+    schema might use — not a full implementation of SQLite's dynamic
+    type-affinity system (no column has a single fixed native type in
+    SQLite; a declared type only sets an *affinity*), and not yet a
+    documented dialect in universal_type_mapping_v1.md. That's flagged
+    as a real gap for a future pass, not silently treated as complete.
 
     Canonical types:
     - INTEGER
@@ -201,6 +211,46 @@ class UniversalTypeMapper:
         "sql_variant": (None, "ambiguous"),
     }
 
+    # SQLite native/declared types mapped to the canonical type set.
+    # See the class docstring: narrowly scoped to what this connector
+    # actually needs (M6W19T3), not a full type-affinity implementation.
+    SQLITE_MAPPING = {
+        # SQLite's own INTEGER storage class, plus "int" — the
+        # declared-type string executor.py's _DSL_TYPE_TO_NATIVE_TYPE
+        # produces for a type_cast target of "int".
+        "integer": ("INTEGER", "direct"),
+        "int": ("INTEGER", "direct"),
+        # REAL storage class. SQLite floats are IEEE 754 double-
+        # precision, the same binary floating-point semantics that
+        # make PostgreSQL's "double precision" and MySQL's "float"/
+        # "double" inexact — so this is flagged inexact too, matching
+        # the Week 17/18 demo pattern this connector's lineage check
+        # (M6W19T3) reproduces.
+        "real": ("DECIMAL", "inexact"),
+        "float": ("DECIMAL", "inexact"),
+        "double": ("DECIMAL", "inexact"),
+        # NUMERIC storage class / declared type is exact, unlike REAL.
+        "numeric": ("DECIMAL", "direct"),
+        "decimal": ("DECIMAL", "direct"),
+        # TEXT storage class, plus common declared-type aliases.
+        "text": ("TEXT", "direct"),
+        "varchar": ("VARCHAR", "direct"),
+        "char": ("VARCHAR", "direct"),
+        # SQLite has no native BOOLEAN storage class (0/1 integers are
+        # used in practice), but "boolean" is a common declared type —
+        # and it's the declared-type string _DSL_TYPE_TO_NATIVE_TYPE
+        # produces for a type_cast target of "bool".
+        "boolean": ("BOOLEAN", "direct"),
+        # BLOB storage class.
+        "blob": ("BINARY", "direct"),
+        # Common declared temporal aliases. SQLite has no dedicated
+        # date/time storage class (stored as TEXT/REAL/INTEGER), but a
+        # schema may still declare one of these.
+        "date": ("DATE", "direct"),
+        "datetime": ("TIMESTAMP", "direct"),
+        "timestamp": ("TIMESTAMP", "direct"),
+    }
+
     @classmethod
     def map_type(
         cls,
@@ -266,6 +316,13 @@ class UniversalTypeMapper:
                 source_type,
                 normalized_type,
                 schema_intent,
+                mapping_metadata,
+            )
+
+        if normalized_database in {"sqlite", "sqlite3"}:
+            return cls._map_sqlite(
+                source_type,
+                normalized_type,
                 mapping_metadata,
             )
 
@@ -533,6 +590,43 @@ class UniversalTypeMapper:
         # XML falls back to TEXT while retaining XML identity in metadata.
         if normalized_type == "xml":
             metadata["xml_semantics"] = True
+
+        return TypeMappingResult(
+            canonical_type=canonical_type,
+            source_type=original_type,
+            condition=condition,
+            metadata=metadata,
+        )
+
+    @classmethod
+    def _map_sqlite(
+        cls,
+        original_type: str,
+        normalized_type: str,
+        metadata: Dict[str, Any],
+    ) -> TypeMappingResult:
+        """
+        Apply SQLite-specific mapping rules (M6W19T3, narrowly
+        scoped — see the class docstring and SQLITE_MAPPING's
+        comments for what this does and doesn't cover).
+        """
+
+        mapping = cls.SQLITE_MAPPING.get(normalized_type)
+
+        if mapping is None:
+            raise UnsupportedTypeError(
+                f"Unsupported SQLite type: {original_type}",
+                connector_type="sqlite",
+            )
+
+        canonical_type, condition = mapping
+
+        # REAL/float/double all use binary floating-point semantics.
+        if condition == "inexact":
+            metadata["inexact"] = True
+            metadata["reason"] = (
+                "SQLite source type uses binary floating-point semantics."
+            )
 
         return TypeMappingResult(
             canonical_type=canonical_type,

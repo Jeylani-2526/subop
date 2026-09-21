@@ -29,6 +29,10 @@
   --color-success-bg: rgba(46, 125, 50, 0.1);
   --color-danger-bg: rgba(198, 40, 40, 0.1);
   --color-warning-bg: rgba(230, 81, 0, 0.1);
+
+  /* Responsive breakpoints */
+  --sidebar-width: 240px;
+  --sidebar-width-tablet: 56px;
 }
 
 a {
@@ -85,4 +89,98 @@ button:focus-visible {
 
 input::placeholder {
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Responsive Layout ────────────────────────────────── */
+
+/* Desktop ≥ 1280px — default, no overrides needed */
+
+/* Tablet: 768px – 1279px */
+@media (max-width: 1279px) {
+  .subop-sidebar {
+    width: var(--sidebar-width-tablet) !important;
+    min-width: var(--sidebar-width-tablet) !important;
+  }
+  .subop-sidebar .nav-label {
+    display: none;
+  }
+  .subop-sidebar .nav-logo-text {
+    display: none;
+  }
+  .subop-main {
+    margin-left: 0;
+  }
+  .subop-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .subop-pipeline-zone2 {
+    width: 260px !important;
+    min-width: 200px !important;
+  }
+}
+
+/* Mobile: ≤ 767px */
+@media (max-width: 767px) {
+  .subop-sidebar {
+    display: none !important;
+  }
+  .subop-mobile-header {
+    display: flex !important;
+  }
+  .subop-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .subop-pipeline-layout {
+    flex-direction: column !important;
+  }
+  .subop-pipeline-zone2 {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: unset !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--color-neutral-200);
+    max-height: 240px;
+  }
+  .subop-pipeline-zone3 {
+    padding: 12px !important;
+  }
+  /* Mobile: pipeline actions read-only */
+  .subop-pipeline-action-btn {
+    display: none !important;
+  }
+  /* Filter bar wrap on mobile */
+  .subop-filter-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .subop-filter-bar input[type="text"] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  /* DataTable → card stack */
+  .subop-datatable-table {
+    display: none !important;
+  }
+  .subop-datatable-cards {
+    display: flex !important;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+/* Mobile header — hidden on desktop/tablet */
+.subop-mobile-header {
+  display: none;
+  background: var(--color-primary);
+  padding: 12px 16px;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+/* DataTable cards — hidden on desktop */
+.subop-datatable-cards {
+  display: none;
 }
