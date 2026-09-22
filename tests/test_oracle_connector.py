@@ -60,9 +60,7 @@ def test_health_check(oracle_connector):
 
 # Verify that SELECT queries return rows as dictionaries.
 def test_execute_query(oracle_connector):
-    result = oracle_connector.execute_query(
-        "SELECT 1 AS id, 'SubOP' AS name FROM DUAL"
-    )
+    result = oracle_connector.execute_query("SELECT 1 AS id, 'SubOP' AS name FROM DUAL")
 
     # Confirm that exactly one row was returned.
     assert len(result) == 1
