@@ -77,6 +77,28 @@ services:
       retries:  10
 
   # ---------------------------------------------------------------------------
+  # Oracle Database Free — Oracle connector test database
+  # ---------------------------------------------------------------------------
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: subop-oracle
+    restart: unless-stopped
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+      APP_USER: ${ORACLE_USERNAME}
+      APP_USER_PASSWORD: ${ORACLE_PASSWORD}
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
 
   # ---------------------------------------------------------------------------
   # pgAdmin 4 — Database administration UI
@@ -176,6 +198,8 @@ services:
         condition: service_healthy
       mssql:
         condition: service_healthy
+      oracle:
+        condition: service_healthy
 
     environment:
       SUBOP_CONN_PG_MAIN: >-
@@ -189,6 +213,8 @@ services:
 
       SUBOP_CONN_MSSQL_MAIN: >-
         {"host":"mssql","port":1433,"database":"master","username":"sa","password":"${MSSQL_SA_PASSWORD}"}
+      SUBOP_CONN_ORACLE_MAIN: >-
+        {"host":"oracle","port":1521,"database":"${ORACLE_DATABASE}","username":"${ORACLE_USERNAME}","password":"${ORACLE_PASSWORD}"}
 
     ports:
       - "8000:8000"
@@ -213,6 +239,8 @@ volumes:
   mssql_data:
     driver: local
   pgadmin_data:
+    driver: local
+  oracle_data:
     driver: local
 
 networks:
