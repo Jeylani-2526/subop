@@ -132,6 +132,19 @@ def test_csv_connector_type_accepted():
     assert p.target.connector_type == "csv"
 
 
+def test_rest_api_connector_type_accepted():
+    """M6W20T1: same gap and fix as sqlite/csv/json, for rest_api."""
+    doc = _valid_doc()
+    doc["source"]["connector_type"] = "rest_api"
+    p = parse_pipeline(doc)
+    assert p.source.connector_type == "rest_api"
+
+    doc = _valid_doc()
+    doc["target"]["connector_type"] = "rest_api"
+    p = parse_pipeline(doc)
+    assert p.target.connector_type == "rest_api"
+
+
 def test_invalid_write_mode_raises():
     doc = _valid_doc()
     doc["target"]["write_mode"] = "replace"

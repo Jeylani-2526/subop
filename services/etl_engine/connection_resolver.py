@@ -37,6 +37,12 @@ Convention — two shapes, chosen per connector_type's "kind"
         Example:
             connection_ref "demo-sqlite" -> SUBOP_CONN_DEMO_SQLITE
             SUBOP_CONN_DEMO_SQLITE='{"file_path":"/data/demo.db"}'
+
+    - "url"-kind (rest_api — M6W20T1): env var holds {"base_url"}.
+      Passthrough, no format validation (same as "db"/"file").
+
+        Example:
+            SUBOP_CONN_ORDERS_API='{"base_url":"https://api.example.com"}'
 """
 
 from __future__ import annotations
@@ -69,6 +75,8 @@ _ENV_PREFIX = "SUBOP_CONN_"
 #                    both take that one value as their first positional
 #                    argument, so the resolver doesn't need to know
 #                    which kwarg name a given file-kind connector uses.
+#   kind = "url"  -> config_cls(base_url), positional, same pattern as
+#                    "file" (M6W20T1).
 _CONNECTOR_CLASSES: Dict[str, Tuple[str, Any, Any]] = {}
 
 
@@ -92,6 +100,10 @@ def _connector_classes() -> Dict[str, Tuple[str, Any, Any]]:
     from services.connectors.csv_connector import CSVConnector
     from services.connectors.json_connector import JSONConnector
     from services.connectors.file_connector_base import FileConnectionConfig
+    from services.connectors.rest_api_connector import (
+        ConnectionConfig as RestApiConfig,
+        RESTAPIConnector,
+    )
 
     classes: Dict[str, Tuple[str, Any, Any]] = {
         "postgresql": ("db", PgConfig, PostgresConnector),
@@ -101,6 +113,7 @@ def _connector_classes() -> Dict[str, Tuple[str, Any, Any]]:
         "sqlite": ("file", SqliteConfig, SQLiteConnector),
         "csv": ("file", FileConnectionConfig, CSVConnector),
         "json": ("file", FileConnectionConfig, JSONConnector),
+        "rest_api": ("url", RestApiConfig, RESTAPIConnector),  # M6W20T1
     }
 
     try:
@@ -182,6 +195,9 @@ def resolve_connection(
         # file-kind (sqlite, csv — M6W19T1): a single file_path field,
         # not the five-field db credential blob.
         required_fields = ("file_path",)
+    elif kind == "url":
+        # url-kind (rest_api — M6W20T1): a single base_url field.
+        required_fields = ("base_url",)
     else:
         required_fields = ("host", "port", "database", "username", "password")
 
@@ -201,6 +217,8 @@ def resolve_connection(
         # both take their path as the first positional argument — see
         # the _CONNECTOR_CLASSES comment above.
         config = config_cls(creds["file_path"])
+    elif kind == "url":
+        config = config_cls(creds["base_url"])  # M6W20T1
     else:
         config = config_cls(
             host=creds["host"],
