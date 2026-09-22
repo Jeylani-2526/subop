@@ -51,6 +51,13 @@ class PostgresConnector:
 
     def execute_query(self, sql, params=None):
         """Run a SELECT query and return rows as dictionaries."""
+        if self.connection is None:
+            raise QueryError(
+                "Not connected. Call connect() first.",
+                error_code="POSTGRES_NOT_CONNECTED",
+                connector_type=_CONNECTOR_TYPE,
+                retryable=False,
+            )
         try:
             with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute(sql, params)
