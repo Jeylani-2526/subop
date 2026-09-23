@@ -96,7 +96,7 @@ def test_create_pipeline_persists_and_is_fetchable_by_id():
 
 def test_create_pipeline_invalid_dsl_returns_400_with_envelope():
     doc = _valid_doc()
-    doc["source"]["connector_type"] = "oracle"
+    doc["source"]["connector_type"] = "not_a_real_connector"
 
     response = client.post("/api/pipelines/", json=doc)
 
