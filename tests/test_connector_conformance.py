@@ -1,22 +1,16 @@
 """
-tests/test_connector_conformance.py — M6W20T2.
+tests/test_connector_conformance.py — M6W20T2 / M6W20T3.
 
 Shared-interface conformance suite: connect() / execute_query() /
 health_check() / disconnect(), plus the shared ConnectorError
-hierarchy on an induced failure, run against all 7 connectors wired
-via M6W20T1. Oracle (8th) is added in M6W20T3.
+hierarchy on an induced failure, run against all 8 wired connectors
+(oracle added in M6W20T3, alongside its resolver/pipeline wiring).
 
 Doesn't replace the per-connector suites (test_postgres_connector.py
 etc.), which still own connector-specific behavior.
 
-postgresql/mysql/mssql need a live server (`docker compose up -d
-postgres mysql mssql`) — no graceful skip if unreachable.
-
-Known gap (not fixed here, confirmed with Abdullah): postgres_
-connector.py's execute_query() has no "not connected" guard, unlike
-every other connector — raises a bare AttributeError instead of
-ConnectorError. test_execute_query_before_connect_raises_connector_
-error is expected to fail for postgresql; left red deliberately.
+postgresql/mysql/mssql/oracle need a live server (`docker compose up
+-d postgres mysql mssql oracle`) — no graceful skip if unreachable.
 """
 
 from __future__ import annotations
@@ -51,6 +45,10 @@ from services.connectors.file_connector_base import FileConnectionConfig
 from services.connectors.rest_api_connector import (
     ConnectionConfig as RestApiConfig,
     RESTAPIConnector,
+)
+from services.connectors.oracle_connector import (
+    ConnectionConfig as OracleConfig,
+    OracleConnector,
 )
 
 # Each builder returns (connector, query_kwargs, configure).
@@ -133,6 +131,18 @@ def _build_rest_api(tmp_path):
     return RESTAPIConnector(config), {}, _mock_rest_transport
 
 
+def _build_oracle(tmp_path):
+    config = OracleConfig(
+        host=os.getenv("ORACLE_HOST", "localhost"),
+        port=int(os.getenv("ORACLE_PORT", 1521)),
+        database=os.getenv("ORACLE_DATABASE", "FREEPDB1"),
+        username=os.getenv("ORACLE_USERNAME", "subop_app"),
+        password=os.getenv("ORACLE_PASSWORD", "oracle_dev"),
+    )
+    # Oracle has no bare SELECT — needs FROM DUAL, unlike the other DBs.
+    return OracleConnector(config), {"sql": "SELECT 1 AS health FROM DUAL"}, _noop
+
+
 _BUILDERS: Dict[str, Callable[[Any], Any]] = {
     "postgresql": _build_postgresql,
     "mysql": _build_mysql,
@@ -141,9 +151,10 @@ _BUILDERS: Dict[str, Callable[[Any], Any]] = {
     "csv": _build_csv,
     "json": _build_json,
     "rest_api": _build_rest_api,
+    "oracle": _build_oracle,
 }
 
-CONNECTOR_TYPES = list(_BUILDERS)  # 7 for T2, Oracle added in T3
+CONNECTOR_TYPES = list(_BUILDERS)  # 8 — M6W20T3, final count
 
 
 @dataclass
@@ -202,7 +213,7 @@ def test_disconnect_does_not_raise(case: ConformanceCase):
 
 def test_execute_query_before_connect_raises_connector_error(case: ConformanceCase):
     """Induced failure: execute_query() before connect() must raise
-    ConnectorError, not a raw exception. Expected to fail for postgresql."""
+    ConnectorError, not a raw exception (all 8, no known exceptions)."""
     with pytest.raises(ConnectorError) as exc_info:
         case.connector.execute_query(**case.query_kwargs)
 
