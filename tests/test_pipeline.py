@@ -69,7 +69,7 @@ def test_missing_name_raises():
 
 def test_invalid_connector_type_raises():
     doc = _valid_doc()
-    doc["source"]["connector_type"] = "oracle"
+    doc["source"]["connector_type"] = "not_a_real_connector"
     with pytest.raises(PipelineValidationError) as exc_info:
         parse_pipeline(doc)
     assert any("source.connector_type" in e for e in exc_info.value.errors)
@@ -143,6 +143,19 @@ def test_rest_api_connector_type_accepted():
     doc["target"]["connector_type"] = "rest_api"
     p = parse_pipeline(doc)
     assert p.target.connector_type == "rest_api"
+
+
+def test_oracle_connector_type_accepted():
+    """M6W20T3: same gap and fix as rest_api, for oracle."""
+    doc = _valid_doc()
+    doc["source"]["connector_type"] = "oracle"
+    p = parse_pipeline(doc)
+    assert p.source.connector_type == "oracle"
+
+    doc = _valid_doc()
+    doc["target"]["connector_type"] = "oracle"
+    p = parse_pipeline(doc)
+    assert p.target.connector_type == "oracle"
 
 
 def test_invalid_write_mode_raises():

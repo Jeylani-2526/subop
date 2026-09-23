@@ -104,6 +104,10 @@ def _connector_classes() -> Dict[str, Tuple[str, Any, Any]]:
         ConnectionConfig as RestApiConfig,
         RESTAPIConnector,
     )
+    from services.connectors.oracle_connector import (
+        ConnectionConfig as OracleConfig,
+        OracleConnector,
+    )
 
     classes: Dict[str, Tuple[str, Any, Any]] = {
         "postgresql": ("db", PgConfig, PostgresConnector),
@@ -114,6 +118,7 @@ def _connector_classes() -> Dict[str, Tuple[str, Any, Any]]:
         "csv": ("file", FileConnectionConfig, CSVConnector),
         "json": ("file", FileConnectionConfig, JSONConnector),
         "rest_api": ("url", RestApiConfig, RESTAPIConnector),  # M6W20T1
+        "oracle": ("db", OracleConfig, OracleConnector),  # M6W20T3
     }
 
     try:
