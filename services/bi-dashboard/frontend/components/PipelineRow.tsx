@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import StatusBadge from "./StatusBadge";
 
 interface PipelineRowProps {
@@ -23,6 +24,16 @@ const statusMap = {
   CompletedWithQuarantine: "completed_with_quarantine",
 } as const;
 
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+}
+
 export default function PipelineRow({
   pipelineName,
   source,
@@ -32,6 +43,68 @@ export default function PipelineRow({
   onSelect,
   selected = false,
 }: PipelineRowProps) {
+  const width = useWindowWidth();
+  const isCard = width < 900;
+
+  if (isCard) {
+    // Card-stack layout — mobile/tablet
+    return (
+      <div
+        onClick={onSelect}
+        style={{
+          padding: "12px 14px",
+          margin: "6px 8px",
+          borderRadius: "8px",
+          border: `1px solid ${selected ? "var(--color-primary)" : "var(--color-border)"}`,
+          backgroundColor: selected
+            ? "var(--color-row-alt)"
+            : "var(--color-surface)",
+          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          gap: "6px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "13px",
+              fontWeight: 600,
+              color: "var(--color-neutral-dark)",
+              flex: 1,
+              marginRight: "8px",
+            }}
+          >
+            {pipelineName}
+          </span>
+          <StatusBadge status={statusMap[status]} size="compact" />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span style={{ fontSize: "11px", color: "#6b7280" }}>
+            {source} → {target}
+          </span>
+          <span style={{ fontSize: "10px", color: "#9ca3af" }}>
+            {lastRunTime}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Default row layout — desktop
   return (
     <div
       onClick={onSelect}
