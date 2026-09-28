@@ -96,6 +96,7 @@ export interface KPISummary {
   pipeline_count: number;
   rows_processed_today: number;
   average_quality_score: number | null;
+  connector_count?: number;
 }
 
 export interface CatalogAsset {
