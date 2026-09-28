@@ -113,6 +113,9 @@ input::placeholder {
   .subop-kpi-grid {
     grid-template-columns: repeat(2, 1fr) !important;
   }
+  .subop-kpi-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
   .subop-pipeline-zone2 {
     width: 260px !important;
     min-width: 200px !important;

@@ -18,7 +18,7 @@ export default function HomePage() {
         className="subop-kpi-grid"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: "repeat(5, 1fr)",
           gap: "20px",
           padding: "24px",
           alignItems: "start",
@@ -42,7 +42,7 @@ export default function HomePage() {
           trend="up"
           trendValue={
             kpi?.average_quality_score == null
-              ? "Henüz mevcut değil"
+              ? "Not available yet"
               : "+2 from last week"
           }
           status={kpi?.average_quality_score == null ? "warning" : "healthy"}
@@ -61,8 +61,15 @@ export default function HomePage() {
           value="—"
           unit="ms"
           trend="down"
-          trendValue="M7'de gelecek"
+          trendValue="Coming in M7"
           status="warning"
+        />
+        <KPISummaryCard
+          label="Connectors"
+          value={kpi?.connector_count ?? "—"}
+          trend="neutral"
+          trendValue="Live from registry"
+          status="healthy"
         />
       </div>
     </AppShell>
