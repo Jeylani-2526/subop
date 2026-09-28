@@ -44,6 +44,16 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
+function useWindowWidth(): number {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+}
+
 export default function PipelinesPage() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [paginationInfo, setPaginationInfo] = useState({
@@ -61,6 +71,9 @@ export default function PipelinesPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [timeFilter, setTimeFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
+
+  const windowWidth = useWindowWidth();
+  const isMobile = windowWidth < 767;
 
   const debouncedSearch = useDebounce(searchTerm, 300);
 
@@ -152,6 +165,7 @@ export default function PipelinesPage() {
       >
         {/* Zone 1 — Filtre Bar */}
         <div
+          className="subop-filter-bar"
           style={{
             display: "flex",
             alignItems: "center",
@@ -236,31 +250,36 @@ export default function PipelinesPage() {
             </button>
           )}
 
-          <button
-            onClick={() => {
-              setShowForm(true);
-              setSelectedId(null);
-            }}
-            style={{
-              marginLeft: "auto",
-              fontSize: "12px",
-              padding: "6px 14px",
-              borderRadius: "6px",
-              border: "none",
-              background: "var(--color-secondary)",
-              color: "#fff",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            + Yeni Pipeline
-          </button>
+          {/* Yeni Pipeline — sadece desktop */}
+          {!isMobile && (
+            <button
+              className="subop-pipeline-action-btn"
+              onClick={() => {
+                setShowForm(true);
+                setSelectedId(null);
+              }}
+              style={{
+                marginLeft: "auto",
+                fontSize: "12px",
+                padding: "6px 14px",
+                borderRadius: "6px",
+                border: "none",
+                background: "var(--color-secondary)",
+                color: "#fff",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              + Yeni Pipeline
+            </button>
+          )}
 
           <span
             style={{
               fontSize: "11px",
               color: "rgba(255,255,255,0.6)",
               whiteSpace: "nowrap",
+              marginLeft: isMobile ? "auto" : undefined,
             }}
           >
             {hasFilter ? `${filteredPipelines.length} / ` : ""}
@@ -268,12 +287,30 @@ export default function PipelinesPage() {
           </span>
         </div>
 
+        {/* Mobile read-only banner */}
+        {isMobile && (
+          <div
+            style={{
+              padding: "8px 16px",
+              background: "rgba(230,81,0,0.08)",
+              borderBottom: "1px solid var(--color-warning)",
+              fontSize: "11px",
+              color: "var(--color-warning)",
+              textAlign: "center",
+            }}
+          >
+            Mobil görünümde pipeline yönetimi salt okunur moddadır.
+          </div>
+        )}
+
         {/* Zone 2 + 3 */}
         <div
+          className="subop-pipeline-layout"
           style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}
         >
           {/* Zone 2 */}
           <div
+            className="subop-pipeline-zone2"
             style={{
               width: "320px",
               minWidth: "240px",
@@ -342,9 +379,10 @@ export default function PipelinesPage() {
 
           {/* Zone 3 */}
           <div
+            className="subop-pipeline-zone3"
             style={{ flex: 1, minWidth: 0, padding: "20px", overflowY: "auto" }}
           >
-            {showForm ? (
+            {showForm && !isMobile ? (
               <div style={{ maxWidth: "600px" }}>
                 <div
                   style={{
