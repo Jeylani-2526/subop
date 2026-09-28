@@ -10,7 +10,17 @@ interface PipelineCreationFormProps {
   onCancel: () => void;
 }
 
-const CONNECTOR_TYPES = ["postgresql", "mysql", "mssql", "mongodb"] as const;
+const CONNECTOR_TYPES = [
+  { value: "postgresql", label: "PostgreSQL" },
+  { value: "mysql", label: "MySQL" },
+  { value: "mssql", label: "MSSQL" },
+  { value: "sqlite", label: "SQLite" },
+  { value: "csv", label: "CSV" },
+  { value: "json", label: "JSON" },
+  { value: "rest_api", label: "REST API" },
+  { value: "oracle", label: "Oracle" },
+] as const;
+
 const WRITE_MODES = ["upsert", "append"] as const;
 
 function getInputStyle(hasError?: boolean): React.CSSProperties {
@@ -115,16 +125,18 @@ export default function PipelineCreationForm({
 
   function validate(): boolean {
     const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = "Zorunlu";
-    if (!form.source_connector_type) e.source_connector_type = "Zorunlu";
-    if (!form.source_connection_ref.trim()) e.source_connection_ref = "Zorunlu";
-    if (!form.source_object.trim()) e.source_object = "Zorunlu";
-    if (!form.target_connector_type) e.target_connector_type = "Zorunlu";
-    if (!form.target_connection_ref.trim()) e.target_connection_ref = "Zorunlu";
-    if (!form.target_object.trim()) e.target_object = "Zorunlu";
-    if (!form.processing_purpose.trim()) e.processing_purpose = "Zorunlu";
+    if (!form.name.trim()) e.name = "Required";
+    if (!form.source_connector_type) e.source_connector_type = "Required";
+    if (!form.source_connection_ref.trim())
+      e.source_connection_ref = "Required";
+    if (!form.source_object.trim()) e.source_object = "Required";
+    if (!form.target_connector_type) e.target_connector_type = "Required";
+    if (!form.target_connection_ref.trim())
+      e.target_connection_ref = "Required";
+    if (!form.target_object.trim()) e.target_object = "Required";
+    if (!form.processing_purpose.trim()) e.processing_purpose = "Required";
     if (!form.data_subject_categories.trim())
-      e.data_subject_categories = "Zorunlu";
+      e.data_subject_categories = "Required";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -173,10 +185,10 @@ export default function PipelineCreationForm({
       } else if (envelope?.error_code === "VERBIS_REGISTRATION_INCOMPLETE") {
         setErrors((e) => ({
           ...e,
-          processing_purpose: "VERBIS kaydı tamamlanmamış",
+          processing_purpose: "VERBIS registration incomplete",
         }));
       } else {
-        setApiError("Bir hata oluştu, tekrar deneyin.");
+        setApiError("An error occurred, please try again.");
       }
     } finally {
       setLoading(false);
@@ -194,7 +206,7 @@ export default function PipelineCreationForm({
           fontWeight: 600,
         }}
       >
-        ✓ Pipeline başarıyla oluşturuldu!
+        ✓ Pipeline created successfully!
       </div>
     );
   }
@@ -222,7 +234,7 @@ export default function PipelineCreationForm({
         }}
       >
         <span style={{ fontSize: "13px", fontWeight: 700, color: "#fff" }}>
-          Yeni Pipeline
+          New Pipeline
         </span>
         <button
           onClick={onCancel}
@@ -262,17 +274,17 @@ export default function PipelineCreationForm({
           </div>
         )}
 
-        {/* Pipeline Adı */}
-        <Field label="Pipeline Adı" error={errors.name}>
+        {/* Pipeline Name */}
+        <Field label="Pipeline Name" error={errors.name}>
           <input
             value={form.name}
             onChange={set("name")}
-            placeholder="Örn: Orders ETL"
+            placeholder="e.g. Orders ETL"
             style={getInputStyle(!!errors.name)}
           />
         </Field>
 
-        {/* Kaynak + Hedef — 2 sütun */}
+        {/* Source + Target — 2 columns */}
         <div
           style={{
             display: "grid",
@@ -280,19 +292,19 @@ export default function PipelineCreationForm({
             gap: "12px",
           }}
         >
-          {/* Kaynak */}
+          {/* Source */}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <SectionTitle text="Kaynak" color="var(--color-secondary)" />
+            <SectionTitle text="Source" color="var(--color-secondary)" />
             <Field label="Connector" error={errors.source_connector_type}>
               <select
                 value={form.source_connector_type}
                 onChange={set("source_connector_type")}
                 style={getInputStyle(!!errors.source_connector_type)}
               >
-                <option value="">Seçin</option>
+                <option value="">Select</option>
                 {CONNECTOR_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                  <option key={t.value} value={t.value}>
+                    {t.label}
                   </option>
                 ))}
               </select>
@@ -305,7 +317,7 @@ export default function PipelineCreationForm({
                 style={getInputStyle(!!errors.source_connection_ref)}
               />
             </Field>
-            <Field label="Tablo / Koleksiyon" error={errors.source_object}>
+            <Field label="Table / Collection" error={errors.source_object}>
               <input
                 value={form.source_object}
                 onChange={set("source_object")}
@@ -315,19 +327,19 @@ export default function PipelineCreationForm({
             </Field>
           </div>
 
-          {/* Hedef */}
+          {/* Target */}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <SectionTitle text="Hedef" color="var(--color-success)" />
+            <SectionTitle text="Target" color="var(--color-success)" />
             <Field label="Connector" error={errors.target_connector_type}>
               <select
                 value={form.target_connector_type}
                 onChange={set("target_connector_type")}
                 style={getInputStyle(!!errors.target_connector_type)}
               >
-                <option value="">Seçin</option>
+                <option value="">Select</option>
                 {CONNECTOR_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                  <option key={t.value} value={t.value}>
+                    {t.label}
                   </option>
                 ))}
               </select>
@@ -340,7 +352,7 @@ export default function PipelineCreationForm({
                 style={getInputStyle(!!errors.target_connection_ref)}
               />
             </Field>
-            <Field label="Tablo / Koleksiyon" error={errors.target_object}>
+            <Field label="Table / Collection" error={errors.target_object}>
               <input
                 value={form.target_object}
                 onChange={set("target_object")}
@@ -364,9 +376,9 @@ export default function PipelineCreationForm({
           </div>
         </div>
 
-        {/* Uyumluluk */}
+        {/* Compliance */}
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <SectionTitle text="Uyumluluk" color="var(--color-warning)" />
+          <SectionTitle text="Compliance" color="var(--color-warning)" />
           <div
             style={{
               display: "grid",
@@ -374,16 +386,16 @@ export default function PipelineCreationForm({
               gap: "12px",
             }}
           >
-            <Field label="İşleme Amacı" error={errors.processing_purpose}>
+            <Field label="Processing Purpose" error={errors.processing_purpose}>
               <input
                 value={form.processing_purpose}
                 onChange={set("processing_purpose")}
-                placeholder="Sipariş entegrasyonu"
+                placeholder="Order integration"
                 style={getInputStyle(!!errors.processing_purpose)}
               />
             </Field>
             <Field
-              label="Veri Konusu Kategorileri"
+              label="Data Subject Categories"
               error={errors.data_subject_categories}
             >
               <input
@@ -394,17 +406,17 @@ export default function PipelineCreationForm({
               />
             </Field>
           </div>
-          <Field label="Transfer Alıcıları (opsiyonel)" error={undefined}>
+          <Field label="Transfer Recipients (optional)" error={undefined}>
             <input
               value={form.transfer_recipients}
               onChange={set("transfer_recipients")}
-              placeholder="Boş bırakılabilir"
+              placeholder="Leave blank if none"
               style={getInputStyle()}
             />
           </Field>
         </div>
 
-        {/* Butonlar */}
+        {/* Buttons */}
         <div
           style={{
             display: "flex",
@@ -426,7 +438,7 @@ export default function PipelineCreationForm({
               color: "var(--color-neutral-dark)",
             }}
           >
-            İptal
+            Cancel
           </button>
           <button
             onClick={handleSubmit}
@@ -443,7 +455,7 @@ export default function PipelineCreationForm({
               opacity: loading ? 0.7 : 1,
             }}
           >
-            {loading ? "Oluşturuluyor..." : "Oluştur"}
+            {loading ? "Creating..." : "Create"}
           </button>
         </div>
       </div>
