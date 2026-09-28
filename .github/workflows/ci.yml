@@ -74,6 +74,20 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
+      oracle:
+        image: gvenzl/oracle-free:23-slim
+        env:
+          ORACLE_PASSWORD: oracle_dev
+          APP_USER: subop_app
+          APP_USER_PASSWORD: oracle_dev
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd healthcheck.sh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 60s
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.10
@@ -124,3 +138,10 @@ jobs:
           MSSQL_DATABASE: master
           MSSQL_USERNAME: sa
           MSSQL_SA_PASSWORD: SubopDev123!
+
+          ORACLE_HOST: localhost
+          ORACLE_PORT: 1521
+          ORACLE_DATABASE: FREEPDB1
+          ORACLE_USERNAME: subop_app
+          ORACLE_PASSWORD: oracle_dev
+      

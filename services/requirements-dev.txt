@@ -7,6 +7,7 @@
 psycopg2-binary
 PyMySQL
 pyodbc
+oracledb
 
 # --- ETL Engine API (Module 3, M5W15T4) ---
 fastapi
