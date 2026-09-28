@@ -48,7 +48,22 @@ class PipelineValidationError(ValueError):
 #
 # json added (M6W19T2): same file-kind path as sqlite/csv, proving the
 # T1 generalization holds for a new connector, not just a retrofit.
-_VALID_CONNECTOR_TYPES = {"postgresql", "mysql", "mssql", "sqlite", "csv", "json"}
+#
+# rest_api added (M6W20T1): same gap as sqlite/csv/json, closed via a
+# new "url"-kind path in connection_resolver.py (base_url).
+#
+# oracle added (M6W20T3): same gap, db-kind path (host/port/db/user/pass,
+# same as postgres/mysql/mssql) — no new resolver kind needed.
+_VALID_CONNECTOR_TYPES = {
+    "postgresql",
+    "mysql",
+    "mssql",
+    "sqlite",
+    "csv",
+    "json",
+    "rest_api",
+    "oracle",
+}
 _VALID_WRITE_MODES = {"upsert", "append"}
 
 

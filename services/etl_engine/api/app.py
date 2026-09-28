@@ -35,9 +35,15 @@ from pipeline import PipelineValidationError, parse_pipeline  # noqa: E402
 
 app = FastAPI(title="SUBOP ETL Engine API")
 
+_raw_origins = os.getenv(
+    "SUBOP_CORS_ORIGINS",
+    "http://localhost:5173,http://localhost:5174",
+)
+_allow_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],
+    allow_origins=_allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
