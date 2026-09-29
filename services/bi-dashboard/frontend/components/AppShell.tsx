@@ -16,11 +16,6 @@ export default function AppShell({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { language, setLanguage } = useT();
 
-  const langs = [
-    { code: "tr" as const, label: "TR", flag: "🇹🇷" },
-    { code: "en" as const, label: "EN", flag: "🇺🇸" },
-  ];
-
   return (
     <div
       style={{
@@ -105,46 +100,36 @@ export default function AppShell({
             </span>
 
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              {/* Language Segmented Pill */}
-              <div
+              {/* Language Toggle — tek buton */}
+              <button
+                onClick={() => setLanguage(language === "tr" ? "en" : "tr")}
                 style={{
-                  display: "inline-flex",
-                  background: "#112d57",
-                  borderRadius: "8px",
-                  padding: "2px",
-                  gap: "1px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  padding: "4px 10px",
+                  borderRadius: "6px",
+                  border: "1px solid rgba(255,255,255,0.25)",
+                  background: "rgba(255,255,255,0.1)",
+                  color: "#fff",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  letterSpacing: "0.3px",
+                  transition: "background 0.2s",
                 }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "rgba(255,255,255,0.2)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "rgba(255,255,255,0.1)")
+                }
               >
-                {langs.map((lang) => {
-                  const isActive = language === lang.code;
-                  return (
-                    <button
-                      key={lang.code}
-                      onClick={() => setLanguage(lang.code)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        padding: "4px 10px",
-                        borderRadius: "6px",
-                        border: "none",
-                        background: isActive ? "#fff" : "transparent",
-                        color: isActive
-                          ? "var(--color-primary)"
-                          : "rgba(255,255,255,0.5)",
-                        fontSize: "11px",
-                        fontWeight: isActive ? 700 : 600,
-                        cursor: "pointer",
-                        letterSpacing: "0.3px",
-                        transition: "all 0.2s",
-                      }}
-                    >
-                      <span style={{ fontSize: "13px" }}>{lang.flag}</span>
-                      {lang.label}
-                    </button>
-                  );
-                })}
-              </div>
+                <span style={{ fontSize: "13px" }}>
+                  {language === "tr" ? "🇹🇷" : "🇺🇸"}
+                </span>
+                {language === "tr" ? "TR" : "EN"}
+              </button>
 
               <div
                 style={{
