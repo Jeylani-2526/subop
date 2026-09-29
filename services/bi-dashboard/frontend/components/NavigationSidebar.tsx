@@ -4,6 +4,7 @@ interface NavItem {
   label: string;
   path: string;
   adminOnly?: boolean;
+  icon: string;
 }
 
 interface NavigationSidebarProps {
@@ -11,14 +12,19 @@ interface NavigationSidebarProps {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Overview", path: "/" },
-  { label: "Pipeline Monitor", path: "/pipelines" },
-  { label: "Data Quality", path: "/quality" },
-  { label: "Lineage Explorer", path: "/lineage" },
-  { label: "Data Catalog", path: "/catalog" },
-  { label: "BI Reports", path: "/reports" },
-  { label: "Admin", path: "/admin", adminOnly: true },
-  { label: "User Management", path: "/admin/users", adminOnly: true },
+  { label: "Overview", path: "/", icon: "⊞" },
+  { label: "Pipeline Monitor", path: "/pipelines", icon: "⟳" },
+  { label: "Data Quality", path: "/quality", icon: "✦" },
+  { label: "Lineage Explorer", path: "/lineage", icon: "⤢" },
+  { label: "Data Catalog", path: "/catalog", icon: "☰" },
+  { label: "BI Reports", path: "/reports", icon: "▦" },
+  { label: "Admin", path: "/admin", adminOnly: true, icon: "⚙" },
+  {
+    label: "User Management",
+    path: "/admin/users",
+    adminOnly: true,
+    icon: "⊙",
+  },
 ];
 
 export default function NavigationSidebar({
@@ -45,11 +51,16 @@ export default function NavigationSidebar({
       <div
         onClick={() => navigate("/")}
         style={{
-          padding: "24px 16px",
+          padding: "20px 16px",
           borderBottom: "1px solid rgba(255,255,255,0.1)",
           cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          minHeight: "64px",
         }}
       >
+        <span style={{ fontSize: "18px", flexShrink: 0 }}>◈</span>
         <span
           className="nav-logo-text"
           style={{
@@ -57,6 +68,7 @@ export default function NavigationSidebar({
             fontWeight: 700,
             fontSize: "16px",
             letterSpacing: "1px",
+            whiteSpace: "nowrap",
           }}
         >
           SUBOP
@@ -76,8 +88,10 @@ export default function NavigationSidebar({
               key={item.path}
               to={item.path}
               style={{
-                display: "block",
-                padding: "8px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                padding: "9px 16px",
                 color: isActive ? "#fff" : "rgba(255,255,255,0.7)",
                 backgroundColor: isActive
                   ? "var(--color-secondary)"
@@ -85,8 +99,20 @@ export default function NavigationSidebar({
                 textDecoration: "none",
                 fontSize: "12px",
                 fontWeight: isActive ? 600 : 400,
+                transition: "background-color 0.15s",
+                whiteSpace: "nowrap",
               }}
             >
+              <span
+                style={{
+                  fontSize: "16px",
+                  flexShrink: 0,
+                  width: "20px",
+                  textAlign: "center",
+                }}
+              >
+                {item.icon}
+              </span>
               <span className="nav-label">{item.label}</span>
             </NavLink>
           );
