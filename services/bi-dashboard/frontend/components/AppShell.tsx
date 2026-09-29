@@ -1,5 +1,6 @@
 import { ReactNode, useState } from "react";
 import NavigationSidebar from "./NavigationSidebar";
+import { useT } from "../src/i18n/LanguageProvider";
 
 interface AppShellProps {
   children: ReactNode;
@@ -13,6 +14,12 @@ export default function AppShell({
   pageTitle,
 }: AppShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { language, setLanguage } = useT();
+
+  const langs = [
+    { code: "tr" as const, label: "TR", flag: "🇹🇷" },
+    { code: "en" as const, label: "EN", flag: "🇺🇸" },
+  ];
 
   return (
     <div
@@ -90,15 +97,75 @@ export default function AppShell({
               alignItems: "center",
               padding: "0 24px",
               justifyContent: "space-between",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
             }}
           >
             <span style={{ color: "#fff", fontSize: "15px", fontWeight: 600 }}>
               {pageTitle}
             </span>
-            <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "12px" }}>
-              SUBOP
-            </span>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              {/* Language Segmented Pill */}
+              <div
+                style={{
+                  display: "inline-flex",
+                  background: "#112d57",
+                  borderRadius: "8px",
+                  padding: "2px",
+                  gap: "1px",
+                }}
+              >
+                {langs.map((lang) => {
+                  const isActive = language === lang.code;
+                  return (
+                    <button
+                      key={lang.code}
+                      onClick={() => setLanguage(lang.code)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        padding: "4px 10px",
+                        borderRadius: "6px",
+                        border: "none",
+                        background: isActive ? "#fff" : "transparent",
+                        color: isActive
+                          ? "var(--color-primary)"
+                          : "rgba(255,255,255,0.5)",
+                        fontSize: "11px",
+                        fontWeight: isActive ? 700 : 600,
+                        cursor: "pointer",
+                        letterSpacing: "0.3px",
+                        transition: "all 0.2s",
+                      }}
+                    >
+                      <span style={{ fontSize: "13px" }}>{lang.flag}</span>
+                      {lang.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div
+                style={{
+                  width: "1px",
+                  height: "20px",
+                  background: "rgba(255,255,255,0.15)",
+                }}
+              />
+              <span
+                style={{
+                  color: "rgba(255,255,255,0.4)",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "2px",
+                }}
+              >
+                SUBOP
+              </span>
+            </div>
           </header>
+
           <main
             style={{
               flex: 1,
