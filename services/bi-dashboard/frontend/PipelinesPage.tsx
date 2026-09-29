@@ -73,7 +73,7 @@ export default function PipelinesPage() {
   const [showForm, setShowForm] = useState(false);
 
   const windowWidth = useWindowWidth();
-  const isMobile = windowWidth < 767;
+  const isMobile = windowWidth <= 767;
 
   const debouncedSearch = useDebounce(searchTerm, 300);
 

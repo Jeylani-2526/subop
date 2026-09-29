@@ -1,156 +1,203 @@
-import { useState } from 'react';
+import { useEffect, useState } from "react";
 
-export interface Column {
-  key: string;
-  label: string;
-  sortable?: boolean;
+export interface DataTableColumn<T> {
+  key: keyof T | string;
+  header: string;
+  render?: (row: T) => React.ReactNode;
   width?: string;
 }
 
-interface PaginationProps {
-  page: number;
-  pageSize: number;
-  total: number;
-  onPageChange: (page: number) => void;
+interface DataTableProps<T> {
+  columns: DataTableColumn<T>[];
+  data: T[];
+  rowKey: keyof T;
+  emptyMessage?: string;
+  onRowClick?: (row: T) => void;
 }
 
-interface DataTableProps {
-  columns: Column[];
-  data: Record<string, unknown>[];
-  isLoading?: boolean;
-  pagination?: PaginationProps;
-  onSort?: (key: string, direction: 'asc' | 'desc' | null) => void;
+function useWindowWidth(): number {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
 }
 
-type SortDirection = 'asc' | 'desc' | null;
+function getCellValue<T>(
+  row: T,
+  key: string,
+  render?: (row: T) => React.ReactNode,
+): React.ReactNode {
+  if (render) return render(row);
+  return String((row as Record<string, unknown>)[key] ?? "—");
+}
 
-export default function DataTable({ columns, data, isLoading = false, pagination, onSort }: DataTableProps) {
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+export default function DataTable<T>({
+  columns,
+  data,
+  rowKey,
+  emptyMessage = "No data available.",
+  onRowClick,
+}: DataTableProps<T>) {
+  const width = useWindowWidth();
+  const isCard = width < 900;
 
-  const handleSort = (key: string) => {
-    if (!onSort) return;
-    let nextDirection: SortDirection;
-    if (sortKey !== key) {
-      nextDirection = 'asc';
-    } else if (sortDirection === 'asc') {
-      nextDirection = 'desc';
-    } else {
-      nextDirection = null;
-    }
-    setSortKey(nextDirection ? key : null);
-    setSortDirection(nextDirection);
-    onSort(key, nextDirection as 'asc' | 'desc');
-  };
+  if (data.length === 0) {
+    return (
+      <div
+        style={{
+          padding: "24px",
+          textAlign: "center",
+          fontSize: "12px",
+          color: "var(--color-neutral-400)",
+        }}
+      >
+        {emptyMessage}
+      </div>
+    );
+  }
 
-  const sortIcon = (key: string) => {
-    if (sortKey !== key) return ' ↕';
-    if (sortDirection === 'asc') return ' ↑';
-    if (sortDirection === 'desc') return ' ↓';
-    return ' ↕';
-  };
-
-  const start = pagination ? (pagination.page - 1) * pagination.pageSize + 1 : 1;
-  const end = pagination ? Math.min(pagination.page * pagination.pageSize, pagination.total) : data.length;
-
-  return (
-    <div style={{ width: '100%' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', fontFamily: 'Inter, sans-serif' }}>
-        <thead>
-          <tr>
-            {columns.map(col => (
-              <th
-                key={col.key}
-                onClick={() => col.sortable && handleSort(col.key)}
+  // Card-stack layout — below 900px
+  if (isCard) {
+    return (
+      <div
+        className="subop-datatable-cards"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          padding: "12px",
+        }}
+      >
+        {data.map((row) => (
+          <div
+            key={String(row[rowKey])}
+            onClick={() => onRowClick?.(row)}
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "8px",
+              padding: "12px 14px",
+              cursor: onRowClick ? "pointer" : "default",
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            }}
+          >
+            {columns.map((col) => (
+              <div
+                key={String(col.key)}
                 style={{
-                  textAlign: 'left',
-                  padding: '8px 16px',
-                  backgroundColor: 'var(--color-primary)',
-                  color: 'var(--color-surface)',
-                  fontWeight: 500,
-                  fontSize: '11px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.4px',
-                  cursor: col.sortable ? 'pointer' : 'default',
-                  userSelect: 'none',
-                  width: col.width,
-                  whiteSpace: 'nowrap',
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "8px",
                 }}
               >
-                {col.label}
-                {col.sortable && <span style={{ opacity: 0.7, fontSize: '10px' }}>{sortIcon(col.key)}</span>}
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    color: "var(--color-neutral-500)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    flexShrink: 0,
+                  }}
+                >
+                  {col.header}
+                </span>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    color: "var(--color-neutral-dark)",
+                    textAlign: "right",
+                  }}
+                >
+                  {getCellValue(row, String(col.key), col.render)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Default table layout — 900px and above
+  return (
+    <div className="subop-datatable-table" style={{ overflowX: "auto" }}>
+      <table
+        style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}
+      >
+        <thead>
+          <tr
+            style={{
+              background: "var(--color-neutral-light)",
+              borderBottom: "1px solid var(--color-border)",
+            }}
+          >
+            {columns.map((col) => (
+              <th
+                key={String(col.key)}
+                style={{
+                  padding: "8px 12px",
+                  textAlign: "left",
+                  fontWeight: 600,
+                  fontSize: "11px",
+                  color: "var(--color-neutral-500)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                  whiteSpace: "nowrap",
+                  width: col.width,
+                }}
+              >
+                {col.header}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {isLoading
-            ? [0, 1, 2].map(i => (
-                <tr key={i}>
-                  {columns.map(col => (
-                    <td key={col.key} style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border)' }}>
-                      <div style={{ height: '14px', borderRadius: '4px', backgroundColor: 'var(--color-neutral-light)' }} />
-                    </td>
-                  ))}
-                </tr>
-              ))
-            : data.map((row, rowIndex) => (
-                <tr key={rowIndex}>
-                  {columns.map(col => (
-                    <td
-                      key={col.key}
-                      style={{
-                        padding: '8px 16px',
-                        borderBottom: '1px solid var(--color-border)',
-                        backgroundColor: rowIndex % 2 === 1 ? 'var(--color-row-alt)' : 'var(--color-surface)',
-                        color: 'var(--color-neutral-dark)',
-                      }}
-                    >
-                      {String(row[col.key] ?? '')}
-                    </td>
-                  ))}
-                </tr>
+          {data.map((row, i) => (
+            <tr
+              key={String(row[rowKey])}
+              onClick={() => onRowClick?.(row)}
+              style={{
+                borderBottom: "1px solid var(--color-border)",
+                backgroundColor:
+                  i % 2 === 1 ? "var(--color-row-alt)" : "transparent",
+                cursor: onRowClick ? "pointer" : "default",
+                transition: "background-color 0.1s",
+              }}
+              onMouseEnter={(e) => {
+                if (onRowClick)
+                  (
+                    e.currentTarget as HTMLTableRowElement
+                  ).style.backgroundColor = "var(--color-neutral-light)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLTableRowElement).style.backgroundColor =
+                  i % 2 === 1 ? "var(--color-row-alt)" : "transparent";
+              }}
+            >
+              {columns.map((col) => (
+                <td
+                  key={String(col.key)}
+                  style={{
+                    padding: "10px 12px",
+                    color: "var(--color-neutral-dark)",
+                    verticalAlign: "middle",
+                  }}
+                >
+                  {getCellValue(row, String(col.key), col.render)}
+                </td>
               ))}
+            </tr>
+          ))}
         </tbody>
       </table>
-
-      {pagination && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', padding: '8px 16px', borderTop: '1px solid var(--color-border)', fontSize: '11px', color: 'var(--color-neutral-dark)' }}>
-          <span>Showing {start}–{end} of {pagination.total}</span>
-          <button
-            onClick={() => pagination.onPageChange(pagination.page - 1)}
-            disabled={pagination.page <= 1}
-            style={{
-              padding: '4px 12px',
-              fontSize: '11px',
-              fontWeight: 600,
-              border: '1px solid var(--color-border)',
-              borderRadius: '4px',
-              backgroundColor: pagination.page <= 1 ? 'var(--color-neutral-light)' : 'var(--color-surface)',
-              color: pagination.page <= 1 ? 'var(--color-neutral-dark)' : 'var(--color-primary)',
-              cursor: pagination.page <= 1 ? 'not-allowed' : 'pointer',
-            }}
-          >
-            ← Prev
-          </button>
-          <button
-            onClick={() => pagination.onPageChange(pagination.page + 1)}
-            disabled={end >= pagination.total}
-            style={{
-              padding: '4px 12px',
-              fontSize: '11px',
-              fontWeight: 600,
-              border: '1px solid var(--color-border)',
-              borderRadius: '4px',
-              backgroundColor: end >= pagination.total ? 'var(--color-neutral-light)' : 'var(--color-primary)',
-              color: end >= pagination.total ? 'var(--color-neutral-dark)' : 'var(--color-surface)',
-              cursor: end >= pagination.total ? 'not-allowed' : 'pointer',
-            }}
-          >
-            Next →
-          </button>
-        </div>
-      )}
     </div>
   );
 }
