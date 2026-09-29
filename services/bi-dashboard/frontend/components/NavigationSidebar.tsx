@@ -1,7 +1,9 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useT } from "../src/i18n/LanguageProvider";
+import { TranslationKey } from "../src/i18n/tr";
 
 interface NavItem {
-  label: string;
+  labelKey: TranslationKey;
   path: string;
   adminOnly?: boolean;
   icon: string;
@@ -12,15 +14,15 @@ interface NavigationSidebarProps {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Overview", path: "/", icon: "⊞" },
-  { label: "Pipeline Monitor", path: "/pipelines", icon: "⟳" },
-  { label: "Data Quality", path: "/quality", icon: "✦" },
-  { label: "Lineage Explorer", path: "/lineage", icon: "⤢" },
-  { label: "Data Catalog", path: "/catalog", icon: "☰" },
-  { label: "BI Reports", path: "/reports", icon: "▦" },
-  { label: "Admin", path: "/admin", adminOnly: true, icon: "⚙" },
+  { labelKey: "nav_overview", path: "/", icon: "⊞" },
+  { labelKey: "nav_pipeline_monitor", path: "/pipelines", icon: "⟳" },
+  { labelKey: "nav_data_quality", path: "/quality", icon: "✦" },
+  { labelKey: "nav_lineage_explorer", path: "/lineage", icon: "⤢" },
+  { labelKey: "nav_data_catalog", path: "/catalog", icon: "☰" },
+  { labelKey: "nav_bi_reports", path: "/reports", icon: "▦" },
+  { labelKey: "nav_admin", path: "/admin", adminOnly: true, icon: "⚙" },
   {
-    label: "User Management",
+    labelKey: "nav_user_management",
     path: "/admin/users",
     adminOnly: true,
     icon: "⊙",
@@ -30,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
 export default function NavigationSidebar({
   userRole,
 }: NavigationSidebarProps) {
+  const { t } = useT();
   const location = useLocation();
   const navigate = useNavigate();
   const isAdmin = userRole === "admin";
@@ -113,7 +116,7 @@ export default function NavigationSidebar({
               >
                 {item.icon}
               </span>
-              <span className="nav-label">{item.label}</span>
+              <span className="nav-label">{t(item.labelKey)}</span>
             </NavLink>
           );
         })}
