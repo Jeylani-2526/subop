@@ -27,25 +27,18 @@ const WRITE_MODES = ["upsert", "append"] as const;
 function getInputStyle(hasError?: boolean): React.CSSProperties {
   return {
     width: "100%",
-    padding: "7px 10px",
-    fontSize: "12px",
-    border: `1px solid ${hasError ? "var(--color-danger)" : "var(--color-border)"}`,
+    padding: "4px 9px",
+    fontSize: "11px",
+    border: `1px solid ${hasError ? "var(--color-danger)" : "#e0e7ef"}`,
     borderRadius: "6px",
-    background: "var(--color-surface)",
-    color: "var(--color-neutral-dark)",
+    background: "#f8fafc",
+    color: "#1e293b",
     outline: "none",
+    height: "28px",
+    boxSizing: "border-box",
+    transition: "border-color 0.15s, box-shadow 0.15s",
   };
 }
-
-const labelStyle: React.CSSProperties = {
-  fontSize: "10px",
-  fontWeight: 600,
-  color: "var(--color-neutral-500)",
-  textTransform: "uppercase",
-  letterSpacing: "0.5px",
-  marginBottom: "4px",
-  display: "block",
-};
 
 interface FieldProps {
   label: string;
@@ -55,12 +48,20 @@ interface FieldProps {
 function Field({ label, error, children }: FieldProps) {
   return (
     <div>
-      <label style={labelStyle}>
+      <label
+        style={{
+          fontSize: "9px",
+          fontWeight: 700,
+          color: "#64748b",
+          textTransform: "uppercase",
+          letterSpacing: "0.6px",
+          marginBottom: "2px",
+          display: "block",
+        }}
+      >
         {label}
         {error && (
-          <span style={{ color: "var(--color-danger)", marginLeft: 4 }}>
-            — {error}
-          </span>
+          <span style={{ color: "var(--color-danger)", marginLeft: 2 }}>*</span>
         )}
       </label>
       {children}
@@ -68,25 +69,44 @@ function Field({ label, error, children }: FieldProps) {
   );
 }
 
-interface SectionTitleProps {
-  text: string;
+interface SectionProps {
+  label: string;
   color: string;
+  children: React.ReactNode;
 }
-function SectionTitle({ text, color }: SectionTitleProps) {
+function Section({ label, color, children }: SectionProps) {
   return (
     <div
       style={{
-        fontSize: "11px",
-        fontWeight: 700,
-        color,
-        padding: "6px 10px",
-        background: color + "18",
-        borderRadius: "6px",
-        marginBottom: "10px",
-        borderLeft: `3px solid ${color}`,
+        background: "#fff",
+        border: "1px solid #e2e8f0",
+        borderRadius: "8px",
+        overflow: "hidden",
       }}
     >
-      {text}
+      <div
+        style={{
+          padding: "6px 12px",
+          background: "var(--color-primary)",
+          fontSize: "10px",
+          fontWeight: 700,
+          color: "#fff",
+          letterSpacing: "0.8px",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          padding: "10px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -115,11 +135,8 @@ export default function PipelineCreationForm({
   const [success, setSuccess] = useState(false);
 
   function set(key: string) {
-    return (
-      e: React.ChangeEvent<
-        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-      >,
-    ) => setForm((f) => ({ ...f, [key]: e.target.value }));
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
   }
 
   function validate(): boolean {
@@ -192,16 +209,17 @@ export default function PipelineCreationForm({
 
   if (success) {
     return (
-      <div
-        style={{
-          padding: "24px",
-          textAlign: "center",
-          color: "var(--color-success)",
-          fontSize: "14px",
-          fontWeight: 600,
-        }}
-      >
-        {t("form_success")}
+      <div style={{ padding: "24px", textAlign: "center" }}>
+        <div style={{ fontSize: "28px", marginBottom: "8px" }}>✓</div>
+        <div
+          style={{
+            fontSize: "14px",
+            fontWeight: 600,
+            color: "var(--color-success)",
+          }}
+        >
+          {t("form_success")}
+        </div>
       </div>
     );
   }
@@ -209,36 +227,43 @@ export default function PipelineCreationForm({
   return (
     <div
       style={{
-        background: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
-        borderRadius: "10px",
+        background: "#f8fafc",
+        borderRadius: "12px",
         overflow: "hidden",
         width: "100%",
-        maxWidth: "560px",
+        border: "1px solid #e2e8f0",
       }}
     >
+      {/* Header */}
       <div
         style={{
-          padding: "12px 16px",
-          borderBottom: "1px solid var(--color-border)",
+          padding: "8px 14px",
           background: "var(--color-primary)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
         }}
       >
-        <span style={{ fontSize: "13px", fontWeight: 700, color: "#fff" }}>
+        <span
+          style={{
+            fontSize: "13px",
+            fontWeight: 700,
+            color: "#fff",
+            letterSpacing: "0.3px",
+          }}
+        >
           {t("form_title")}
         </span>
         <button
           onClick={onCancel}
           style={{
-            background: "none",
-            border: "none",
-            color: "rgba(255,255,255,0.7)",
+            background: "rgba(255,255,255,0.12)",
+            border: "1px solid rgba(255,255,255,0.2)",
+            color: "#fff",
             cursor: "pointer",
-            fontSize: "16px",
-            padding: 0,
+            fontSize: "12px",
+            padding: "3px 10px",
+            borderRadius: "5px",
           }}
         >
           ✕
@@ -247,16 +272,16 @@ export default function PipelineCreationForm({
 
       <div
         style={{
-          padding: "16px",
+          padding: "10px",
           display: "flex",
           flexDirection: "column",
-          gap: "14px",
+          gap: "7px",
         }}
       >
         {apiError && (
           <div
             style={{
-              padding: "8px 12px",
+              padding: "6px 10px",
               borderRadius: "6px",
               background: "#ffebee",
               border: "1px solid var(--color-danger)",
@@ -268,27 +293,31 @@ export default function PipelineCreationForm({
           </div>
         )}
 
+        {/* Pipeline Name */}
         <Field label={t("form_pipeline_name")} error={errors.name}>
           <input
             value={form.name}
             onChange={set("name")}
             placeholder={t("form_pipeline_name_placeholder")}
-            style={getInputStyle(!!errors.name)}
+            style={{
+              ...getInputStyle(!!errors.name),
+              height: "28px",
+              fontSize: "12px",
+              background: "#fff",
+              borderColor: errors.name ? "var(--color-danger)" : "#cbd5e1",
+            }}
           />
         </Field>
 
+        {/* Source + Target */}
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
-            gap: "12px",
+            gap: "8px",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <SectionTitle
-              text={t("form_source")}
-              color="var(--color-secondary)"
-            />
+          <Section label={t("form_source")} color="var(--color-secondary)">
             <Field
               label={t("form_connector")}
               error={errors.source_connector_type}
@@ -299,9 +328,9 @@ export default function PipelineCreationForm({
                 style={getInputStyle(!!errors.source_connector_type)}
               >
                 <option value="">{t("form_select")}</option>
-                {CONNECTOR_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
+                {CONNECTOR_TYPES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
                   </option>
                 ))}
               </select>
@@ -325,13 +354,9 @@ export default function PipelineCreationForm({
                 style={getInputStyle(!!errors.source_object)}
               />
             </Field>
-          </div>
+          </Section>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <SectionTitle
-              text={t("form_target")}
-              color="var(--color-success)"
-            />
+          <Section label={t("form_target")} color="var(--color-success)">
             <Field
               label={t("form_connector")}
               error={errors.target_connector_type}
@@ -342,9 +367,9 @@ export default function PipelineCreationForm({
                 style={getInputStyle(!!errors.target_connector_type)}
               >
                 <option value="">{t("form_select")}</option>
-                {CONNECTOR_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
+                {CONNECTOR_TYPES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
                   </option>
                 ))}
               </select>
@@ -381,19 +406,16 @@ export default function PipelineCreationForm({
                 ))}
               </select>
             </Field>
-          </div>
+          </Section>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <SectionTitle
-            text={t("form_compliance")}
-            color="var(--color-warning)"
-          />
+        {/* Compliance */}
+        <Section label={t("form_compliance")} color="var(--color-warning)">
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "12px",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: "8px",
             }}
           >
             <Field
@@ -414,40 +436,37 @@ export default function PipelineCreationForm({
               <input
                 value={form.data_subject_categories}
                 onChange={set("data_subject_categories")}
-                placeholder={t("form_data_subjects_placeholder")}
+                placeholder="customers"
                 style={getInputStyle(!!errors.data_subject_categories)}
               />
             </Field>
+            <Field label={t("form_recipients")} error={undefined}>
+              <input
+                value={form.transfer_recipients}
+                onChange={set("transfer_recipients")}
+                placeholder="-"
+                style={getInputStyle()}
+              />
+            </Field>
           </div>
-          <Field label={t("form_recipients")} error={undefined}>
-            <input
-              value={form.transfer_recipients}
-              onChange={set("transfer_recipients")}
-              placeholder={t("form_recipients_placeholder")}
-              style={getInputStyle()}
-            />
-          </Field>
-        </div>
+        </Section>
 
+        {/* Buttons */}
         <div
-          style={{
-            display: "flex",
-            gap: "8px",
-            justifyContent: "flex-end",
-            paddingTop: "4px",
-          }}
+          style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}
         >
           <button
             onClick={onCancel}
             disabled={loading}
             style={{
-              padding: "7px 16px",
+              padding: "5px 14px",
               borderRadius: "6px",
-              border: "1px solid var(--color-border)",
-              background: "none",
+              border: "1px solid #cbd5e1",
+              background: "#fff",
               fontSize: "12px",
               cursor: "pointer",
-              color: "var(--color-neutral-dark)",
+              color: "#64748b",
+              fontWeight: 500,
             }}
           >
             {t("form_cancel")}
@@ -456,15 +475,16 @@ export default function PipelineCreationForm({
             onClick={handleSubmit}
             disabled={loading}
             style={{
-              padding: "7px 16px",
+              padding: "5px 14px",
               borderRadius: "6px",
               border: "none",
               background: "var(--color-primary)",
               color: "#fff",
               fontSize: "12px",
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: loading ? "not-allowed" : "pointer",
               opacity: loading ? 0.7 : 1,
+              letterSpacing: "0.3px",
             }}
           >
             {loading ? t("form_creating") : t("form_create")}
