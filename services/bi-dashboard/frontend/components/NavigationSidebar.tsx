@@ -1,9 +1,12 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useT } from "../src/i18n/LanguageProvider";
+import { TranslationKey } from "../src/i18n/tr";
 
 interface NavItem {
-  label: string;
+  labelKey: TranslationKey;
   path: string;
   adminOnly?: boolean;
+  icon: string;
 }
 
 interface NavigationSidebarProps {
@@ -11,19 +14,25 @@ interface NavigationSidebarProps {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Overview", path: "/" },
-  { label: "Pipeline Monitor", path: "/pipelines" },
-  { label: "Data Quality", path: "/quality" },
-  { label: "Lineage Explorer", path: "/lineage" },
-  { label: "Data Catalog", path: "/catalog" },
-  { label: "BI Reports", path: "/reports" },
-  { label: "Admin", path: "/admin", adminOnly: true },
-  { label: "User Management", path: "/admin/users", adminOnly: true },
+  { labelKey: "nav_overview", path: "/", icon: "⊞" },
+  { labelKey: "nav_pipeline_monitor", path: "/pipelines", icon: "⟳" },
+  { labelKey: "nav_data_quality", path: "/quality", icon: "✦" },
+  { labelKey: "nav_lineage_explorer", path: "/lineage", icon: "⤢" },
+  { labelKey: "nav_data_catalog", path: "/catalog", icon: "☰" },
+  { labelKey: "nav_bi_reports", path: "/reports", icon: "▦" },
+  { labelKey: "nav_admin", path: "/admin", adminOnly: true, icon: "⚙" },
+  {
+    labelKey: "nav_user_management",
+    path: "/admin/users",
+    adminOnly: true,
+    icon: "⊙",
+  },
 ];
 
 export default function NavigationSidebar({
   userRole,
 }: NavigationSidebarProps) {
+  const { t } = useT();
   const location = useLocation();
   const navigate = useNavigate();
   const isAdmin = userRole === "admin";
@@ -45,11 +54,16 @@ export default function NavigationSidebar({
       <div
         onClick={() => navigate("/")}
         style={{
-          padding: "24px 16px",
+          padding: "20px 16px",
           borderBottom: "1px solid rgba(255,255,255,0.1)",
           cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          minHeight: "64px",
         }}
       >
+        <span style={{ fontSize: "18px", flexShrink: 0 }}>◈</span>
         <span
           className="nav-logo-text"
           style={{
@@ -57,6 +71,7 @@ export default function NavigationSidebar({
             fontWeight: 700,
             fontSize: "16px",
             letterSpacing: "1px",
+            whiteSpace: "nowrap",
           }}
         >
           SUBOP
@@ -76,8 +91,10 @@ export default function NavigationSidebar({
               key={item.path}
               to={item.path}
               style={{
-                display: "block",
-                padding: "8px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                padding: "9px 16px",
                 color: isActive ? "#fff" : "rgba(255,255,255,0.7)",
                 backgroundColor: isActive
                   ? "var(--color-secondary)"
@@ -85,9 +102,21 @@ export default function NavigationSidebar({
                 textDecoration: "none",
                 fontSize: "12px",
                 fontWeight: isActive ? 600 : 400,
+                transition: "background-color 0.15s",
+                whiteSpace: "nowrap",
               }}
             >
-              <span className="nav-label">{item.label}</span>
+              <span
+                style={{
+                  fontSize: "16px",
+                  flexShrink: 0,
+                  width: "20px",
+                  textAlign: "center",
+                }}
+              >
+                {item.icon}
+              </span>
+              <span className="nav-label">{t(item.labelKey)}</span>
             </NavLink>
           );
         })}

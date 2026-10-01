@@ -24,6 +24,7 @@ _ETL_ENGINE_DIR = os.path.dirname(_THIS_DIR)
 if _ETL_ENGINE_DIR not in sys.path:
     sys.path.insert(0, _ETL_ENGINE_DIR)
 
+import connection_resolver  # noqa: E402
 import executor  # noqa: E402
 import pipeline_store  # noqa: E402
 import run_store  # noqa: E402
@@ -192,6 +193,9 @@ def _kpi_aggregates() -> Dict[str, Any]:
       runs that actually have one. None (not 0, not a guess) when no
       run has one yet — honest status while T2's Data Quality hook is
       still a stub returning quality_score=None for every run.
+    - connector_count / connector_types: read from connection_resolver's
+      registry, the same source that decides which connector_types a
+      pipeline can use, so the number is never hardcoded (M6W21T2).
     """
     pipelines = pipeline_store.list_pipelines()
     pipeline_count = len(pipelines)
@@ -219,10 +223,23 @@ def _kpi_aggregates() -> Dict[str, Any]:
         sum(quality_scores) / len(quality_scores) if quality_scores else None
     )
 
+    # A missing driver must not take down every KPI card; null lets the
+    # frontend show its "—" fallback instead.
+    try:
+        connector_types: Optional[List[str]] = sorted(
+            connection_resolver._connector_classes()
+        )
+    except ImportError:
+        connector_types = None
+
     return {
         "pipeline_count": pipeline_count,
         "rows_processed_today": rows_processed_today,
         "average_quality_score": average_quality_score,
+        "connector_count": (
+            len(connector_types) if connector_types is not None else None
+        ),
+        "connector_types": connector_types,
     }
 
 

@@ -5,7 +5,15 @@ const BASE_URL =
 
 // ─── Tipler ───────────────────────────────────
 
-export type ConnectorType = "postgresql" | "mysql" | "mssql" | "mongodb";
+export type ConnectorType =
+  | "postgresql"
+  | "mysql"
+  | "mssql"
+  | "sqlite"
+  | "csv"
+  | "json"
+  | "rest_api"
+  | "oracle";
 export type WriteMode = "upsert" | "append";
 export type RunStatus =
   | "pending"
@@ -88,6 +96,7 @@ export interface KPISummary {
   pipeline_count: number;
   rows_processed_today: number;
   average_quality_score: number | null;
+  connector_count?: number;
 }
 
 export interface CatalogAsset {
