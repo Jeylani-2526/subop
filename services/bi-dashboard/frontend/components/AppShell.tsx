@@ -1,5 +1,6 @@
 import { ReactNode, useState } from "react";
 import NavigationSidebar from "./NavigationSidebar";
+import { useT } from "../src/i18n/LanguageProvider";
 
 interface AppShellProps {
   children: ReactNode;
@@ -13,6 +14,7 @@ export default function AppShell({
   pageTitle,
 }: AppShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { language, setLanguage } = useT();
 
   return (
     <div
@@ -90,15 +92,65 @@ export default function AppShell({
               alignItems: "center",
               padding: "0 24px",
               justifyContent: "space-between",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
             }}
           >
             <span style={{ color: "#fff", fontSize: "15px", fontWeight: 600 }}>
               {pageTitle}
             </span>
-            <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "12px" }}>
-              SUBOP
-            </span>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              {/* Language Toggle — tek buton */}
+              <button
+                onClick={() => setLanguage(language === "tr" ? "en" : "tr")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  padding: "4px 10px",
+                  borderRadius: "6px",
+                  border: "1px solid rgba(255,255,255,0.25)",
+                  background: "rgba(255,255,255,0.1)",
+                  color: "#fff",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  letterSpacing: "0.3px",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "rgba(255,255,255,0.2)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "rgba(255,255,255,0.1)")
+                }
+              >
+                <span style={{ fontSize: "13px" }}>
+                  {language === "tr" ? "🇹🇷" : "🇺🇸"}
+                </span>
+                {language === "tr" ? "TR" : "EN"}
+              </button>
+
+              <div
+                style={{
+                  width: "1px",
+                  height: "20px",
+                  background: "rgba(255,255,255,0.15)",
+                }}
+              />
+              <span
+                style={{
+                  color: "rgba(255,255,255,0.4)",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "2px",
+                }}
+              >
+                SUBOP
+              </span>
+            </div>
           </header>
+
           <main
             style={{
               flex: 1,

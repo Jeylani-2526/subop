@@ -29,10 +29,6 @@
   --color-success-bg: rgba(46, 125, 50, 0.1);
   --color-danger-bg: rgba(198, 40, 40, 0.1);
   --color-warning-bg: rgba(230, 81, 0, 0.1);
-
-  /* Responsive breakpoints */
-  --sidebar-width: 240px;
-  --sidebar-width-tablet: 56px;
 }
 
 a {
@@ -91,15 +87,41 @@ input::placeholder {
   color: rgba(255, 255, 255, 0.5);
 }
 
-/* ── Responsive Layout ────────────────────────────────── */
+/* ── Sidebar ─────────────────────────────────────────── */
+.subop-sidebar {
+  width: 240px;
+  min-width: 240px;
+}
 
-/* Desktop ≥ 1280px — default, no overrides needed */
+/* Nav link hover */
+.subop-sidebar a:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
 
-/* Tablet: 768px – 1279px */
+/* ── Mobile Header ───────────────────────────────────── */
+.subop-mobile-header {
+  display: none;
+  background: var(--color-primary);
+  padding: 12px 16px;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+/* ── DataTable cards — hidden on desktop ─────────────── */
+.subop-datatable-cards {
+  display: none;
+}
+
+/* ── Tablet: 768px – 1279px ──────────────────────────── */
 @media (max-width: 1279px) {
   .subop-sidebar {
-    width: var(--sidebar-width-tablet) !important;
-    min-width: var(--sidebar-width-tablet) !important;
+    width: 56px !important;
+    min-width: 56px !important;
   }
   .subop-sidebar .nav-label {
     display: none;
@@ -107,11 +129,8 @@ input::placeholder {
   .subop-sidebar .nav-logo-text {
     display: none;
   }
-  .subop-main {
-    margin-left: 0;
-  }
   .subop-kpi-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-columns: repeat(3, 1fr) !important;
   }
   .subop-pipeline-zone2 {
     width: 260px !important;
@@ -119,7 +138,7 @@ input::placeholder {
   }
 }
 
-/* Mobile: ≤ 767px */
+/* ── Mobile: ≤ 767px ─────────────────────────────────── */
 @media (max-width: 767px) {
   .subop-sidebar {
     display: none !important;
@@ -144,11 +163,9 @@ input::placeholder {
   .subop-pipeline-zone3 {
     padding: 12px !important;
   }
-  /* Mobile: pipeline actions read-only */
   .subop-pipeline-action-btn {
     display: none !important;
   }
-  /* Filter bar wrap on mobile */
   .subop-filter-bar {
     flex-wrap: wrap;
     gap: 6px;
@@ -157,7 +174,6 @@ input::placeholder {
     width: 100% !important;
     max-width: 100% !important;
   }
-  /* DataTable → card stack */
   .subop-datatable-table {
     display: none !important;
   }
@@ -166,21 +182,22 @@ input::placeholder {
     flex-direction: column;
     gap: 10px;
   }
-}
 
-/* Mobile header — hidden on desktop/tablet */
-.subop-mobile-header {
-  display: none;
-  background: var(--color-primary);
-  padding: 12px 16px;
-  align-items: center;
-  justify-content: space-between;
-  color: #fff;
-  font-weight: 700;
-  font-size: 15px;
-}
-
-/* DataTable cards — hidden on desktop */
-.subop-datatable-cards {
-  display: none;
+  /* Mobile overlay — sidebar görünsün */
+  .subop-mobile-overlay .subop-sidebar {
+    display: flex !important;
+    width: 240px !important;
+    min-width: 240px !important;
+  }
+  .subop-mobile-overlay .subop-sidebar .nav-label {
+    display: inline !important;
+  }
+  .subop-mobile-overlay .subop-sidebar .nav-logo-text {
+    display: inline !important;
+  }
+  /* Overlay nav link hover */
+  .subop-mobile-overlay .subop-sidebar a:hover {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    color: #fff !important;
+  }
 }

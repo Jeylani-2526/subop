@@ -313,3 +313,37 @@ def test_get_kpis_average_quality_score_is_null_when_no_scores_exist():
     body = response.json()
 
     assert body["average_quality_score"] is None
+
+
+def test_get_kpis_connector_count_matches_resolver_registry():
+    response = client.get("/api/kpis")
+
+    assert response.status_code == 200
+    body = response.json()
+
+    registry = connection_resolver._connector_classes()
+    assert body["connector_count"] == len(registry)
+    assert sorted(body["connector_types"]) == sorted(registry)
+    assert "mongodb" not in body["connector_types"]
+
+
+def test_get_kpis_reports_all_eight_connectors():
+    # MSSQL only registers when pyodbc and its ODBC driver import cleanly.
+    try:
+        import pyodbc  # noqa: F401
+    except ImportError:
+        pytest.skip("pyodbc / ODBC driver unavailable; mssql not registered")
+
+    body = client.get("/api/kpis").json()
+
+    assert set(body["connector_types"]) == {
+        "postgresql",
+        "mysql",
+        "mssql",
+        "sqlite",
+        "csv",
+        "json",
+        "rest_api",
+        "oracle",
+    }
+    assert body["connector_count"] == 8

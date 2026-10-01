@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import AppShell from "./components/AppShell";
 import PipelineRow from "./components/PipelineRow";
 import PipelineCreationForm from "./components/PipelineCreationForm";
+import { useT } from "./src/i18n/LanguageProvider";
 import {
   getPipelines,
   getRunStatus,
@@ -55,6 +56,7 @@ function useWindowWidth(): number {
 }
 
 export default function PipelinesPage() {
+  const { t } = useT();
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [paginationInfo, setPaginationInfo] = useState({
     total: 0,
@@ -73,8 +75,7 @@ export default function PipelinesPage() {
   const [showForm, setShowForm] = useState(false);
 
   const windowWidth = useWindowWidth();
-  const isMobile = windowWidth < 767;
-
+  const isMobile = windowWidth <= 767;
   const debouncedSearch = useDebounce(searchTerm, 300);
 
   const fetchPipelines = useCallback(() => {
@@ -95,11 +96,9 @@ export default function PipelinesPage() {
             .catch(() => {});
         });
       })
-      .catch(() =>
-        setListError("Pipeline listesi yüklenemedi. API çalışıyor mu?"),
-      )
+      .catch(() => setListError(t("pipeline_api_error")))
       .finally(() => setLoadingList(false));
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchPipelines();
@@ -154,7 +153,7 @@ export default function PipelinesPage() {
   };
 
   return (
-    <AppShell pageTitle="Pipeline Monitor" userRole="admin">
+    <AppShell pageTitle={t("nav_pipeline_monitor")} userRole="admin">
       <div
         style={{
           display: "flex",
@@ -178,12 +177,11 @@ export default function PipelinesPage() {
           }}
         >
           <input
-            placeholder="Pipeline ara..."
+            placeholder={t("pipeline_search")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ ...inputStyle, width: "180px" }}
           />
-
           <div
             style={{
               width: "1px",
@@ -192,30 +190,27 @@ export default function PipelinesPage() {
               flexShrink: 0,
             }}
           />
-
           <select
             value={timeFilter}
             onChange={(e) => setTimeFilter(e.target.value)}
             style={inputStyle}
           >
-            <option value="">Tüm Zamanlar</option>
-            <option value="1">Son 1 Saat</option>
-            <option value="24">Son 24 Saat</option>
-            <option value="168">Son 7 Gün</option>
+            <option value="">{t("pipeline_all_times")}</option>
+            <option value="1">{t("pipeline_last_1h")}</option>
+            <option value="24">{t("pipeline_last_24h")}</option>
+            <option value="168">{t("pipeline_last_7d")}</option>
           </select>
-
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             style={inputStyle}
           >
-            <option value="">Tüm Durumlar</option>
+            <option value="">{t("pipeline_all_statuses")}</option>
             <option value="running">Running</option>
             <option value="succeeded">Completed</option>
             <option value="failed">Failed</option>
             <option value="pending">Pending</option>
           </select>
-
           <div
             style={{
               width: "1px",
@@ -224,11 +219,9 @@ export default function PipelinesPage() {
               flexShrink: 0,
             }}
           />
-
           <button onClick={fetchPipelines} style={inputStyle}>
-            ↻ Yenile
+            {t("pipeline_refresh")}
           </button>
-
           {hasFilter && (
             <button
               onClick={() => {
@@ -246,11 +239,9 @@ export default function PipelinesPage() {
                 cursor: "pointer",
               }}
             >
-              ✕ Temizle
+              {t("pipeline_clear")}
             </button>
           )}
-
-          {/* Yeni Pipeline — sadece desktop */}
           {!isMobile && (
             <button
               className="subop-pipeline-action-btn"
@@ -270,10 +261,9 @@ export default function PipelinesPage() {
                 cursor: "pointer",
               }}
             >
-              + Yeni Pipeline
+              {t("pipeline_new")}
             </button>
           )}
-
           <span
             style={{
               fontSize: "11px",
@@ -283,7 +273,7 @@ export default function PipelinesPage() {
             }}
           >
             {hasFilter ? `${filteredPipelines.length} / ` : ""}
-            {paginationInfo.total} pipeline
+            {paginationInfo.total} {t("pipeline_count_suffix")}
           </span>
         </div>
 
@@ -299,7 +289,7 @@ export default function PipelinesPage() {
               textAlign: "center",
             }}
           >
-            Mobil görünümde pipeline yönetimi salt okunur moddadır.
+            {t("pipeline_mobile_readonly")}
           </div>
         )}
 
@@ -329,7 +319,7 @@ export default function PipelinesPage() {
                   color: "var(--color-neutral-400)",
                 }}
               >
-                Yükleniyor...
+                {t("pipeline_loading")}
               </div>
             ) : listError ? (
               <div
@@ -350,7 +340,7 @@ export default function PipelinesPage() {
                   color: "var(--color-neutral-400)",
                 }}
               >
-                {hasFilter ? "Filtre sonucu bulunamadı" : "Henüz pipeline yok"}
+                {hasFilter ? t("pipeline_no_results") : t("pipeline_empty")}
               </div>
             ) : (
               filteredPipelines.map((p) => {
@@ -398,7 +388,7 @@ export default function PipelinesPage() {
                       color: "var(--color-secondary)",
                     }}
                   >
-                    ← Pipeline listesine dön
+                    {t("pipeline_back")}
                   </span>
                 </div>
                 <PipelineCreationForm
@@ -437,18 +427,19 @@ export default function PipelinesPage() {
                     }}
                   >
                     <span>
-                      Kaynak: <strong>{selected.source.connector_type}</strong>
+                      {t("pipeline_source")}:{" "}
+                      <strong>{selected.source.connector_type}</strong>
                     </span>
                     <span>
-                      Hedef: <strong>{selected.target.object}</strong>
+                      {t("pipeline_target")}:{" "}
+                      <strong>{selected.target.object}</strong>
                     </span>
                     <span>
-                      Oluşturulma:{" "}
+                      {t("pipeline_created")}:{" "}
                       <strong>{formatDate(selected.created_at)}</strong>
                     </span>
                   </div>
                 </div>
-
                 <div
                   style={{
                     padding: "10px 14px",
@@ -457,7 +448,7 @@ export default function PipelinesPage() {
                     fontSize: "12px",
                   }}
                 >
-                  İşlenen satır:{" "}
+                  {t("pipeline_rows")}:{" "}
                   <strong>
                     {selectedRun
                       ? selectedRun.rows_written.toLocaleString("tr-TR")
@@ -470,11 +461,10 @@ export default function PipelinesPage() {
                         marginLeft: "12px",
                       }}
                     >
-                      Karantina: {selectedRun.rows_quarantined}
+                      {t("pipeline_quarantine")}: {selectedRun.rows_quarantined}
                     </span>
                   ) : null}
                 </div>
-
                 <div>
                   <div
                     style={{
@@ -483,7 +473,7 @@ export default function PipelinesPage() {
                       marginBottom: "8px",
                     }}
                   >
-                    Execution Log
+                    {t("pipeline_execution_log")}
                   </div>
                   <div
                     style={{
@@ -498,7 +488,7 @@ export default function PipelinesPage() {
                     }}
                   >
                     {loadingRun ? (
-                      <div>Yükleniyor...</div>
+                      <div>{t("pipeline_loading")}</div>
                     ) : selectedRun ? (
                       selectedRun.logs.map((log, i) => (
                         <div
@@ -519,13 +509,12 @@ export default function PipelinesPage() {
                     ) : (
                       <div>
                         {selected.run_id
-                          ? "Log bulunamadı"
-                          : "Bu pipeline için henüz run yok"}
+                          ? t("pipeline_no_log")
+                          : t("pipeline_no_run")}
                       </div>
                     )}
                   </div>
                 </div>
-
                 <div
                   style={{
                     fontSize: "11px",
@@ -535,8 +524,7 @@ export default function PipelinesPage() {
                     border: "1px dashed var(--color-neutral-200)",
                   }}
                 >
-                  BI Analyst rolünde execution log ve pipeline yönetimi görünümü
-                  kısıtlıdır.
+                  {t("pipeline_bi_analyst_note")}
                 </div>
               </div>
             ) : (
@@ -550,7 +538,7 @@ export default function PipelinesPage() {
                   color: "var(--color-neutral-400)",
                 }}
               >
-                Detayları görmek için bir pipeline seçin
+                {t("pipeline_select")}
               </div>
             )}
           </div>

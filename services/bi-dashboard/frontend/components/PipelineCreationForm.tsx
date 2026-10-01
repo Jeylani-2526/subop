@@ -4,53 +4,64 @@ import {
   CreatePipelinePayload,
   ErrorEnvelope,
 } from "../api/pipelinesClient";
+import { useT } from "../src/i18n/LanguageProvider";
 
 interface PipelineCreationFormProps {
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-const CONNECTOR_TYPES = ["postgresql", "mysql", "mssql", "mongodb"] as const;
+const CONNECTOR_TYPES = [
+  { value: "postgresql", label: "PostgreSQL" },
+  { value: "mysql", label: "MySQL" },
+  { value: "mssql", label: "MSSQL" },
+  { value: "sqlite", label: "SQLite" },
+  { value: "csv", label: "CSV" },
+  { value: "json", label: "JSON" },
+  { value: "rest_api", label: "REST API" },
+  { value: "oracle", label: "Oracle" },
+] as const;
+
 const WRITE_MODES = ["upsert", "append"] as const;
 
 function getInputStyle(hasError?: boolean): React.CSSProperties {
   return {
     width: "100%",
-    padding: "7px 10px",
-    fontSize: "12px",
-    border: `1px solid ${hasError ? "var(--color-danger)" : "var(--color-border)"}`,
+    padding: "4px 9px",
+    fontSize: "11px",
+    border: `1px solid ${hasError ? "var(--color-danger)" : "#e0e7ef"}`,
     borderRadius: "6px",
-    background: "var(--color-surface)",
-    color: "var(--color-neutral-dark)",
+    background: "#f8fafc",
+    color: "#1e293b",
     outline: "none",
+    height: "28px",
+    boxSizing: "border-box",
+    transition: "border-color 0.15s, box-shadow 0.15s",
   };
 }
-
-const labelStyle: React.CSSProperties = {
-  fontSize: "10px",
-  fontWeight: 600,
-  color: "var(--color-neutral-500)",
-  textTransform: "uppercase",
-  letterSpacing: "0.5px",
-  marginBottom: "4px",
-  display: "block",
-};
 
 interface FieldProps {
   label: string;
   error?: string;
   children: React.ReactNode;
 }
-
 function Field({ label, error, children }: FieldProps) {
   return (
     <div>
-      <label style={labelStyle}>
+      <label
+        style={{
+          fontSize: "9px",
+          fontWeight: 700,
+          color: "#64748b",
+          textTransform: "uppercase",
+          letterSpacing: "0.6px",
+          marginBottom: "2px",
+          display: "block",
+        }}
+      >
         {label}
         {error && (
-          <span style={{ color: "var(--color-danger)", marginLeft: 4 }}>
-            — {error}
-          </span>
+          <span style={{ color: "var(--color-danger)", marginLeft: 2 }}>*</span>
         )}
       </label>
       {children}
@@ -58,26 +69,44 @@ function Field({ label, error, children }: FieldProps) {
   );
 }
 
-interface SectionTitleProps {
-  text: string;
+interface SectionProps {
+  label: string;
   color: string;
+  children: React.ReactNode;
 }
-
-function SectionTitle({ text, color }: SectionTitleProps) {
+function Section({ label, color, children }: SectionProps) {
   return (
     <div
       style={{
-        fontSize: "11px",
-        fontWeight: 700,
-        color,
-        padding: "6px 10px",
-        background: color + "18",
-        borderRadius: "6px",
-        marginBottom: "10px",
-        borderLeft: `3px solid ${color}`,
+        background: "#fff",
+        border: "1px solid #e2e8f0",
+        borderRadius: "8px",
+        overflow: "hidden",
       }}
     >
-      {text}
+      <div
+        style={{
+          padding: "6px 12px",
+          background: "var(--color-primary)",
+          fontSize: "10px",
+          fontWeight: 700,
+          color: "#fff",
+          letterSpacing: "0.8px",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          padding: "10px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -86,6 +115,7 @@ export default function PipelineCreationForm({
   onSuccess,
   onCancel,
 }: PipelineCreationFormProps) {
+  const { t } = useT();
   const [form, setForm] = useState({
     name: "",
     source_connector_type: "",
@@ -99,32 +129,28 @@ export default function PipelineCreationForm({
     data_subject_categories: "",
     transfer_recipients: "",
   });
-
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   function set(key: string) {
-    return (
-      e: React.ChangeEvent<
-        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-      >,
-    ) => setForm((f) => ({ ...f, [key]: e.target.value }));
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
   }
 
   function validate(): boolean {
     const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = "Zorunlu";
-    if (!form.source_connector_type) e.source_connector_type = "Zorunlu";
-    if (!form.source_connection_ref.trim()) e.source_connection_ref = "Zorunlu";
-    if (!form.source_object.trim()) e.source_object = "Zorunlu";
-    if (!form.target_connector_type) e.target_connector_type = "Zorunlu";
-    if (!form.target_connection_ref.trim()) e.target_connection_ref = "Zorunlu";
-    if (!form.target_object.trim()) e.target_object = "Zorunlu";
-    if (!form.processing_purpose.trim()) e.processing_purpose = "Zorunlu";
-    if (!form.data_subject_categories.trim())
-      e.data_subject_categories = "Zorunlu";
+    const req = t("form_error_required");
+    if (!form.name.trim()) e.name = req;
+    if (!form.source_connector_type) e.source_connector_type = req;
+    if (!form.source_connection_ref.trim()) e.source_connection_ref = req;
+    if (!form.source_object.trim()) e.source_object = req;
+    if (!form.target_connector_type) e.target_connector_type = req;
+    if (!form.target_connection_ref.trim()) e.target_connection_ref = req;
+    if (!form.target_object.trim()) e.target_object = req;
+    if (!form.processing_purpose.trim()) e.processing_purpose = req;
+    if (!form.data_subject_categories.trim()) e.data_subject_categories = req;
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -133,7 +159,6 @@ export default function PipelineCreationForm({
     if (!validate()) return;
     setLoading(true);
     setApiError(null);
-
     const payload: CreatePipelinePayload = {
       name: form.name,
       source: {
@@ -161,7 +186,6 @@ export default function PipelineCreationForm({
         .map((s) => s.trim())
         .filter(Boolean),
     };
-
     try {
       await createPipeline(payload);
       setSuccess(true);
@@ -173,10 +197,10 @@ export default function PipelineCreationForm({
       } else if (envelope?.error_code === "VERBIS_REGISTRATION_INCOMPLETE") {
         setErrors((e) => ({
           ...e,
-          processing_purpose: "VERBIS kaydı tamamlanmamış",
+          processing_purpose: t("form_error_verbis"),
         }));
       } else {
-        setApiError("Bir hata oluştu, tekrar deneyin.");
+        setApiError(t("form_error_generic"));
       }
     } finally {
       setLoading(false);
@@ -185,16 +209,17 @@ export default function PipelineCreationForm({
 
   if (success) {
     return (
-      <div
-        style={{
-          padding: "24px",
-          textAlign: "center",
-          color: "var(--color-success)",
-          fontSize: "14px",
-          fontWeight: 600,
-        }}
-      >
-        ✓ Pipeline başarıyla oluşturuldu!
+      <div style={{ padding: "24px", textAlign: "center" }}>
+        <div style={{ fontSize: "28px", marginBottom: "8px" }}>✓</div>
+        <div
+          style={{
+            fontSize: "14px",
+            fontWeight: 600,
+            color: "var(--color-success)",
+          }}
+        >
+          {t("form_success")}
+        </div>
       </div>
     );
   }
@@ -202,37 +227,43 @@ export default function PipelineCreationForm({
   return (
     <div
       style={{
-        background: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
-        borderRadius: "10px",
+        background: "#f8fafc",
+        borderRadius: "12px",
         overflow: "hidden",
         width: "100%",
-        maxWidth: "560px",
+        border: "1px solid #e2e8f0",
       }}
     >
       {/* Header */}
       <div
         style={{
-          padding: "12px 16px",
-          borderBottom: "1px solid var(--color-border)",
+          padding: "8px 14px",
           background: "var(--color-primary)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
         }}
       >
-        <span style={{ fontSize: "13px", fontWeight: 700, color: "#fff" }}>
-          Yeni Pipeline
+        <span
+          style={{
+            fontSize: "13px",
+            fontWeight: 700,
+            color: "#fff",
+            letterSpacing: "0.3px",
+          }}
+        >
+          {t("form_title")}
         </span>
         <button
           onClick={onCancel}
           style={{
-            background: "none",
-            border: "none",
-            color: "rgba(255,255,255,0.7)",
+            background: "rgba(255,255,255,0.12)",
+            border: "1px solid rgba(255,255,255,0.2)",
+            color: "#fff",
             cursor: "pointer",
-            fontSize: "16px",
-            padding: 0,
+            fontSize: "12px",
+            padding: "3px 10px",
+            borderRadius: "5px",
           }}
         >
           ✕
@@ -241,16 +272,16 @@ export default function PipelineCreationForm({
 
       <div
         style={{
-          padding: "16px",
+          padding: "10px",
           display: "flex",
           flexDirection: "column",
-          gap: "14px",
+          gap: "7px",
         }}
       >
         {apiError && (
           <div
             style={{
-              padding: "8px 12px",
+              padding: "6px 10px",
               borderRadius: "6px",
               background: "#ffebee",
               border: "1px solid var(--color-danger)",
@@ -262,42 +293,52 @@ export default function PipelineCreationForm({
           </div>
         )}
 
-        {/* Pipeline Adı */}
-        <Field label="Pipeline Adı" error={errors.name}>
+        {/* Pipeline Name */}
+        <Field label={t("form_pipeline_name")} error={errors.name}>
           <input
             value={form.name}
             onChange={set("name")}
-            placeholder="Örn: Orders ETL"
-            style={getInputStyle(!!errors.name)}
+            placeholder={t("form_pipeline_name_placeholder")}
+            style={{
+              ...getInputStyle(!!errors.name),
+              height: "28px",
+              fontSize: "12px",
+              background: "#fff",
+              borderColor: errors.name ? "var(--color-danger)" : "#cbd5e1",
+            }}
           />
         </Field>
 
-        {/* Kaynak + Hedef — 2 sütun */}
+        {/* Source + Target */}
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
-            gap: "12px",
+            gap: "8px",
           }}
         >
-          {/* Kaynak */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <SectionTitle text="Kaynak" color="var(--color-secondary)" />
-            <Field label="Connector" error={errors.source_connector_type}>
+          <Section label={t("form_source")} color="var(--color-secondary)">
+            <Field
+              label={t("form_connector")}
+              error={errors.source_connector_type}
+            >
               <select
                 value={form.source_connector_type}
                 onChange={set("source_connector_type")}
                 style={getInputStyle(!!errors.source_connector_type)}
               >
-                <option value="">Seçin</option>
-                {CONNECTOR_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                <option value="">{t("form_select")}</option>
+                {CONNECTOR_TYPES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Connection Ref" error={errors.source_connection_ref}>
+            <Field
+              label={t("form_connection_ref")}
+              error={errors.source_connection_ref}
+            >
               <input
                 value={form.source_connection_ref}
                 onChange={set("source_connection_ref")}
@@ -305,7 +346,7 @@ export default function PipelineCreationForm({
                 style={getInputStyle(!!errors.source_connection_ref)}
               />
             </Field>
-            <Field label="Tablo / Koleksiyon" error={errors.source_object}>
+            <Field label={t("form_table")} error={errors.source_object}>
               <input
                 value={form.source_object}
                 onChange={set("source_object")}
@@ -313,26 +354,30 @@ export default function PipelineCreationForm({
                 style={getInputStyle(!!errors.source_object)}
               />
             </Field>
-          </div>
+          </Section>
 
-          {/* Hedef */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <SectionTitle text="Hedef" color="var(--color-success)" />
-            <Field label="Connector" error={errors.target_connector_type}>
+          <Section label={t("form_target")} color="var(--color-success)">
+            <Field
+              label={t("form_connector")}
+              error={errors.target_connector_type}
+            >
               <select
                 value={form.target_connector_type}
                 onChange={set("target_connector_type")}
                 style={getInputStyle(!!errors.target_connector_type)}
               >
-                <option value="">Seçin</option>
-                {CONNECTOR_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                <option value="">{t("form_select")}</option>
+                {CONNECTOR_TYPES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Connection Ref" error={errors.target_connection_ref}>
+            <Field
+              label={t("form_connection_ref")}
+              error={errors.target_connection_ref}
+            >
               <input
                 value={form.target_connection_ref}
                 onChange={set("target_connection_ref")}
@@ -340,7 +385,7 @@ export default function PipelineCreationForm({
                 style={getInputStyle(!!errors.target_connection_ref)}
               />
             </Field>
-            <Field label="Tablo / Koleksiyon" error={errors.target_object}>
+            <Field label={t("form_table")} error={errors.target_object}>
               <input
                 value={form.target_object}
                 onChange={set("target_object")}
@@ -348,7 +393,7 @@ export default function PipelineCreationForm({
                 style={getInputStyle(!!errors.target_object)}
               />
             </Field>
-            <Field label="Write Mode" error={undefined}>
+            <Field label={t("form_write_mode")} error={undefined}>
               <select
                 value={form.target_write_mode}
                 onChange={set("target_write_mode")}
@@ -361,89 +406,88 @@ export default function PipelineCreationForm({
                 ))}
               </select>
             </Field>
-          </div>
+          </Section>
         </div>
 
-        {/* Uyumluluk */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <SectionTitle text="Uyumluluk" color="var(--color-warning)" />
+        {/* Compliance */}
+        <Section label={t("form_compliance")} color="var(--color-warning)">
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "12px",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: "8px",
             }}
           >
-            <Field label="İşleme Amacı" error={errors.processing_purpose}>
+            <Field
+              label={t("form_processing_purpose")}
+              error={errors.processing_purpose}
+            >
               <input
                 value={form.processing_purpose}
                 onChange={set("processing_purpose")}
-                placeholder="Sipariş entegrasyonu"
+                placeholder={t("form_processing_purpose_placeholder")}
                 style={getInputStyle(!!errors.processing_purpose)}
               />
             </Field>
             <Field
-              label="Veri Konusu Kategorileri"
+              label={t("form_data_subjects")}
               error={errors.data_subject_categories}
             >
               <input
                 value={form.data_subject_categories}
                 onChange={set("data_subject_categories")}
-                placeholder="customers, employees"
+                placeholder="customers"
                 style={getInputStyle(!!errors.data_subject_categories)}
               />
             </Field>
+            <Field label={t("form_recipients")} error={undefined}>
+              <input
+                value={form.transfer_recipients}
+                onChange={set("transfer_recipients")}
+                placeholder="-"
+                style={getInputStyle()}
+              />
+            </Field>
           </div>
-          <Field label="Transfer Alıcıları (opsiyonel)" error={undefined}>
-            <input
-              value={form.transfer_recipients}
-              onChange={set("transfer_recipients")}
-              placeholder="Boş bırakılabilir"
-              style={getInputStyle()}
-            />
-          </Field>
-        </div>
+        </Section>
 
-        {/* Butonlar */}
+        {/* Buttons */}
         <div
-          style={{
-            display: "flex",
-            gap: "8px",
-            justifyContent: "flex-end",
-            paddingTop: "4px",
-          }}
+          style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}
         >
           <button
             onClick={onCancel}
             disabled={loading}
             style={{
-              padding: "7px 16px",
+              padding: "5px 14px",
               borderRadius: "6px",
-              border: "1px solid var(--color-border)",
-              background: "none",
+              border: "1px solid #cbd5e1",
+              background: "#fff",
               fontSize: "12px",
               cursor: "pointer",
-              color: "var(--color-neutral-dark)",
+              color: "#64748b",
+              fontWeight: 500,
             }}
           >
-            İptal
+            {t("form_cancel")}
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
             style={{
-              padding: "7px 16px",
+              padding: "5px 14px",
               borderRadius: "6px",
               border: "none",
               background: "var(--color-primary)",
               color: "#fff",
               fontSize: "12px",
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: loading ? "not-allowed" : "pointer",
               opacity: loading ? 0.7 : 1,
+              letterSpacing: "0.3px",
             }}
           >
-            {loading ? "Oluşturuluyor..." : "Oluştur"}
+            {loading ? t("form_creating") : t("form_create")}
           </button>
         </div>
       </div>

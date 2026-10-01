@@ -6,173 +6,223 @@
 
 ### `services/bi-dashboard/frontend/api/pipelinesClient.ts`
 
-| Alan | Durum |
-|---|---|
-| TypeScript tipleri | ✅ API spec v1'e göre güncel |
-| `getPipelines()` | ✅ Canlı — `GET /api/pipelines/?page={n}&page_size={n}` |
-| `createPipeline()` | ✅ Canlı — `POST /api/pipelines/` |
-| `getRunStatus()` | ✅ Canlı — `GET /api/pipelines/{id}/runs/{run_id}` |
-| `getKPISummary()` | ✅ Canlı — `GET /api/kpis` |
-| `getCatalogAssets()` | ⏳ Mock — Catalog endpoint M9/M10'da gelecek |
+| Function                       | Status  | Endpoint                                     |
+| ------------------------------ | ------- | -------------------------------------------- |
+| `getPipelines(page, pageSize)` | ✅ Live | `GET /api/pipelines/?page={n}&page_size={n}` |
+| `createPipeline(payload)`      | ✅ Live | `POST /api/pipelines/`                       |
+| `getRunStatus(id, runId)`      | ✅ Live | `GET /api/pipelines/{id}/runs/{run_id}`      |
+| `getKPISummary()`              | ✅ Live | `GET /api/kpis`                              |
+| `getCatalogAssets()`           | ⏳ Mock | Catalog endpoint coming in M9/M10            |
 
-**Notlar:**
-- `BASE_URL` = `http://localhost:8000/api` (Docker container, port 8000)
-- `PaginatedPipelines` interface mevcut — `items`, `total`, `page`, `page_size`
-- `Pipeline` interface'inde `run_id?: string` alanı var — API'den otomatik geliyor
-- `KPISummary` alanları: `pipeline_count`, `rows_processed_today`, `average_quality_score`
-- `RunStatus` 6 değerli enum: `pending | running | succeeded | completed_with_quarantine | failed | cancelled`
+**Types:**
+
+- `ConnectorType` — 8 values: `postgresql | mysql | mssql | sqlite | csv | json | rest_api | oracle` (mongodb removed M6W18T3)
+- `RunStatus` — 6 values: `pending | running | succeeded | completed_with_quarantine | failed | cancelled`
+- `PaginatedPipelines` — `{ items, total, page, page_size }`
+- `KPISummary` — `{ pipeline_count, rows_processed_today, average_quality_score, connector_count? }`
 
 ---
 
-## 2. Component Durumları
+## 2. Component Status
 
 ### `components/StatusBadge.tsx`
-**Durum: ✅ Built — 5 Variant**
 
-| Variant | Görünüm | Tetikleyici |
-|---|---|---|
-| `running` | Mavi | `running` |
-| `completed` | Yeşil | `succeeded` |
-| `failed` | Kırmızı | `failed` |
-| `warning` | Turuncu | `pending`, `cancelled` |
-| `completed_with_quarantine` | Turuncu ⚠ | `completed_with_quarantine` |
+**Status: ✅ Built — 5 Variants**
 
-**M6 için notlar:** Variant listesi tamamdır. Data Quality hook gerçek mantığa kavuştuğunda (M10) `completed_with_quarantine` aktif olarak üretilecek.
+| Variant                     | Color    | Trigger                     |
+| --------------------------- | -------- | --------------------------- |
+| `running`                   | Blue     | `running`                   |
+| `completed`                 | Green    | `succeeded`                 |
+| `failed`                    | Red      | `failed`                    |
+| `warning`                   | Orange   | `pending`, `cancelled`      |
+| `completed_with_quarantine` | Orange ⚠ | `completed_with_quarantine` |
 
 ---
 
 ### `components/PipelineRow.tsx`
-**Durum: ✅ Built — 5 Status Desteği**
 
-- `StatusBadge` reuse ediyor
-- `statusMap` tüm API run status değerlerini karşılıyor
-- `CompletedWithQuarantine` dahil 5 status destekleniyor
-- `selected` state ile sol border vurgusu çalışıyor
+**Status: ✅ Built — Responsive Card-Stack**
 
-**M6 için notlar:** Değişiklik gerekmez. Yeni status eklenirse sadece `statusMap`'e satır eklenir.
+- Card-stack layout below 900px (`useWindowWidth` hook)
+- Default row layout at 900px and above
+- `StatusBadge` reused for status display
+- `selected` state with left border highlight
+
+---
+
+### `components/DataTable.tsx`
+
+**Status: ✅ Built — Responsive Card-Stack**
+
+- Card-stack layout below 900px
+- Default table layout at 900px and above
+- `useWindowWidth` hook — same pattern as PipelineRow
+- Generic `DataTableColumn<T>` interface with optional `render` function
 
 ---
 
 ### `components/KPISummaryCard.tsx`
-**Durum: ✅ Built — Canlı Veri Destekli**
 
-- `status` prop'u: `healthy | warning | critical`
-- Status'a göre sol border rengi ve arka plan tonu
-- `trend` prop'u: `up | down | neutral` — ok ve renk gösterimi
-- `value`, `unit`, `trendValue` prop'ları tam çalışıyor
+**Status: ✅ Built — Live Data**
 
-**M6 için notlar:** CDC Latency kartı şu an `"—"` gösteriyor — M7'de endpoint gelince `cdcLatencyMs` alanı `KPISummary`'ye eklenecek, card'a prop olarak geçilecek.
+- Props: `label`, `value`, `unit?`, `trend`, `trendValue`, `status`
+- Status → left border color + background tint
+- Trend → arrow + color (up=green, down=red, neutral=grey)
+- i18n: labels passed as props from parent (already translated)
 
 ---
 
 ### `components/AppShell.tsx`
-**Durum: ✅ Built — Stabil**
 
-- `height: 100vh`, `overflow: hidden` — layout bozulmuyor
-- `pageTitle` ve `userRole` prop'ları çalışıyor
-- Header: `var(--color-primary)` arka plan
+**Status: ✅ Built — Responsive + i18n**
 
-**M6 için notlar:** Değişiklik gerekmez.
+- Mobile header (hamburger, ≤767px)
+- Mobile nav overlay with click-outside close
+- TR/EN language toggle in header (single button, toggles on click)
+- `useT()` hook integrated
+- Header box-shadow for depth
 
 ---
 
 ### `components/NavigationSidebar.tsx`
-**Durum: ✅ Built — Stabil**
 
-- SUBOP logosuna tıklayınca `navigate("/")` — ana sayfaya yönlendiriyor
-- `userRole === "admin"` olmayan kullanıcılarda Admin ve User Management gizleniyor
-- Aktif sayfa `var(--color-secondary)` vurgusu
+**Status: ✅ Built — Responsive + i18n**
 
-**M6 için notlar:** M6'da yeni sayfa eklenirse `NAV_ITEMS` array'ine satır eklenir.
+- Icons on all nav items — visible in tablet icon-only mode
+- `className="subop-sidebar"` for CSS responsive control
+- Tablet (768–1279px): 56px wide, icons only, labels hidden
+- Mobile (≤767px): hidden, shown via overlay
+- `useT()` — all labels translated via `TranslationKey`
+- Hover state via CSS (`.subop-sidebar a:hover`)
 
 ---
 
 ### `components/PipelineCreationForm.tsx`
-**Durum: ✅ Built — Canlı API Bağlı**
 
-- `POST /api/pipelines/` — canlı submit
-- Client-side validation: tüm zorunlu alanlar kontrol ediliyor
-- 400 hatası → DSL Validation mesajı forma yansıtılıyor
-- 422 hatası → `processing_purpose` alanına VERBIS hatası yansıtılıyor
-- 201 başarı → "Pipeline başarıyla oluşturuldu!" confirmation gösterimi
-- Loading state — submit sırasında buton disabled
-- Spec alanları: `name`, `source`, `transformations`, `target`, `processing_purpose`, `data_subject_categories`, `transfer_recipients`
+**Status: ✅ Built — Live API + i18n**
 
-**M6 için notlar:** Form şu an herhangi bir sayfaya mount edilmemiş — PipelinesPage'e "Yeni Pipeline" butonu ile entegre edilmesi önerilir.
+- `POST /api/pipelines/` — live submit
+- 8 connector types (mongodb removed)
+- 400 → DSL validation error displayed
+- 422 → VERBIS error on processing_purpose field
+- 201 → success message, `onSuccess()` called after 1.2s
+- Loading state — button disabled during submit
+- `useT()` — all labels, placeholders, errors translated
 
 ---
 
-## 3. Sayfa Durumları
+## 3. Page Status
 
 ### `HomePage.tsx`
-**Durum: ✅ Shell Wired — Canlı KPI Verisi**
 
-| KPI Kartı | Kaynak | Durum |
-|---|---|---|
-| Active Pipelines | `GET /api/kpis` → `pipeline_count` | ✅ Canlı |
-| Data Quality Score | `GET /api/kpis` → `average_quality_score` | ✅ Canlı — null ise "Henüz mevcut değil" |
-| Records Processed Today | `GET /api/kpis` → `rows_processed_today` | ✅ Canlı |
-| CDC Latency | — | ⏳ Mock — M7'de gelecek |
+**Status: ✅ Live — 5 KPI Cards**
 
-**M6 için notlar:** CDC Latency endpoint'i M7'de gelince `getKPISummary()` response'una `cdc_latency_ms` eklenmeli, `KPISummary` tipi güncellenmeli.
+| KPI Card                | Source                                    | Status                                   |
+| ----------------------- | ----------------------------------------- | ---------------------------------------- |
+| Active Pipelines        | `GET /api/kpis` → `pipeline_count`        | ✅ Live                                  |
+| Data Quality Score      | `GET /api/kpis` → `average_quality_score` | ✅ Live — null shows "Not available yet" |
+| Records Processed Today | `GET /api/kpis` → `rows_processed_today`  | ✅ Live                                  |
+| CDC Latency             | —                                         | ⏳ M7                                    |
+| Connectors              | `GET /api/kpis` → `connector_count`       | ✅ Live — from registry                  |
+
+**i18n:** All KPI labels and trend values translated via `useT()`.
 
 ---
 
 ### `PipelinesPage.tsx`
-**Durum: ✅ Full Wired — Canlı API**
 
-| Zone | İçerik | Durum |
-|---|---|---|
-| Zone 1 — Filtre Bar | Pipeline ara, Tüm Zamanlar, Tüm Durumlar, Yenile | ✅ Fonksiyonel |
-| Zone 2 — Sol Panel | Pipeline listesi (paginated) | ✅ Canlı — `GET /api/pipelines/` |
-| Zone 3 — Detay Panel | Metadata, satır sayısı, execution log | ✅ Canlı — `GET /api/pipelines/{id}/runs/{run_id}` |
+**Status: ✅ Live — Full API + i18n + Responsive**
 
-**Filtre özellikleri:**
-- Arama (debounce 300ms), durum filtresi (running/succeeded/failed/pending), zaman filtresi (Son 1 Saat / 24 Saat / 7 Gün)
-- Loading state ve error state mevcut
+| Zone                  | Content                                                   | Status                                            |
+| --------------------- | --------------------------------------------------------- | ------------------------------------------------- |
+| Zone 1 — Filter Bar   | Search, time filter, status filter, refresh, new pipeline | ✅ Functional                                     |
+| Zone 2 — Left Panel   | Pipeline list (paginated)                                 | ✅ Live — `GET /api/pipelines/`                   |
+| Zone 3 — Detail Panel | Metadata, row count, execution log                        | ✅ Live — `GET /api/pipelines/{id}/runs/{run_id}` |
 
----
+**Mobile (≤767px):**
 
-### Diğer Sayfalar — Shell Only ⏳
+- "New Pipeline" button hidden
+- Read-only banner shown
+- Zone 2 stacks above Zone 3
 
-| Sayfa | Dosya | Durum | İçerik Milestone |
-|---|---|---|---|
-| DataQualityPage | `DataQualityPage.tsx` | Shell Only | M10 |
-| LineageExplorerPage | `LineageExplorerPage.tsx` | Shell Only | M9 |
-| CatalogBrowserPage | `CatalogBrowserPage.tsx` | Shell Only | M9 |
-| BIReportsPage | `BIReportsPage.tsx` | Shell Only | M11 |
-| AdminPage | `AdminPage.tsx` | Shell Only | M8 |
-| UsersPage | `UsersPage.tsx` | Shell Only | M8 |
+**i18n:** All labels, placeholders, messages translated via `useT()`.
 
 ---
 
-## 4. Design System Token Durumu
+### Other Pages — Shell Only ⏳
 
-**Dosya:** `services/bi-dashboard/frontend/src/index.css`
-
-| Token | Değer | Kullanım |
-|---|---|---|
-| `--color-primary` | `#1b3a6b` | Header, Sidebar, Filtre Bar arka plan |
-| `--color-secondary` | `#2e75b6` | Aktif nav item |
-| `--color-success` | `#2e7d32` | Completed badge, healthy KPI |
-| `--color-warning` | `#e65100` | Warning badge, quarantine |
-| `--color-danger` | `#c62828` | Failed badge, critical KPI |
-| `--color-success-bg` | `rgba(46,125,50,0.1)` | ✅ M5'te eklendi |
-| `--color-warning-bg` | `rgba(230,81,0,0.1)` | ✅ M5'te eklendi |
-| `--color-danger-bg` | `rgba(198,40,40,0.1)` | ✅ M5'te eklendi |
-| `--color-neutral-200/400/500` | — | Border, muted text |
-| `--color-background` | `#f9fafb` | Sayfa arka planı |
-| `--color-surface` | `#ffffff` | Kart arka planı |
-| `--color-border` | `#dde4ee` | Genel border |
-| `--color-row-alt` | `#ebf3fb` | Alternatif satır, info box |
+| Page                | File                      | Status     | Milestone |
+| ------------------- | ------------------------- | ---------- | --------- |
+| DataQualityPage     | `DataQualityPage.tsx`     | Shell Only | M10       |
+| LineageExplorerPage | `LineageExplorerPage.tsx` | Shell Only | M9        |
+| CatalogBrowserPage  | `CatalogBrowserPage.tsx`  | Shell Only | M9        |
+| BIReportsPage       | `BIReportsPage.tsx`       | Shell Only | M11       |
+| AdminPage           | `AdminPage.tsx`           | Shell Only | M8        |
+| UsersPage           | `UsersPage.tsx`           | Shell Only | M8        |
 
 ---
 
-## 5. M6 Frontend Öncelikleri
+## 4. i18n System
 
-1. **`PipelineCreationForm` mount** — PipelinesPage'e "Yeni Pipeline" butonu ekle
-2. **Connection ref'leri** — `.env`'e `SUBOP_CONN_PG_MAIN` ve `SUBOP_CONN_DW_MAIN` eklenince pipeline `succeeded` olacak
-3. **Responsive tasarım** — Abdalla ile M6 başında kararlaştırıldı
-4. **CORS güncellemesi** — Production URL'i için `allow_origins` güncellenmeli
-5. **Catalog endpoint** — `getCatalogAssets()` mock'tan canlıya geçecek (M9)
-6. **CDC Latency** — `getKPISummary()` response'una M7'de eklenecek
+**Location:** `services/bi-dashboard/frontend/src/i18n/`
+
+| File                   | Purpose                        |
+| ---------------------- | ------------------------------ |
+| `tr.ts`                | Turkish translations (default) |
+| `en.ts`                | English translations           |
+| `LanguageProvider.tsx` | Context + `useT()` hook        |
+
+**Behaviour:**
+
+- Turkish is default
+- Language saved to `localStorage` (`subop_language`)
+- Missing TR key falls back to EN
+- Missing EN key falls back to key string
+- `localStorage` reads/writes wrapped in try/catch
+
+**How to add a new translated text:**
+
+1. Add key to `tr.ts` and `en.ts` with same key name
+2. Import `useT` in the component: `const { t } = useT();`
+3. Use: `t("your_key")`
+
+---
+
+## 5. Design System Tokens
+
+**File:** `services/bi-dashboard/frontend/src/index.css`
+
+| Token                | Value                 | Usage                        |
+| -------------------- | --------------------- | ---------------------------- |
+| `--color-primary`    | `#1b3a6b`             | Header, Sidebar, Filter Bar  |
+| `--color-secondary`  | `#2e75b6`             | Active nav, buttons          |
+| `--color-success`    | `#2e7d32`             | Completed badge, healthy KPI |
+| `--color-warning`    | `#e65100`             | Warning badge, quarantine    |
+| `--color-danger`     | `#c62828`             | Failed badge, critical KPI   |
+| `--color-success-bg` | `rgba(46,125,50,0.1)` | Added M5                     |
+| `--color-warning-bg` | `rgba(230,81,0,0.1)`  | Added M5                     |
+| `--color-danger-bg`  | `rgba(198,40,40,0.1)` | Added M5                     |
+| `--color-background` | `#f9fafb`             | Page background              |
+| `--color-surface`    | `#ffffff`             | Card background              |
+| `--color-border`     | `#dde4ee`             | General borders              |
+| `--color-row-alt`    | `#ebf3fb`             | Alternate rows, info boxes   |
+
+**Responsive Breakpoints:**
+
+- Desktop ≥1280px — sidebar 240px, 5-column KPI grid
+- Tablet 768–1279px — sidebar 56px icon-only, 3-column KPI grid
+- Mobile ≤767px — sidebar hidden, hamburger overlay, read-only, 1-column KPI grid
+
+---
+
+## 6. M7 Frontend Priorities
+
+1. **CDC Latency KPI** — `cdc_latency_ms` field coming in M7; add to `KPISummary` type and HomePage
+2. **Catalog endpoint** — `getCatalogAssets()` mock → live (M9)
+3. **Shell pages** — DataQuality (M10), Lineage (M9), Catalog (M9), BI Reports (M11), Admin (M8)
+4. **PipelineCreationForm mount check** — currently in PipelinesPage Zone 3 on desktop only
+5. **i18n remaining** — shell page labels not yet translated (listed as M7 item)
+
+---
+
+_Last updated: 29 September 2026 — Beyza Ülkümen_
