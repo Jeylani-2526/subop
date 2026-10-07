@@ -71,10 +71,10 @@ function Field({ label, error, children }: FieldProps) {
 
 interface SectionProps {
   label: string;
-  color: string;
+  color?: string;
   children: React.ReactNode;
 }
-function Section({ label, color, children }: SectionProps) {
+function Section({ label, children }: SectionProps) {
   return (
     <div
       style={{
