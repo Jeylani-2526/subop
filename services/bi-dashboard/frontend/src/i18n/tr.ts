@@ -115,6 +115,15 @@ const tr = {
   cdc_status_warning: "Uyarı",
   cdc_status_error: "Hata",
   cdc_status_unknown: "Bilinmiyor",
+  cdc_col_table: "Tablo",
+  cdc_col_op: "İşlem",
+  cdc_col_before: "Önce",
+  cdc_col_after: "Sonra",
+  cdc_col_latency: "Gecikme",
+  cdc_col_connector: "Connector",
+  cdc_col_status: "Durum",
+  cdc_col_last_event: "Son Olay",
+  cdc_col_lag: "Gecikme",
 };
 
 export default tr;
