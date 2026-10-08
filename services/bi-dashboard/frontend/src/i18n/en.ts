@@ -114,6 +114,15 @@ const en = {
   cdc_status_warning: "Warning",
   cdc_status_error: "Error",
   cdc_status_unknown: "Unknown",
+  cdc_col_table: "Table",
+  cdc_col_op: "Op",
+  cdc_col_before: "Before",
+  cdc_col_after: "After",
+  cdc_col_latency: "Latency",
+  cdc_col_connector: "Connector",
+  cdc_col_status: "Status",
+  cdc_col_last_event: "Last Event",
+  cdc_col_lag: "Lag",
 };
 
 export default en;

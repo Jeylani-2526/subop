@@ -74,7 +74,7 @@ export default function CDCPage() {
                     marginTop: "4px",
                   }}
                 >
-                  ms
+                  {t("kpi_cdc_latency_unit")}
                 </div>
               </div>
             ))}
@@ -121,11 +121,11 @@ export default function CDCPage() {
               paddingBottom: "8px",
             }}
           >
-            <span>Table</span>
-            <span>Op</span>
-            <span>Before</span>
-            <span>After</span>
-            <span>Latency</span>
+            <span>{t("cdc_col_table")}</span>
+            <span>{t("cdc_col_op")}</span>
+            <span>{t("cdc_col_before")}</span>
+            <span>{t("cdc_col_after")}</span>
+            <span>{t("cdc_col_latency")}</span>
           </div>
         </div>
 
@@ -169,10 +169,10 @@ export default function CDCPage() {
               paddingBottom: "8px",
             }}
           >
-            <span>Connector</span>
-            <span>Status</span>
-            <span>Last Event</span>
-            <span>Lag</span>
+            <span>{t("cdc_col_connector")}</span>
+            <span>{t("cdc_col_status")}</span>
+            <span>{t("cdc_col_last_event")}</span>
+            <span>{t("cdc_col_lag")}</span>
           </div>
         </div>
       </div>
