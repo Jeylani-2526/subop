@@ -50,9 +50,11 @@ const tr = {
   pipeline_execution_log: "Execution Log",
   pipeline_no_log: "Log bulunamadı",
   pipeline_no_run: "Bu pipeline için henüz run yok",
-  pipeline_bi_analyst_note: "BI Analyst rolünde execution log ve pipeline yönetimi görünümü kısıtlıdır.",
+  pipeline_bi_analyst_note:
+    "BI Analyst rolünde execution log ve pipeline yönetimi görünümü kısıtlıdır.",
   pipeline_back: "← Pipeline listesine dön",
-  pipeline_mobile_readonly: "Mobil görünümde pipeline yönetimi salt okunur moddadır.",
+  pipeline_mobile_readonly:
+    "Mobil görünümde pipeline yönetimi salt okunur moddadır.",
 
   // Pipeline Form
   form_title: "Yeni Pipeline",
@@ -79,6 +81,40 @@ const tr = {
   form_error_required: "Zorunlu",
   form_error_verbis: "VERBIS kaydı tamamlanmamış",
   form_error_generic: "Bir hata oluştu, tekrar deneyin.",
+
+  // CDC Monitor nav
+  nav_cdc: "CDC Monitor",
+
+  // Sayfa başlıkları
+  page_title_quality: "Veri Kalitesi",
+  page_title_lineage: "Lineage Explorer",
+  page_title_catalog: "Veri Kataloğu",
+  page_title_reports: "BI Raporlar",
+  page_title_admin: "Yönetim",
+  page_title_users: "Kullanıcı Yönetimi",
+  page_title_cdc: "CDC Monitor",
+
+  // Shell sayfalar — placeholder
+  shell_coming_soon: "Bu modül henüz geliştirme aşamasındadır.",
+
+  // KPI — CDC Latency
+  kpi_cdc_latency_unit: "ms",
+  kpi_cdc_latency_pending: "W25'te canlıya alınacak",
+
+  // CDC Monitor sayfası (W24'te dolacak)
+  cdc_latency_strip_title: "Gecikme Özeti",
+  cdc_event_feed_title: "Değişiklik Olayları",
+  cdc_connector_title: "Connector Durumu",
+  cdc_pending_notice: "Veri bağlantısı W24'te kurulacak.",
+  cdc_hop_e2e: "Uçtan Uca",
+  cdc_hop_capture: "Yakalama",
+  cdc_hop_publish: "Yayın",
+  cdc_hop_consumer: "Tüketici Gecikmesi",
+  cdc_hop_warehouse: "Warehouse Yazımı",
+  cdc_status_healthy: "Sağlıklı",
+  cdc_status_warning: "Uyarı",
+  cdc_status_error: "Hata",
+  cdc_status_unknown: "Bilinmiyor",
 };
 
 export default tr;

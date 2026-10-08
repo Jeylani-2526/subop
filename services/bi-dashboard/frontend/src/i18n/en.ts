@@ -50,7 +50,8 @@ const en = {
   pipeline_execution_log: "Execution Log",
   pipeline_no_log: "No log found",
   pipeline_no_run: "No runs yet for this pipeline",
-  pipeline_bi_analyst_note: "Execution log and pipeline management are restricted in the BI Analyst role.",
+  pipeline_bi_analyst_note:
+    "Execution log and pipeline management are restricted in the BI Analyst role.",
   pipeline_back: "← Back to pipeline list",
   pipeline_mobile_readonly: "Pipeline management is read-only on mobile.",
 
@@ -79,6 +80,40 @@ const en = {
   form_error_required: "Required",
   form_error_verbis: "VERBIS registration incomplete",
   form_error_generic: "An error occurred, please try again.",
+
+  // CDC Monitor nav
+  nav_cdc: "CDC Monitor",
+
+  // Page titles
+  page_title_quality: "Data Quality",
+  page_title_lineage: "Lineage Explorer",
+  page_title_catalog: "Data Catalog",
+  page_title_reports: "BI Reports",
+  page_title_admin: "Admin",
+  page_title_users: "User Management",
+  page_title_cdc: "CDC Monitor",
+
+  // Shell pages — placeholder
+  shell_coming_soon: "This module is currently under development.",
+
+  // KPI — CDC Latency
+  kpi_cdc_latency_unit: "ms",
+  kpi_cdc_latency_pending: "Goes live in W25",
+
+  // CDC Monitor page (wired in W24)
+  cdc_latency_strip_title: "Latency Summary",
+  cdc_event_feed_title: "Change Event Feed",
+  cdc_connector_title: "Connector Status",
+  cdc_pending_notice: "Data connection will be wired in W24.",
+  cdc_hop_e2e: "End-to-End",
+  cdc_hop_capture: "Capture",
+  cdc_hop_publish: "Publish",
+  cdc_hop_consumer: "Consumer Lag",
+  cdc_hop_warehouse: "Warehouse Write",
+  cdc_status_healthy: "Healthy",
+  cdc_status_warning: "Warning",
+  cdc_status_error: "Error",
+  cdc_status_unknown: "Unknown",
 };
 
 export default en;
