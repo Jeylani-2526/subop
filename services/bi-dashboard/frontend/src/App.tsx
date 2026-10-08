@@ -1,12 +1,13 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import HomePage from '../HomePage';
-import PipelinesPage from '../PipelinesPage';
-import QualityPage from '../QualityPage';
-import LineagePage from '../LineagePage';
-import CatalogPage from '../CatalogPage';
-import ReportsPage from '../ReportsPage';
-import AdminPage from '../AdminPage';
-import UsersPage from '../UsersPage';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import HomePage from "../HomePage";
+import PipelinesPage from "../PipelinesPage";
+import QualityPage from "../QualityPage";
+import LineagePage from "../LineagePage";
+import CatalogPage from "../CatalogPage";
+import ReportsPage from "../ReportsPage";
+import AdminPage from "../AdminPage";
+import UsersPage from "../UsersPage";
+import CDCPage from "../CDCPage";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/lineage" element={<LineagePage />} />
         <Route path="/catalog" element={<CatalogPage />} />
         <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/cdc" element={<CDCPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/users" element={<UsersPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
