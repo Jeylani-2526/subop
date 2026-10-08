@@ -91,14 +91,13 @@ export interface PipelineRun {
   logs: string[];
   error?: ErrorEnvelope;
 }
-
 export interface KPISummary {
   pipeline_count: number;
   rows_processed_today: number;
   average_quality_score: number | null;
   connector_count?: number;
+  cdc_latency_ms?: number | null;
 }
-
 export interface CatalogAsset {
   id: string;
   tableName: string;
