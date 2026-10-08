@@ -204,6 +204,12 @@ services:
 
     ports:
       - "8083:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/ > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   # ---------------------------------------------------------------------------
   # Kafka UI — Web interface for Kafka topic and consumer management
