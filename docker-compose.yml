@@ -181,6 +181,29 @@ services:
       interval: 30s
       timeout:  10s
       retries:  5
+    # ---------------------------------------------------------------------------
+  # Kafka Connect / Debezium — CDC infrastructure
+  # REST API: http://localhost:8083
+  # M7W22T6
+  # ---------------------------------------------------------------------------
+  connect:
+    image: quay.io/debezium/connect:3.6
+    container_name: subop-connect
+    restart: unless-stopped
+
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: ${CONNECT_GROUP_ID}
+      CONFIG_STORAGE_TOPIC: ${CONNECT_CONFIG_STORAGE_TOPIC}
+      OFFSET_STORAGE_TOPIC: ${CONNECT_OFFSET_STORAGE_TOPIC}
+      STATUS_STORAGE_TOPIC: ${CONNECT_STATUS_STORAGE_TOPIC}
+
+    ports:
+      - "8083:8083"
 
   # ---------------------------------------------------------------------------
   # Kafka UI — Web interface for Kafka topic and consumer management
