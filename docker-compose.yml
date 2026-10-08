@@ -19,14 +19,33 @@ services:
     image: postgres:15
     container_name: subop-postgres
     restart: unless-stopped
+    # M7W22T2 — Debezium decodes row-level changes from the WAL, which the
+    # default wal_level=replica does not contain. Without this override no CDC
+    # event can ever be produced.
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_wal_senders=10"
+      - "-c"
+      - "max_replication_slots=10"
     environment:
       POSTGRES_DB:       ${POSTGRES_DB}
       POSTGRES_USER:     ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Read by cdc_replication_setup.sql via psql \getenv (M7W22T2)
+      SUBOP_CDC_USER:        ${SUBOP_CDC_USER}
+      SUBOP_CDC_PASSWORD:    ${SUBOP_CDC_PASSWORD}
+      SUBOP_CDC_SCHEMA:      ${SUBOP_CDC_SCHEMA}
+      SUBOP_CDC_PUBLICATION: ${SUBOP_CDC_PUBLICATION}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Runs once on a clean volume. An existing volume skips it entirely —
+      # `docker compose down -v` is required, not optional.
+      - ./services/cdc/cdc_replication_setup.sql:/docker-entrypoint-initdb.d/10-cdc-replication.sql:ro
     healthcheck:
       test:     ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s

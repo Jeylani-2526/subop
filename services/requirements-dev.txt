@@ -9,6 +9,9 @@ PyMySQL
 pyodbc
 oracledb
 
+# --- Streaming connector driver (Module 4, M7W22T3) ---
+confluent-kafka
+
 # --- ETL Engine API (Module 3, M5W15T4) ---
 fastapi
 uvicorn[standard]
