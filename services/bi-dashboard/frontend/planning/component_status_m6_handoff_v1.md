@@ -19,7 +19,7 @@
 - `ConnectorType` — 8 values: `postgresql | mysql | mssql | sqlite | csv | json | rest_api | oracle` (mongodb removed M6W18T3)
 - `RunStatus` — 6 values: `pending | running | succeeded | completed_with_quarantine | failed | cancelled`
 - `PaginatedPipelines` — `{ items, total, page, page_size }`
-- `KPISummary` — `{ pipeline_count, rows_processed_today, average_quality_score, connector_count? }`
+- `KPISummary` — `{ pipeline_count, rows_processed_today, average_quality_score, connector_count?, cdc_latency_ms? }` _(cdc_latency_ms added M7W22T10)_
 
 ---
 
@@ -94,6 +94,7 @@
 - Mobile (≤767px): hidden, shown via overlay
 - `useT()` — all labels translated via `TranslationKey`
 - Hover state via CSS (`.subop-sidebar a:hover`)
+- CDC Monitor entry added M7W22T9 (`/cdc`)
 
 ---
 
@@ -122,7 +123,7 @@
 | Active Pipelines        | `GET /api/kpis` → `pipeline_count`        | ✅ Live                                  |
 | Data Quality Score      | `GET /api/kpis` → `average_quality_score` | ✅ Live — null shows "Not available yet" |
 | Records Processed Today | `GET /api/kpis` → `rows_processed_today`  | ✅ Live                                  |
-| CDC Latency             | —                                         | ⏳ M7                                    |
+| CDC Latency             | `GET /api/kpis` → `cdc_latency_ms`        | ⏳ W25 — dash fallback until then        |
 | Connectors              | `GET /api/kpis` → `connector_count`       | ✅ Live — from registry                  |
 
 **i18n:** All KPI labels and trend values translated via `useT()`.
@@ -149,16 +150,17 @@
 
 ---
 
-### Other Pages — Shell Only ⏳
+### Shell Pages
 
-| Page                | File                      | Status     | Milestone |
-| ------------------- | ------------------------- | ---------- | --------- |
-| DataQualityPage     | `DataQualityPage.tsx`     | Shell Only | M10       |
-| LineageExplorerPage | `LineageExplorerPage.tsx` | Shell Only | M9        |
-| CatalogBrowserPage  | `CatalogBrowserPage.tsx`  | Shell Only | M9        |
-| BIReportsPage       | `BIReportsPage.tsx`       | Shell Only | M11       |
-| AdminPage           | `AdminPage.tsx`           | Shell Only | M8        |
-| UsersPage           | `UsersPage.tsx`           | Shell Only | M8        |
+| Page             | File              | Status             | Milestone     |
+| ---------------- | ----------------- | ------------------ | ------------- |
+| Data Quality     | `QualityPage.tsx` | ✅ i18n (M7W22T8)  | M10           |
+| Lineage Explorer | `LineagePage.tsx` | ✅ i18n (M7W22T8)  | M9            |
+| Data Catalog     | `CatalogPage.tsx` | ✅ i18n (M7W22T8)  | M9            |
+| BI Reports       | `ReportsPage.tsx` | ✅ i18n (M7W22T8)  | M11           |
+| Admin Panel      | `AdminPage.tsx`   | ✅ i18n (M7W22T8)  | M8            |
+| User Management  | `UsersPage.tsx`   | ✅ i18n (M7W22T8)  | M8            |
+| CDC Monitor      | `CDCPage.tsx`     | ✅ Shell (M7W22T9) | M7 (data W24) |
 
 ---
 
@@ -217,12 +219,17 @@
 
 ## 6. M7 Frontend Priorities
 
-1. **CDC Latency KPI** — `cdc_latency_ms` field coming in M7; add to `KPISummary` type and HomePage
-2. **Catalog endpoint** — `getCatalogAssets()` mock → live (M9)
-3. **Shell pages** — DataQuality (M10), Lineage (M9), Catalog (M9), BI Reports (M11), Admin (M8)
-4. **PipelineCreationForm mount check** — currently in PipelinesPage Zone 3 on desktop only
-5. **i18n remaining** — shell page labels not yet translated (listed as M7 item)
+| Week | Task                                               | Status     |
+| ---- | -------------------------------------------------- | ---------- |
+| W22  | 6 shell pages i18n (T8)                            | ✅ Done    |
+| W22  | CDC Monitor page shell + nav entry (T9)            | ✅ Done    |
+| W22  | CDC Latency KPI card prep — `cdc_latency_ms` (T10) | ✅ Done    |
+| W22  | Correct M6 handoff (T11)                           | ✅ Done    |
+| W23  | CDC event feed — normalised event shape            | ⏳ Pending |
+| W24  | CDC Monitor — live connector status + event counts | ⏳ Pending |
+| W25  | CDC Latency KPI card live + latency strip          | ⏳ Pending |
+| W25  | M7 component status handoff for M8                 | ⏳ Pending |
 
 ---
 
-_Last updated: 29 September 2026 — Beyza Ülkümen_
+_Last updated: 8 October 2026 — Beyza Ülkümen_
