@@ -20,6 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { labelKey: "nav_lineage_explorer", path: "/lineage", icon: "⤢" },
   { labelKey: "nav_data_catalog", path: "/catalog", icon: "☰" },
   { labelKey: "nav_bi_reports", path: "/reports", icon: "▦" },
+  { labelKey: "nav_cdc", path: "/cdc", icon: "◎" },
   { labelKey: "nav_admin", path: "/admin", adminOnly: true, icon: "⚙" },
   {
     labelKey: "nav_user_management",

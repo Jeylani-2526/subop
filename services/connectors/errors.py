@@ -30,11 +30,13 @@ class ConnectorError(Exception):
             Short machine-readable code (e.g. "POSTGRES_CONNECTION_FAILED").
             Defaults to a generic code so existing call sites that only
             pass (message, retryable=...) keep working unchanged.
-        connector_type:
-            One of "postgresql" | "mysql" | "mssql" | "mongodb", or None
-            when the error originates above any specific connector
-            (contracts/API spec: null connector_type for API/ETL-Engine
-            layer errors that never reached a connector).
+               connector_type:
+            The raising connector's type — "postgresql" | "mysql" |
+            "mssql" | "sqlite" | "oracle" | "csv" | "json" | "rest_api" |
+            "file" | "streaming" — or None when the error originates
+            above any specific connector (contracts/API spec: null
+            connector_type for API/ETL-Engine layer errors that never
+            reached a connector).
         retryable:
             Whether the caller may safely retry the operation.
     """

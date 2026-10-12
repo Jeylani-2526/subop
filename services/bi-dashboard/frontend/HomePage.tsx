@@ -60,10 +60,10 @@ export default function HomePage() {
         />
         <KPISummaryCard
           label={t("kpi_cdc_latency")}
-          value="—"
-          unit="ms"
+          value={kpi?.cdc_latency_ms ?? "—"}
+          unit={t("kpi_cdc_latency_unit")}
           trend="down"
-          trendValue={t("kpi_cdc_trend")}
+          trendValue={t("kpi_cdc_latency_pending")}
           status="warning"
         />
         <KPISummaryCard
