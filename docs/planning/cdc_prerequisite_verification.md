@@ -3,8 +3,8 @@
 **Task ID:** M7W23T1
 **Project:** SUBOP
 **Date:** October 13, 2026
-**Environment:** Local Development — Docker Compose (Windows, Git Bash / MINGW64)
-**Status:** ✅ Verification completed — all checks PASS. Gate on M7W23T12 released.
+**Environment:** Local Development — Docker Compose
+**Status:** ✅ Verification completed — all checks PASS.
 
 ## 1. Objective
 

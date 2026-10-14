@@ -30,6 +30,8 @@ services:
       - "max_wal_senders=10"
       - "-c"
       - "max_replication_slots=10"
+      - "-c"
+      - "track_commit_timestamp=on"
     environment:
       POSTGRES_DB:       ${POSTGRES_DB}
       POSTGRES_USER:     ${POSTGRES_USER}
