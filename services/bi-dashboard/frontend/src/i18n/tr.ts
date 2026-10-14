@@ -22,7 +22,6 @@ const tr = {
   kpi_records_today: "Bugün İşlenen Kayıt",
   kpi_records_trend: "5 dakika önce güncellendi",
   kpi_cdc_latency: "CDC Gecikmesi",
-  kpi_cdc_trend: "M7'de gelecek",
   kpi_connectors: "Connector'lar",
   kpi_connectors_trend: "Registry'den canlı",
 
@@ -101,7 +100,7 @@ const tr = {
   kpi_cdc_latency_unit: "ms",
   kpi_cdc_latency_pending: "W25'te canlıya alınacak",
 
-  // CDC Monitor sayfası (W24'te dolacak)
+  // CDC Monitor sayfası
   cdc_latency_strip_title: "Gecikme Özeti",
   cdc_event_feed_title: "Değişiklik Olayları",
   cdc_connector_title: "Connector Durumu",
@@ -124,6 +123,8 @@ const tr = {
   cdc_col_status: "Durum",
   cdc_col_last_event: "Son Olay",
   cdc_col_lag: "Gecikme",
+  cdc_events_empty: "Henüz değişiklik olayı yok.",
+  cdc_connectors_empty: "Henüz connector bulunamadı.",
 };
 
 export default tr;

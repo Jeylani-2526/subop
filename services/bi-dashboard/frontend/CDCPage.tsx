@@ -1,8 +1,167 @@
+import { useEffect, useState } from "react";
 import AppShell from "./components/AppShell";
+import StatusBadge from "./components/StatusBadge";
 import { useT } from "./src/i18n/LanguageProvider";
+import type { TranslationKey } from "./src/i18n/tr";
+import { getCDCEvents, getAllCDCConnectorStatuses } from "./api/cdcClient";
+import type { CDCChangeEvent, CDCConnectorStatus } from "./api/cdcClient";
+
+// ─── Yardımcı ─────────────────────────────────────────
+
+function formatTs(ts_ms: number): string {
+  const diff = Date.now() - ts_ms;
+  if (diff < 60_000) return `${Math.round(diff / 1000)}s ago`;
+  if (diff < 3_600_000) return `${Math.round(diff / 60_000)}m ago`;
+  return `${Math.round(diff / 3_600_000)}h ago`;
+}
+
+function jsonSummary(obj: Record<string, unknown> | null): string {
+  if (!obj) return "—";
+  const keys = Object.keys(obj);
+  if (keys.length === 0) return "{}";
+  if (keys.length <= 2) return JSON.stringify(obj);
+  return `{ ${keys.slice(0, 2).join(", ")}, … }`;
+}
+
+// ─── Expandable Row ────────────────────────────────────
+
+function EventRow({
+  event,
+  t,
+}: {
+  event: CDCChangeEvent;
+  t: (k: TranslationKey) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <>
+      <div
+        onClick={() => setExpanded((v) => !v)}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 100px 1fr 1fr 80px 32px",
+          gap: "8px",
+          alignItems: "center",
+          fontSize: "12px",
+          padding: "10px 0",
+          borderBottom: "1px solid var(--color-border)",
+          cursor: "pointer",
+        }}
+      >
+        <span
+          style={{
+            color: "var(--color-text)",
+            fontFamily: "monospace",
+            fontSize: "11px",
+          }}
+        >
+          {event.table}
+        </span>
+        <StatusBadge status={event.op} size="compact" />
+        <span
+          style={{
+            color: "var(--color-text-muted)",
+            fontSize: "11px",
+            fontFamily: "monospace",
+          }}
+        >
+          {jsonSummary(event.before)}
+        </span>
+        <span
+          style={{
+            color: "var(--color-text-muted)",
+            fontSize: "11px",
+            fontFamily: "monospace",
+          }}
+        >
+          {jsonSummary(event.after)}
+        </span>
+        <span style={{ color: "var(--color-text)", fontSize: "11px" }}>
+          {event.latency_ms != null ? `${event.latency_ms} ms` : "—"}
+        </span>
+        <span
+          style={{
+            color: "var(--color-text-muted)",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          {expanded ? "▲" : "▼"}
+        </span>
+      </div>
+
+      {expanded && (
+        <div
+          style={{
+            backgroundColor: "var(--color-row-alt)",
+            borderRadius: "6px",
+            padding: "12px 16px",
+            marginBottom: "4px",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "16px",
+            fontSize: "11px",
+            fontFamily: "monospace",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontWeight: 600,
+                marginBottom: "6px",
+                color: "var(--color-text-muted)",
+              }}
+            >
+              {t("cdc_col_before")}
+            </div>
+            <pre
+              style={{
+                margin: 0,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-all",
+              }}
+            >
+              {event.before ? JSON.stringify(event.before, null, 2) : "null"}
+            </pre>
+          </div>
+          <div>
+            <div
+              style={{
+                fontWeight: 600,
+                marginBottom: "6px",
+                color: "var(--color-text-muted)",
+              }}
+            >
+              {t("cdc_col_after")}
+            </div>
+            <pre
+              style={{
+                margin: 0,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-all",
+              }}
+            >
+              {event.after ? JSON.stringify(event.after, null, 2) : "null"}
+            </pre>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── CDCPage ───────────────────────────────────────────
 
 export default function CDCPage() {
   const { t } = useT();
+  const [events, setEvents] = useState<CDCChangeEvent[]>([]);
+  const [connectors, setConnectors] = useState<CDCConnectorStatus[]>([]);
+
+  useEffect(() => {
+    getCDCEvents().then(setEvents).catch(console.error);
+    getAllCDCConnectorStatuses().then(setConnectors).catch(console.error);
+  }, []);
 
   return (
     <AppShell pageTitle={t("page_title_cdc")} userRole="admin">
@@ -100,33 +259,48 @@ export default function CDCPage() {
           >
             {t("cdc_event_feed_title")}
           </div>
-          <div
-            style={{
-              fontSize: "12px",
-              color: "var(--color-warning)",
-              marginBottom: "12px",
-            }}
-          >
-            {t("cdc_pending_notice")}
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr 1fr 80px",
-              gap: "8px",
-              fontSize: "11px",
-              fontWeight: 600,
-              color: "rgba(0,0,0,0.4)",
-              borderBottom: "1px solid var(--color-border)",
-              paddingBottom: "8px",
-            }}
-          >
-            <span>{t("cdc_col_table")}</span>
-            <span>{t("cdc_col_op")}</span>
-            <span>{t("cdc_col_before")}</span>
-            <span>{t("cdc_col_after")}</span>
-            <span>{t("cdc_col_latency")}</span>
-          </div>
+
+          {events.length === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "40px 0",
+                color: "var(--color-text-muted)",
+                fontSize: "13px",
+              }}
+            >
+              {t("cdc_events_empty")}
+            </div>
+          ) : (
+            <>
+              {/* Header */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 100px 1fr 1fr 80px 32px",
+                  gap: "8px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "var(--color-text-muted)",
+                  borderBottom: "1px solid var(--color-border)",
+                  paddingBottom: "8px",
+                  marginBottom: "4px",
+                }}
+              >
+                <span>{t("cdc_col_table")}</span>
+                <span>{t("cdc_col_op")}</span>
+                <span>{t("cdc_col_before")}</span>
+                <span>{t("cdc_col_after")}</span>
+                <span>{t("cdc_col_latency")}</span>
+                <span />
+              </div>
+
+              {/* Rows */}
+              {events.map((event, i) => (
+                <EventRow key={i} event={event} t={t} />
+              ))}
+            </>
+          )}
         </div>
 
         {/* Zone 3 — Connector Status */}
@@ -148,32 +322,75 @@ export default function CDCPage() {
           >
             {t("cdc_connector_title")}
           </div>
-          <div
-            style={{
-              fontSize: "12px",
-              color: "var(--color-warning)",
-              marginBottom: "12px",
-            }}
-          >
-            {t("cdc_pending_notice")}
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr 1fr",
-              gap: "8px",
-              fontSize: "11px",
-              fontWeight: 600,
-              color: "rgba(0,0,0,0.4)",
-              borderBottom: "1px solid var(--color-border)",
-              paddingBottom: "8px",
-            }}
-          >
-            <span>{t("cdc_col_connector")}</span>
-            <span>{t("cdc_col_status")}</span>
-            <span>{t("cdc_col_last_event")}</span>
-            <span>{t("cdc_col_lag")}</span>
-          </div>
+
+          {connectors.length === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "40px 0",
+                color: "var(--color-text-muted)",
+                fontSize: "13px",
+              }}
+            >
+              {t("cdc_connectors_empty")}
+            </div>
+          ) : (
+            <>
+              {/* Header */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 100px 1fr 80px",
+                  gap: "8px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "var(--color-text-muted)",
+                  borderBottom: "1px solid var(--color-border)",
+                  paddingBottom: "8px",
+                  marginBottom: "4px",
+                }}
+              >
+                <span>{t("cdc_col_connector")}</span>
+                <span>{t("cdc_col_status")}</span>
+                <span>{t("cdc_col_last_event")}</span>
+                <span>{t("cdc_col_lag")}</span>
+              </div>
+
+              {/* Rows */}
+              {connectors.map((c) => (
+                <div
+                  key={c.connector_id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 100px 1fr 80px",
+                    gap: "8px",
+                    alignItems: "center",
+                    fontSize: "12px",
+                    padding: "10px 0",
+                    borderBottom: "1px solid var(--color-border)",
+                  }}
+                >
+                  <span style={{ color: "var(--color-text)", fontWeight: 500 }}>
+                    {c.connector_name}
+                  </span>
+                  <StatusBadge status={c.state} size="compact" />
+                  <span
+                    style={{
+                      color: "var(--color-text-muted)",
+                      fontSize: "11px",
+                    }}
+                  >
+                    {c.last_event_ts_ms ? formatTs(c.last_event_ts_ms) : "—"}
+                  </span>
+                  <span
+                    style={{ color: "var(--color-text)", fontSize: "11px" }}
+                  >
+                    {c.lag_ms != null ? `${c.lag_ms} ms` : "—"}
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       </div>
     </AppShell>

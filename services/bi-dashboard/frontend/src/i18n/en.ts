@@ -22,7 +22,6 @@ const en = {
   kpi_records_today: "Records Processed Today",
   kpi_records_trend: "Updated 5 min ago",
   kpi_cdc_latency: "CDC Latency",
-  kpi_cdc_trend: "Coming in M7",
   kpi_connectors: "Connectors",
   kpi_connectors_trend: "Live from registry",
 
@@ -100,7 +99,7 @@ const en = {
   kpi_cdc_latency_unit: "ms",
   kpi_cdc_latency_pending: "Goes live in W25",
 
-  // CDC Monitor page (wired in W24)
+  // CDC Monitor page
   cdc_latency_strip_title: "Latency Summary",
   cdc_event_feed_title: "Change Event Feed",
   cdc_connector_title: "Connector Status",
@@ -123,6 +122,8 @@ const en = {
   cdc_col_status: "Status",
   cdc_col_last_event: "Last Event",
   cdc_col_lag: "Lag",
+  cdc_events_empty: "No change events yet.",
+  cdc_connectors_empty: "No connectors found.",
 };
 
 export default en;
