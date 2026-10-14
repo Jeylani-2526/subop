@@ -1,7 +1,7 @@
 // services/bi-dashboard/frontend/api/cdcFixtures.ts
 // W23 fixture modülü — W24'te kaldırılır, cdcClient.ts live API'ye geçer
 
-import type { CDCChangeEvent, CDCConnectorStatus } from "./cdcClient";
+import type { CDCChangeEvent, CDCConnectorStatus } from "./cdcTypes";
 
 export const CDC_CHANGE_EVENTS: CDCChangeEvent[] = [
   {
