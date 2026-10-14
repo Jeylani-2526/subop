@@ -23,16 +23,138 @@ function jsonSummary(obj: Record<string, unknown> | null): string {
   return `{ ${keys.slice(0, 2).join(", ")}, … }`;
 }
 
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+}
+
 // ─── Expandable Row ────────────────────────────────────
 
 function EventRow({
   event,
   t,
+  isCard,
 }: {
   event: CDCChangeEvent;
   t: (k: TranslationKey) => string;
+  isCard: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+
+  if (isCard) {
+    return (
+      <div
+        onClick={() => setExpanded((v) => !v)}
+        style={{
+          padding: "12px 14px",
+          marginBottom: "8px",
+          borderRadius: "8px",
+          border: "1px solid var(--color-border)",
+          backgroundColor: "var(--color-surface)",
+          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          gap: "6px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "var(--color-text)",
+              fontFamily: "monospace",
+            }}
+          >
+            {event.table}
+          </span>
+          <StatusBadge status={event.op} size="compact" />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
+            {t("cdc_col_latency")}:{" "}
+            {event.latency_ms != null ? `${event.latency_ms} ms` : "—"}
+          </span>
+          <span style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
+            {expanded ? "▲" : "▼"}
+          </span>
+        </div>
+        {expanded && (
+          <div
+            style={{
+              backgroundColor: "var(--color-row-alt)",
+              borderRadius: "6px",
+              padding: "10px 12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+              fontSize: "11px",
+              fontFamily: "monospace",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontWeight: 600,
+                  marginBottom: "4px",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                {t("cdc_col_before")}
+              </div>
+              <pre
+                style={{
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-all",
+                }}
+              >
+                {event.before ? JSON.stringify(event.before, null, 2) : "null"}
+              </pre>
+            </div>
+            <div>
+              <div
+                style={{
+                  fontWeight: 600,
+                  marginBottom: "4px",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                {t("cdc_col_after")}
+              </div>
+              <pre
+                style={{
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-all",
+                }}
+              >
+                {event.after ? JSON.stringify(event.after, null, 2) : "null"}
+              </pre>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -155,6 +277,10 @@ function EventRow({
 
 export default function CDCPage() {
   const { t } = useT();
+  const width = useWindowWidth();
+  const isCard = width < 900;
+  const isMobile = width < 768;
+
   const [events, setEvents] = useState<CDCChangeEvent[]>([]);
   const [connectors, setConnectors] = useState<CDCConnectorStatus[]>([]);
 
@@ -167,12 +293,28 @@ export default function CDCPage() {
     <AppShell pageTitle={t("page_title_cdc")} userRole="admin">
       <div
         style={{
-          padding: "24px",
+          padding: isCard ? "16px" : "24px",
           display: "flex",
           flexDirection: "column",
           gap: "20px",
         }}
       >
+        {/* Mobile read-only banner */}
+        {isMobile && (
+          <div
+            style={{
+              backgroundColor: "var(--color-warning-bg)",
+              color: "var(--color-warning)",
+              borderRadius: "6px",
+              padding: "10px 14px",
+              fontSize: "12px",
+              fontWeight: 500,
+            }}
+          >
+            {t("pipeline_mobile_readonly")}
+          </div>
+        )}
+
         {/* Zone 1 — Latency Summary Strip */}
         <div
           style={{
@@ -271,9 +413,14 @@ export default function CDCPage() {
             >
               {t("cdc_events_empty")}
             </div>
+          ) : isCard ? (
+            <div>
+              {events.map((event, i) => (
+                <EventRow key={i} event={event} t={t} isCard={true} />
+              ))}
+            </div>
           ) : (
             <>
-              {/* Header */}
               <div
                 style={{
                   display: "grid",
@@ -294,10 +441,8 @@ export default function CDCPage() {
                 <span>{t("cdc_col_latency")}</span>
                 <span />
               </div>
-
-              {/* Rows */}
               {events.map((event, i) => (
-                <EventRow key={i} event={event} t={t} />
+                <EventRow key={i} event={event} t={t} isCard={false} />
               ))}
             </>
           )}
@@ -334,9 +479,68 @@ export default function CDCPage() {
             >
               {t("cdc_connectors_empty")}
             </div>
+          ) : isCard ? (
+            <div>
+              {connectors.map((c) => (
+                <div
+                  key={c.connector_id}
+                  style={{
+                    padding: "12px 14px",
+                    marginBottom: "8px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--color-border)",
+                    backgroundColor: "var(--color-surface)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "var(--color-text)",
+                      }}
+                    >
+                      {c.connector_name}
+                    </span>
+                    <StatusBadge status={c.state} size="compact" />
+                  </div>
+                  <div
+                    style={{ display: "flex", justifyContent: "space-between" }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--color-text-muted)",
+                      }}
+                    >
+                      {t("cdc_col_last_event")}:{" "}
+                      {c.last_event_ts_ms ? formatTs(c.last_event_ts_ms) : "—"}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--color-text-muted)",
+                      }}
+                    >
+                      {t("cdc_col_lag")}:{" "}
+                      {c.lag_ms != null ? `${c.lag_ms} ms` : "—"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <>
-              {/* Header */}
               <div
                 style={{
                   display: "grid",
@@ -355,8 +559,6 @@ export default function CDCPage() {
                 <span>{t("cdc_col_last_event")}</span>
                 <span>{t("cdc_col_lag")}</span>
               </div>
-
-              {/* Rows */}
               {connectors.map((c) => (
                 <div
                   key={c.connector_id}
