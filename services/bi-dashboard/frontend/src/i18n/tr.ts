@@ -119,6 +119,7 @@ const tr = {
   cdc_col_before: "Önce",
   cdc_col_after: "Sonra",
   cdc_col_latency: "Gecikme",
+  cdc_col_time: "Zaman",
   cdc_col_connector: "Connector",
   cdc_col_status: "Durum",
   cdc_col_last_event: "Son Olay",

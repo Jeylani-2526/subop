@@ -94,6 +94,9 @@ function EventRow({
             {event.latency_ms != null ? `${event.latency_ms} ms` : "—"}
           </span>
           <span style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
+            {formatTs(event.ts_ms)}
+          </span>
+          <span style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
             {expanded ? "▲" : "▼"}
           </span>
         </div>
@@ -162,7 +165,7 @@ function EventRow({
         onClick={() => setExpanded((v) => !v)}
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 100px 1fr 1fr 80px 32px",
+          gridTemplateColumns: "1fr 100px 90px 1fr 1fr 80px 32px",
           gap: "8px",
           alignItems: "center",
           fontSize: "12px",
@@ -181,6 +184,9 @@ function EventRow({
           {event.table}
         </span>
         <StatusBadge status={event.op} size="compact" />
+        <span style={{ color: "var(--color-text-muted)", fontSize: "11px" }}>
+          {formatTs(event.ts_ms)}
+        </span>
         <span
           style={{
             color: "var(--color-text-muted)",
@@ -396,10 +402,21 @@ export default function CDCPage() {
               fontSize: "13px",
               fontWeight: 600,
               color: "var(--color-primary)",
-              marginBottom: "16px",
+              marginBottom: "8px",
             }}
           >
             {t("cdc_event_feed_title")}
+          </div>
+
+          {/* Fix ② — pending notice banner */}
+          <div
+            style={{
+              fontSize: "12px",
+              color: "var(--color-warning)",
+              marginBottom: "12px",
+            }}
+          >
+            {t("cdc_pending_notice")}
           </div>
 
           {events.length === 0 ? (
@@ -421,10 +438,11 @@ export default function CDCPage() {
             </div>
           ) : (
             <>
+              {/* Fix ③ — time column in header */}
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 100px 1fr 1fr 80px 32px",
+                  gridTemplateColumns: "1fr 100px 90px 1fr 1fr 80px 32px",
                   gap: "8px",
                   fontSize: "11px",
                   fontWeight: 600,
@@ -436,6 +454,7 @@ export default function CDCPage() {
               >
                 <span>{t("cdc_col_table")}</span>
                 <span>{t("cdc_col_op")}</span>
+                <span>{t("cdc_col_time")}</span>
                 <span>{t("cdc_col_before")}</span>
                 <span>{t("cdc_col_after")}</span>
                 <span>{t("cdc_col_latency")}</span>
@@ -462,10 +481,21 @@ export default function CDCPage() {
               fontSize: "13px",
               fontWeight: 600,
               color: "var(--color-primary)",
-              marginBottom: "16px",
+              marginBottom: "8px",
             }}
           >
             {t("cdc_connector_title")}
+          </div>
+
+          {/* Fix ② — pending notice banner */}
+          <div
+            style={{
+              fontSize: "12px",
+              color: "var(--color-warning)",
+              marginBottom: "12px",
+            }}
+          >
+            {t("cdc_pending_notice")}
           </div>
 
           {connectors.length === 0 ? (
