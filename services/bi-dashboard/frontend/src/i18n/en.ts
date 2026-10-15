@@ -118,6 +118,7 @@ const en = {
   cdc_col_before: "Before",
   cdc_col_after: "After",
   cdc_col_latency: "Latency",
+  cdc_col_time: "Time",
   cdc_col_connector: "Connector",
   cdc_col_status: "Status",
   cdc_col_last_event: "Last Event",
