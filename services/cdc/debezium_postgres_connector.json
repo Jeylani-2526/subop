@@ -1,0 +1,25 @@
+{
+  "name": "subop-postgres-cdc",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "topic.prefix": "subop-postgres-cdc",
+
+    "database.hostname": "postgres",
+    "database.port": "5432",
+    "database.dbname": "subop",
+    "database.user": "subop_cdc",
+    "database.password": "cdc_dev",
+
+    "plugin.name": "pgoutput",
+    "slot.name": "subop_cdc_slot",
+    "publication.name": "subop_cdc_pub",
+    "publication.autocreate.mode": "disabled",
+    "table.include.list": "cdc_demo.orders",
+
+    "decimal.handling.mode": "string",
+    "tombstones.on.delete": "false",
+    "column.propagate.source.type": ".*cdc_demo\\.orders\\..*",
+
+    "tasks.max": "1"
+  }
+}
