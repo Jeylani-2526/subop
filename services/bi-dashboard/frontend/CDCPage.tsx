@@ -33,6 +33,98 @@ function useWindowWidth() {
   return width;
 }
 
+// ─── HaltedTablesBanner ───────────────────────────────
+// M7W26T7: drift_state = "CDC_SCHEMA_DRIFT_DETECTED" olduğunda
+// hangi tabloların durduğunu ve neden durduğunu açıkça göster.
+// StatusBadge'in mevcut FAILED rengi (--color-error) kullanılır —
+// yeni bir renk sözcüğü eklenmez.
+
+function HaltedTablesBanner({
+  halted_tables,
+  t,
+}: {
+  halted_tables: string[];
+  t: (k: TranslationKey) => string;
+}) {
+  return (
+    <div
+      style={{
+        backgroundColor: "var(--color-error-bg, rgba(220,38,38,0.08))",
+        border: "1px solid var(--color-error, #dc2626)",
+        borderRadius: "6px",
+        padding: "10px 14px",
+        marginBottom: "12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "6px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        {/* StatusBadge'in FAILED rengiyle tutarlı kırmızı nokta */}
+        <span
+          style={{
+            width: "8px",
+            height: "8px",
+            borderRadius: "50%",
+            backgroundColor: "var(--color-error, #dc2626)",
+            flexShrink: 0,
+          }}
+        />
+        <span
+          style={{
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "var(--color-error, #dc2626)",
+          }}
+        >
+          {t("cdc_drift_detected_label")}
+        </span>
+      </div>
+      <div
+        style={{
+          fontSize: "11px",
+          color: "var(--color-text-muted)",
+        }}
+      >
+        {t("cdc_drift_reason")}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+        {halted_tables.map((tbl) => (
+          <span
+            key={tbl}
+            style={{
+              fontSize: "11px",
+              fontFamily: "monospace",
+              backgroundColor: "var(--color-row-alt)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "4px",
+              padding: "2px 8px",
+              color: "var(--color-text)",
+            }}
+          >
+            {tbl}
+          </span>
+        ))}
+      </div>
+      <div
+        style={{
+          fontSize: "11px",
+          color: "var(--color-text-muted)",
+          marginTop: "2px",
+        }}
+      >
+        {t("cdc_drift_resolution_hint")}
+      </div>
+    </div>
+  );
+}
+
 // ─── Expandable Row ────────────────────────────────────
 
 function EventRow({
@@ -295,6 +387,10 @@ export default function CDCPage() {
     getAllCDCConnectorStatuses().then(setConnectors).catch(console.error);
   }, []);
 
+  // Herhangi bir connector'da halted tablo varsa tüm liste toplanır —
+  // Zone 2 (event feed) üstünde tek bir banner gösterilir.
+  const haltedTables = connectors.flatMap((c) => c.halted_tables ?? []);
+
   return (
     <AppShell pageTitle={t("page_title_cdc")} userRole="admin">
       <div
@@ -408,7 +504,12 @@ export default function CDCPage() {
             {t("cdc_event_feed_title")}
           </div>
 
-          {/* Fix ② — pending notice banner */}
+          {/* M7W26T7: Halted tables banner — drift tespit edildiğinde göster */}
+          {haltedTables.length > 0 && (
+            <HaltedTablesBanner halted_tables={haltedTables} t={t} />
+          )}
+
+          {/* Pending notice — W27 live swap'a kadar göster */}
           <div
             style={{
               fontSize: "12px",
@@ -438,7 +539,6 @@ export default function CDCPage() {
             </div>
           ) : (
             <>
-              {/* Fix ③ — time column in header */}
               <div
                 style={{
                   display: "grid",
@@ -487,7 +587,7 @@ export default function CDCPage() {
             {t("cdc_connector_title")}
           </div>
 
-          {/* Fix ② — pending notice banner */}
+          {/* Pending notice */}
           <div
             style={{
               fontSize: "12px",
@@ -566,6 +666,24 @@ export default function CDCPage() {
                       {c.lag_ms != null ? `${c.lag_ms} ms` : "—"}
                     </span>
                   </div>
+                  {/* M7W26T7: Kart görünümünde halted tablo uyarısı */}
+                  {c.halted_tables && c.halted_tables.length > 0 && (
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--color-error, #dc2626)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      <span>●</span>
+                      <span>
+                        {t("cdc_halted_table_label")}:{" "}
+                        {c.halted_tables.join(", ")}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -574,7 +692,7 @@ export default function CDCPage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 100px 1fr 80px",
+                  gridTemplateColumns: "1fr 100px 1fr 80px 160px",
                   gap: "8px",
                   fontSize: "11px",
                   fontWeight: 600,
@@ -588,13 +706,14 @@ export default function CDCPage() {
                 <span>{t("cdc_col_status")}</span>
                 <span>{t("cdc_col_last_event")}</span>
                 <span>{t("cdc_col_lag")}</span>
+                <span>{t("cdc_halted_table_label")}</span>
               </div>
               {connectors.map((c) => (
                 <div
                   key={c.connector_id}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 100px 1fr 80px",
+                    gridTemplateColumns: "1fr 100px 1fr 80px 160px",
                     gap: "8px",
                     alignItems: "center",
                     fontSize: "12px",
@@ -618,6 +737,21 @@ export default function CDCPage() {
                     style={{ color: "var(--color-text)", fontSize: "11px" }}
                   >
                     {c.lag_ms != null ? `${c.lag_ms} ms` : "—"}
+                  </span>
+                  {/* M7W26T7: Halted tablo — null veya boş array ise "—" göster */}
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontFamily: "monospace",
+                      color:
+                        c.halted_tables && c.halted_tables.length > 0
+                          ? "var(--color-error, #dc2626)"
+                          : "var(--color-text-muted)",
+                    }}
+                  >
+                    {c.halted_tables && c.halted_tables.length > 0
+                      ? c.halted_tables.join(", ")
+                      : "—"}
                   </span>
                 </div>
               ))}

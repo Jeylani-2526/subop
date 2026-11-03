@@ -123,6 +123,12 @@ const en = {
   cdc_col_status: "Status",
   cdc_col_last_event: "Last Event",
   cdc_col_lag: "Lag",
+  cdc_drift_detected_label: "Schema Drift Detected — Table Halted",
+  cdc_drift_reason:
+    "Reason: CDC_SCHEMA_DRIFT_DETECTED — normalizer.py compared the table schema against the source and found a mismatch.",
+  cdc_halted_table_label: "Halted Table",
+  cdc_drift_resolution_hint:
+    "Resolution: Review the affected table, confirm the schema change, and manually restart the connector.",
   cdc_events_empty: "No change events yet.",
   cdc_connectors_empty: "No connectors found.",
 };

@@ -124,6 +124,12 @@ const tr = {
   cdc_col_status: "Durum",
   cdc_col_last_event: "Son Olay",
   cdc_col_lag: "Gecikme",
+  cdc_drift_detected_label: "Şema Drift Tespit Edildi — Tablo Durduruldu",
+  cdc_drift_reason:
+    "Neden: CDC_SCHEMA_DRIFT_DETECTED — normalizer.py tablo şemasını kaynak ile karşılaştırdı ve uyuşmazlık buldu.",
+  cdc_halted_table_label: "Durdurulan Tablo",
+  cdc_drift_resolution_hint:
+    "Çözüm: Etkilenen tabloyu gözden geçirin, şema değişikliğini onaylayın ve connector'ı manuel olarak yeniden başlatın.",
   cdc_events_empty: "Henüz değişiklik olayı yok.",
   cdc_connectors_empty: "Henüz connector bulunamadı.",
 };
