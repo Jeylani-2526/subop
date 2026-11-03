@@ -32,6 +32,42 @@ _PARAM_TYPE = "__debezium.source.column.type"
 _PARAM_LENGTH = "__debezium.source.column.length"
 _PARAM_SCALE = "__debezium.source.column.scale"
 
+# Serial types are declaration shorthand for an integer plus a sequence
+# default. Captured in M7W26T1: Debezium's snapshot phase reported `id` as
+# BIGSERIAL and its streaming phase as INT8, halting the table on the first
+# streamed change. Both describe the same stored type.
+_TYPE_ALIASES = {
+    "BIGSERIAL": "INT8",
+    "SERIAL8": "INT8",
+    "SERIAL": "INT4",
+    "SERIAL4": "INT4",
+    "SMALLSERIAL": "INT2",
+    "SERIAL2": "INT2",
+}
+
+# Debezium reports length and scale for every column, e.g. INT8(19,0) and
+# TIMESTAMPTZ(35,6), where 19 and 35 are display widths rather than declared
+# modifiers. These sets record which part means something per type. A type in
+# none of them keeps both, so an unclassified type never loses information.
+_KEEP_NEITHER = frozenset(
+    {
+        "INT2",
+        "INT4",
+        "INT8",
+        "FLOAT4",
+        "FLOAT8",
+        "BOOL",
+        "TEXT",
+        "DATE",
+        "UUID",
+        "JSON",
+        "JSONB",
+        "BYTEA",
+    }
+)
+_KEEP_LENGTH = frozenset({"VARCHAR", "BPCHAR", "CHAR", "BIT", "VARBIT"})
+_KEEP_SCALE = frozenset({"TIME", "TIMETZ", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL"})
+
 TYPE_MODE_NATIVE = "native"
 TYPE_MODE_CONNECT = "connect"
 TYPE_MODE_MIXED = "mixed"
@@ -216,19 +252,42 @@ def _row_fields(message: Any) -> list:
     )
 
 
+def _native_type_string(native: str, length: Any, scale: Any) -> str:
+    # Lookups are case-insensitive but the output keeps the source's case, so
+    # NUMERIC and numeric still compare as different. Folding case was not
+    # adopted: the M7W26T1 captures showed no case variation to correct.
+    key = native.upper()
+    canonical = _TYPE_ALIASES.get(key)
+    if canonical is not None:
+        native = canonical.lower() if native.islower() else canonical
+        key = canonical
+
+    if key in _KEEP_NEITHER:
+        return native
+    if key in _KEEP_LENGTH:
+        return f"{native}({length})" if length is not None else native
+    if key in _KEEP_SCALE:
+        return f"{native}({scale})" if scale is not None else native
+
+    if length is not None and scale is not None:
+        return f"{native}({length},{scale})"
+    if length is not None:
+        return f"{native}({length})"
+    return native
+
+
 def _column_type(field: Dict[str, Any]) -> Tuple[str, bool]:
     """Return (type string, whether it came from a propagated native type)."""
     params = field.get("parameters")
     native = params.get(_PARAM_TYPE) if isinstance(params, dict) else None
 
     if isinstance(native, str) and native:
-        length = params.get(_PARAM_LENGTH)
-        scale = params.get(_PARAM_SCALE)
-        if length is not None and scale is not None:
-            return f"{native}({length},{scale})", True
-        if length is not None:
-            return f"{native}({length})", True
-        return native, True
+        return (
+            _native_type_string(
+                native, params.get(_PARAM_LENGTH), params.get(_PARAM_SCALE)
+            ),
+            True,
+        )
 
     # Connect vocabulary. The semantic name is preferred over the base type
     # where present, since io.debezium.time.ZonedTimestamp says more than

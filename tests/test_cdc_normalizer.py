@@ -1,20 +1,3 @@
-"""
-tests/test_cdc_normalizer.py — M7W23T5.
-
-Covers services/cdc/normalizer.py: envelope normalisation (M7W23T3) and
-schema drift detection (M7W23T4).
-
-Runs entirely from recorded JSON under tests/fixtures/cdc/. No live Kafka,
-Debezium or PostgreSQL connection — deliberate, because ci.yml's postgres:15
-service has no command: override and so runs at wal_level=replica, which
-cannot support logical decoding. Any test needing a real CDC connection
-would turn develop red on the first push.
-
-Expected values are read out of the fixtures rather than hardcoded, so
-M7W23T13's captured envelopes replace insert.json / update.json /
-delete.json without a single edit here.
-"""
-
 from __future__ import annotations
 
 import json
@@ -38,15 +21,15 @@ from services.connectors.errors import QueryError
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "cdc"
 
-# Captured from a live connector by M7W23T13. Placeholders of the same shape
-# are committed so this suite is runnable before that task lands.
+# Captured from a live connector in M7W26T1.
 CAPTURED = {
     "insert": ("insert.json", "insert"),
     "update": ("update.json", "update"),
     "delete": ("delete.json", "delete"),
 }
 
-# Hand-authored. Each changes the schema block one way against insert.json.
+# Derived from the real insert.json by infrastructure/scripts/
+# derive_cdc_fixtures.py, each with exactly one schema change applied.
 DRIFT_FIXTURES = {
     "column_added": "drift_column_added.json",
     "column_dropped": "drift_column_dropped.json",
@@ -56,8 +39,24 @@ DRIFT_FIXTURES = {
     "numeric_rescaled": "drift_numeric_rescaled.json",
 }
 
+# The whole difference each fixture must produce, not merely that drift was
+# raised. pytest.raises alone passed while every fixture also differed from
+# the real capture on all six columns by type-name case.
+EXPECTED_DRIFT = {
+    "column_added": {"added": ["discount"]},
+    "column_dropped": {"dropped": ["updated_at"]},
+    "column_renamed": {"added": ["order_status"], "dropped": ["status"]},
+    "type_changed": {"changed": {"status": ("VARCHAR(32)", "TEXT")}},
+    "column_widened": {"changed": {"status": ("VARCHAR(32)", "VARCHAR(64)")}},
+    "numeric_rescaled": {"changed": {"amount": ("NUMERIC(12,2)", "NUMERIC(14,4)")}},
+}
+
+# Debezium's initial-snapshot read, captured live. Its schema block names the
+# id column BIGSERIAL where the streaming envelopes say INT8.
+SNAPSHOT_CAPTURE = "snapshot_event.json"
+
 OTHER_FIXTURES = (
-    "snapshot_read.json",
+    SNAPSHOT_CAPTURE,
     "truncate.json",
     "ts_ms_source_vs_processing.json",
     "connect_types_only.json",
@@ -131,7 +130,7 @@ def test_table_is_schema_qualified(captured: CapturedCase):
 
 
 def test_snapshot_op_is_recognised():
-    assert normalize(load("snapshot_read.json"))["op"] == "snapshot"
+    assert normalize(load(SNAPSHOT_CAPTURE))["op"] == "snapshot"
 
 
 def test_before_is_null_on_insert():
@@ -326,6 +325,23 @@ def test_native_snapshot_records_length_and_scale():
     assert "," in snapshot["amount"], snapshot["amount"]
 
 
+def test_native_snapshot_keeps_only_meaningful_modifiers():
+    """Debezium emits INT8(19,0) and TIMESTAMPTZ(35,6); 19 and 35 are display
+    widths. Pinned exactly so a change to the format is a visible decision."""
+    assert extract_schema_snapshot(load("insert.json")) == {
+        "id": "INT8",
+        "customer_id": "INT8",
+        "status": "VARCHAR(32)",
+        "amount": "NUMERIC(12,2)",
+        "created_at": "TIMESTAMPTZ(6)",
+        "updated_at": "TIMESTAMPTZ(6)",
+    }
+
+
+def test_serial_alias_resolves_to_the_stored_type():
+    assert extract_schema_snapshot(load(SNAPSHOT_CAPTURE))["id"] == "INT8"
+
+
 def test_snapshot_needs_the_schema_block():
     with pytest.raises(QueryError) as excinfo:
         extract_schema_snapshot(load("insert.json")["payload"])
@@ -366,6 +382,64 @@ def test_drift_raises_the_design_note_error(label, detector: SchemaDriftDetector
     assert error.connector_type == "streaming"
     assert error.retryable is False
     assert TABLE in error.message
+
+
+@pytest.mark.parametrize("label", sorted(DRIFT_FIXTURES))
+def test_drift_fixture_differs_in_exactly_the_documented_way(label):
+    baseline = extract_schema_snapshot(load("insert.json"))
+    current = extract_schema_snapshot(load(DRIFT_FIXTURES[label]))
+    assert describe_drift(baseline, current) == EXPECTED_DRIFT[label]
+
+
+# ---------------------------------------------------------------------------
+# Snapshot-to-streaming regression — M7W26T2. Debezium reads the table once at
+# connector start, then streams; both phases describe the same table and must
+# not be mistaken for a schema change.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("filename", sorted(name for name, _ in CAPTURED.values()))
+def test_real_snapshot_and_streaming_schemas_agree(filename):
+    baseline = extract_schema_snapshot(load(SNAPSHOT_CAPTURE))
+    current = extract_schema_snapshot(load(filename))
+    assert describe_drift(baseline, current) == {}
+
+
+def test_snapshot_then_streaming_does_not_halt(detector: SchemaDriftDetector):
+    """The sequence a live connector produces. Before M7W26T2 the first
+    streamed change halted cdc_demo.orders on BIGSERIAL -> INT8."""
+    detector.process(load(SNAPSHOT_CAPTURE))
+    for filename in ("insert.json", "update.json", "delete.json"):
+        detector.process(load(filename))
+
+
+def test_type_name_case_is_not_folded():
+    """No case variation appeared in the real captures, so none is corrected.
+    A mixed-case source shows up as drift rather than being absorbed."""
+    message = load("insert.json")
+    for struct in message["schema"]["fields"]:
+        for field in struct.get("fields") or []:
+            if field.get("field") == "amount":
+                field["parameters"]["__debezium.source.column.type"] = "numeric"
+    drift = describe_drift(
+        extract_schema_snapshot(load("insert.json")),
+        extract_schema_snapshot(message),
+    )
+    assert drift == {"changed": {"amount": ("NUMERIC(12,2)", "numeric(12,2)")}}
+
+
+def test_timestamp_precision_change_is_still_detected():
+    """Dropping the display width must not drop the fractional precision."""
+    message = load("insert.json")
+    for struct in message["schema"]["fields"]:
+        for field in struct.get("fields") or []:
+            if field.get("field") == "created_at":
+                field["parameters"]["__debezium.source.column.scale"] = "3"
+    drift = describe_drift(
+        extract_schema_snapshot(load("insert.json")),
+        extract_schema_snapshot(message),
+    )
+    assert drift == {"changed": {"created_at": ("TIMESTAMPTZ(6)", "TIMESTAMPTZ(3)")}}
 
 
 def test_renamed_column_is_explained_as_drop_plus_add(
@@ -451,9 +525,10 @@ def test_connect_only_fixture_reports_connect_mode():
 def test_without_propagation_a_widening_is_invisible(
     detector: SchemaDriftDetector,
 ):
-    """Both fixtures describe status as Connect type "string" — one at
-    varchar(32), one at varchar(64). No drift is detectable, which is why
-    T12 sets column.propagate.source.type."""
+    """Both fixtures describe status as Connect type "string" — one derived
+    from VARCHAR(32), one from a genuinely widened VARCHAR(64). No drift is
+    detectable, which is why T12 sets column.propagate.source.type."""
+    assert load("connect_types_only.json") != load("connect_types_only_widened.json")
     detector.check(load("connect_types_only.json"))
     detector.check(load("connect_types_only_widened.json"))
 
