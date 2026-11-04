@@ -32,6 +32,42 @@ _PARAM_TYPE = "__debezium.source.column.type"
 _PARAM_LENGTH = "__debezium.source.column.length"
 _PARAM_SCALE = "__debezium.source.column.scale"
 
+# Serial types are declaration shorthand for an integer plus a sequence
+# default. Captured in M7W26T1: Debezium's snapshot phase reported `id` as
+# BIGSERIAL and its streaming phase as INT8, halting the table on the first
+# streamed change. Both describe the same stored type.
+_TYPE_ALIASES = {
+    "BIGSERIAL": "INT8",
+    "SERIAL8": "INT8",
+    "SERIAL": "INT4",
+    "SERIAL4": "INT4",
+    "SMALLSERIAL": "INT2",
+    "SERIAL2": "INT2",
+}
+
+# Debezium reports length and scale for every column, e.g. INT8(19,0) and
+# TIMESTAMPTZ(35,6), where 19 and 35 are display widths rather than declared
+# modifiers. These sets record which part means something per type. A type in
+# none of them keeps both, so an unclassified type never loses information.
+_KEEP_NEITHER = frozenset(
+    {
+        "INT2",
+        "INT4",
+        "INT8",
+        "FLOAT4",
+        "FLOAT8",
+        "BOOL",
+        "TEXT",
+        "DATE",
+        "UUID",
+        "JSON",
+        "JSONB",
+        "BYTEA",
+    }
+)
+_KEEP_LENGTH = frozenset({"VARCHAR", "BPCHAR", "CHAR", "BIT", "VARBIT"})
+_KEEP_SCALE = frozenset({"TIME", "TIMETZ", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL"})
+
 TYPE_MODE_NATIVE = "native"
 TYPE_MODE_CONNECT = "connect"
 TYPE_MODE_MIXED = "mixed"
@@ -151,6 +187,15 @@ def _row(payload: Dict[str, Any], key: str) -> Optional[Dict[str, Any]]:
     return value
 
 
+def message_table(message: Any) -> str:
+    """Schema-qualified table a message belongs to, without validating op.
+
+    The consumer needs the table to scope a halt even when the message itself
+    is the reason for halting, e.g. a TRUNCATE that normalize() rejects.
+    """
+    return _qualified_table(_source_block(extract_payload(message)))
+
+
 def normalize(message: Any) -> Dict[str, Any]:
     """Map one Debezium envelope onto {op, table, before, after, ts_ms}.
 
@@ -216,19 +261,42 @@ def _row_fields(message: Any) -> list:
     )
 
 
+def _native_type_string(native: str, length: Any, scale: Any) -> str:
+    # Lookups are case-insensitive but the output keeps the source's case, so
+    # NUMERIC and numeric still compare as different. Folding case was not
+    # adopted: the M7W26T1 captures showed no case variation to correct.
+    key = native.upper()
+    canonical = _TYPE_ALIASES.get(key)
+    if canonical is not None:
+        native = canonical.lower() if native.islower() else canonical
+        key = canonical
+
+    if key in _KEEP_NEITHER:
+        return native
+    if key in _KEEP_LENGTH:
+        return f"{native}({length})" if length is not None else native
+    if key in _KEEP_SCALE:
+        return f"{native}({scale})" if scale is not None else native
+
+    if length is not None and scale is not None:
+        return f"{native}({length},{scale})"
+    if length is not None:
+        return f"{native}({length})"
+    return native
+
+
 def _column_type(field: Dict[str, Any]) -> Tuple[str, bool]:
     """Return (type string, whether it came from a propagated native type)."""
     params = field.get("parameters")
     native = params.get(_PARAM_TYPE) if isinstance(params, dict) else None
 
     if isinstance(native, str) and native:
-        length = params.get(_PARAM_LENGTH)
-        scale = params.get(_PARAM_SCALE)
-        if length is not None and scale is not None:
-            return f"{native}({length},{scale})", True
-        if length is not None:
-            return f"{native}({length})", True
-        return native, True
+        return (
+            _native_type_string(
+                native, params.get(_PARAM_LENGTH), params.get(_PARAM_SCALE)
+            ),
+            True,
+        )
 
     # Connect vocabulary. The semantic name is preferred over the base type
     # where present, since io.debezium.time.ZonedTimestamp says more than
@@ -304,6 +372,12 @@ class SchemaDriftDetector:
     def baseline(self, table: str) -> Optional[Dict[str, str]]:
         snapshot = self._baselines.get(table)
         return dict(snapshot) if snapshot is not None else None
+
+    def restore(self, table: str, snapshot: Dict[str, str]) -> None:
+        """Reinstate a persisted baseline (M7W26T3). Without this, a restart
+        forgets the baseline and the first post-ALTER message silently
+        becomes the new one, un-halting a drifted table."""
+        self._baselines[table] = dict(snapshot)
 
     def reset(self, table: Optional[str] = None) -> None:
         """Drop a stored baseline, re-establishing it from the next message.

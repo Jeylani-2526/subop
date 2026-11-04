@@ -315,7 +315,20 @@ def _parse_args(argv=None):
     return parser.parse_args(argv)
 
 
+def _load_dotenv() -> None:
+    # M7W26T1 Finding 6: SUBOP_CONN_PG_MAIN lives in .env, which nothing loaded
+    # for a host-run script. Exported values still win over the file.
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    from pathlib import Path
+
+    load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
+
+
 def main(argv=None) -> int:
+    _load_dotenv()
     args = _parse_args(argv)
     conn = None
     try:

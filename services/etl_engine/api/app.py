@@ -50,6 +50,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# M7W26T6 — CDC status routes, base /api/cdc. Mounted here rather than in a
+# second app, so the dashboard reaches them on the same base URL.
+from services.cdc.api import router as cdc_router  # noqa: E402
+
+app.include_router(cdc_router)
+
 
 def _error_envelope(
     error_code: str,
