@@ -97,5 +97,7 @@ export const CDC_CONNECTOR_STATUSES: CDCConnectorStatus[] = [
     state: "RUNNING",
     last_event_ts_ms: DELETE_MS,
     lag_ms: null,
+    drift_state: "none",
+    halted_tables: [],
   },
 ];
