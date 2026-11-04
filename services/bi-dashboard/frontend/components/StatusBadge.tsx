@@ -13,7 +13,9 @@ interface StatusBadgeProps {
     | "PAUSED"
     | "FAILED"
     | "UNASSIGNED"
-    | "DESTROYED";
+    | "DESTROYED"
+    | "RESTARTING"
+    | "STOPPED";
   label?: string;
   size?: "default" | "compact";
 }
@@ -94,6 +96,17 @@ const STATUS_CONFIG: Record<
     bg: "var(--color-danger-bg)",
     color: "var(--color-danger)",
     defaultLabel: "Destroyed",
+  },
+  // M7W26T6: Kafka Connect ek durumlar (contract Section 2)
+  RESTARTING: {
+    bg: "var(--color-warning-bg)",
+    color: "var(--color-warning)",
+    defaultLabel: "Restarting",
+  },
+  STOPPED: {
+    bg: "var(--color-row-alt)",
+    color: "var(--color-secondary)",
+    defaultLabel: "Stopped",
   },
 };
 

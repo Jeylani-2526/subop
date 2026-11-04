@@ -5,6 +5,7 @@ import { useT } from "./src/i18n/LanguageProvider";
 import type { TranslationKey } from "./src/i18n/tr";
 import { getCDCEvents, getAllCDCConnectorStatuses } from "./api/cdcClient";
 import type { CDCChangeEvent, CDCConnectorStatus } from "./api/cdcClient";
+import type { CDCTableStatus } from "./api/cdcTypes";
 
 // ─── Yardımcı ─────────────────────────────────────────
 
@@ -34,18 +35,23 @@ function useWindowWidth() {
 }
 
 // ─── HaltedTablesBanner ───────────────────────────────
-// M7W26T7: drift_state = "CDC_SCHEMA_DRIFT_DETECTED" olduğunda
-// hangi tabloların durduğunu ve neden durduğunu açıkça göster.
-// StatusBadge'in mevcut FAILED rengi (--color-error) kullanılır —
-// yeni bir renk sözcüğü eklenmez.
+// M7W26T7 (düzeltildi M7W26 fix): Her durdurulan tablo için halt nedenini
+// ayrı ayrı göster. drift_state === "CDC_SCHEMA_DRIFT_DETECTED" ise drift
+// metni; aksi hâlde tables[i].halt_error_code + halt_reason (contract Section 4).
 
 function HaltedTablesBanner({
   halted_tables,
+  drift_state,
+  tables,
   t,
 }: {
   halted_tables: string[];
+  drift_state: string | null;
+  tables: CDCTableStatus[];
   t: (k: TranslationKey) => string;
 }) {
+  const isDrift = drift_state === "CDC_SCHEMA_DRIFT_DETECTED";
+
   return (
     <div
       style={{
@@ -56,17 +62,11 @@ function HaltedTablesBanner({
         marginBottom: "12px",
         display: "flex",
         flexDirection: "column",
-        gap: "6px",
+        gap: "8px",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-        }}
-      >
-        {/* StatusBadge'in FAILED rengiyle tutarlı kırmızı nokta */}
+      {/* Başlık */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <span
           style={{
             width: "8px",
@@ -86,32 +86,107 @@ function HaltedTablesBanner({
           {t("cdc_drift_detected_label")}
         </span>
       </div>
-      <div
-        style={{
-          fontSize: "11px",
-          color: "var(--color-text-muted)",
-        }}
-      >
-        {t("cdc_drift_reason")}
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-        {halted_tables.map((tbl) => (
-          <span
-            key={tbl}
+
+      {/* Drift ise tek genel açıklama; değilse her tablo için ayrı satır */}
+      {isDrift ? (
+        <>
+          <div style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
+            {t("cdc_drift_reason")}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {halted_tables.map((tbl) => (
+              <span
+                key={tbl}
+                style={{
+                  fontSize: "11px",
+                  fontFamily: "monospace",
+                  backgroundColor: "var(--color-row-alt)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "4px",
+                  padding: "2px 8px",
+                  color: "var(--color-text)",
+                }}
+              >
+                {tbl}
+              </span>
+            ))}
+          </div>
+          <div
             style={{
               fontSize: "11px",
-              fontFamily: "monospace",
-              backgroundColor: "var(--color-row-alt)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "4px",
-              padding: "2px 8px",
-              color: "var(--color-text)",
+              color: "var(--color-text-muted)",
+              marginTop: "2px",
             }}
           >
-            {tbl}
-          </span>
-        ))}
-      </div>
+            {t("cdc_drift_resolution_hint")}
+          </div>
+        </>
+      ) : (
+        // Drift dışı halt: her durdurulan tablo için hata kodu + açıklama
+        halted_tables.map((tblName) => {
+          const tblStatus = tables.find((t) => t.table === tblName);
+          return (
+            <div
+              key={tblName}
+              style={{
+                backgroundColor: "var(--color-row-alt)",
+                borderRadius: "4px",
+                padding: "6px 10px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "2px",
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+              >
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontFamily: "monospace",
+                    color: "var(--color-text)",
+                    fontWeight: 600,
+                  }}
+                >
+                  {tblName}
+                </span>
+                {tblStatus?.halt_error_code && (
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontFamily: "monospace",
+                      color: "var(--color-error, #dc2626)",
+                      backgroundColor:
+                        "var(--color-error-bg, rgba(220,38,38,0.08))",
+                      border: "1px solid var(--color-error, #dc2626)",
+                      borderRadius: "3px",
+                      padding: "1px 6px",
+                    }}
+                  >
+                    {tblStatus.halt_error_code}
+                  </span>
+                )}
+              </div>
+              {tblStatus?.halt_reason && (
+                <div
+                  style={{ fontSize: "11px", color: "var(--color-text-muted)" }}
+                >
+                  {tblStatus.halt_reason}
+                </div>
+              )}
+              {tblStatus?.halted_at && (
+                <div
+                  style={{ fontSize: "10px", color: "var(--color-text-muted)" }}
+                >
+                  {new Date(tblStatus.halted_at).toLocaleString()}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+
+      {/* Manuel çözüm ipucu — her durumda göster */}
       <div
         style={{
           fontSize: "11px",
@@ -387,9 +462,16 @@ export default function CDCPage() {
     getAllCDCConnectorStatuses().then(setConnectors).catch(console.error);
   }, []);
 
-  // Herhangi bir connector'da halted tablo varsa tüm liste toplanır —
-  // Zone 2 (event feed) üstünde tek bir banner gösterilir.
+  // Herhangi bir connector'da halted tablo varsa tüm liste toplanır.
+  // tables[] da birleştiriliyor — banner'ın halt_error_code'a erişmesi için.
   const haltedTables = connectors.flatMap((c) => c.halted_tables ?? []);
+  const allTables = connectors.flatMap((c) => c.tables ?? []);
+  // drift_state: en az bir connector'da CDC_SCHEMA_DRIFT_DETECTED varsa
+  const driftState = connectors.some(
+    (c) => c.drift_state === "CDC_SCHEMA_DRIFT_DETECTED",
+  )
+    ? "CDC_SCHEMA_DRIFT_DETECTED"
+    : "none";
 
   return (
     <AppShell pageTitle={t("page_title_cdc")} userRole="admin">
@@ -504,9 +586,14 @@ export default function CDCPage() {
             {t("cdc_event_feed_title")}
           </div>
 
-          {/* M7W26T7: Halted tables banner — drift tespit edildiğinde göster */}
+          {/* M7W26T7 (düzeltildi): Halted tables banner */}
           {haltedTables.length > 0 && (
-            <HaltedTablesBanner halted_tables={haltedTables} t={t} />
+            <HaltedTablesBanner
+              halted_tables={haltedTables}
+              drift_state={driftState}
+              tables={allTables}
+              t={t}
+            />
           )}
 
           {/* Pending notice — W27 live swap'a kadar göster */}
@@ -666,7 +753,6 @@ export default function CDCPage() {
                       {c.lag_ms != null ? `${c.lag_ms} ms` : "—"}
                     </span>
                   </div>
-                  {/* M7W26T7: Kart görünümünde halted tablo uyarısı */}
                   {c.halted_tables && c.halted_tables.length > 0 && (
                     <div
                       style={{
@@ -738,7 +824,6 @@ export default function CDCPage() {
                   >
                     {c.lag_ms != null ? `${c.lag_ms} ms` : "—"}
                   </span>
-                  {/* M7W26T7: Halted tablo — null veya boş array ise "—" göster */}
                   <span
                     style={{
                       fontSize: "11px",
