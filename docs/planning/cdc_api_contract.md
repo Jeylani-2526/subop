@@ -46,6 +46,10 @@ export interface CDCConnectorStatus {
   last_event_ts_ms: number | null;  // latest across tables
   lag_ms: number | null;            // always null until M8
 
+  // Added by M7W26T7 (Beyza, 3 Nov) — served exactly as declared
+  drift_state: DriftState;          // "none" | "CDC_SCHEMA_DRIFT_DETECTED"; never null from the API
+  halted_tables: string[] | null;   // every halted table, for ANY reason; [] when none
+
   // M7W26T6 additions
   task_state: ConnectorState | null; // null = connector RUNNING but no task: reads nothing
   events_processed: number;          // sum across tables
@@ -54,6 +58,12 @@ export interface CDCConnectorStatus {
   latency: null;                     // reserved for M8's five measurement points
 }
 ```
+
+**`halted_tables` and `drift_state` measure different things.** A table can halt
+for a reason other than drift: a TRUNCATE (`CDC_UNSUPPORTED_OPERATION`) or a
+warehouse write failure. Such a table **is** in `halted_tables`, but
+`drift_state` stays `"none"`. For the reason, read
+`tables[i].halt_error_code` / `halt_reason`.
 
 `ConnectorState` may need widening: Kafka Connect can also report
 `"RESTARTING"` and `"STOPPED"`, which the current union lacks.
@@ -93,6 +103,8 @@ export interface CDCConnectorStatus {
       "halted_at": null
     }
   ],
+  "halted_tables": ["cdc_demo.orders"],
+  "drift_state": "CDC_SCHEMA_DRIFT_DETECTED",
   "lag_ms": null,
   "latency": null
 }
@@ -118,9 +130,15 @@ A halt is **per table**, not per connector. The connector stays `RUNNING` and
 the other tables keep flowing, so the page must read `tables[].halted` and not
 infer anything from `state`.
 
+The merged `HaltedTablesBanner` reads `halted_tables`, which works as served.
+One gap: the banner always shows the drift reason (`cdc_drift_reason`), which
+is wrong for a TRUNCATE or write-failure halt. Show the drift text only when
+`drift_state === "CDC_SCHEMA_DRIFT_DETECTED"`. Otherwise show the table's
+`halt_error_code`.
+
 | What the UI should show | Condition |
 |---|---|
-| Table halted, needs manual resolution | `tables[i].halted === true` — show `table`, `halt_error_code`, `halt_reason`, `halted_at` |
+| Table halted, needs manual resolution | `tables[i].halted === true` (or the name is in `halted_tables`) — show `table`, `halt_error_code`, `halt_reason`, `halted_at` |
 | Connector registered, no events yet | `events_processed === 0` and nothing halted |
 | Connector running but capturing nothing | `state === "RUNNING"` and `task_state === null` |
 
@@ -152,7 +170,24 @@ Section 2). They are present now so the response shape doesn't change when
 they fill in. Keep the existing `!= null` checks and the "—" fallback. The
 HomePage CDC Latency card stays on its dash, per M7W27T7.
 
-## 7. Deviations recorded
+## 7. Reconciliation with the M7W26T7 commit (`98812b7`, 3 Nov 10:17)
+
+Beyza's T7/T8 commit predates this contract, so it declared its own fields.
+Reconciled on 4 November:
+
+- **Kept as declared:** the endpoint serves `drift_state` and `halted_tables`,
+  so the merged UI needs no rework.
+- **Build is broken on `develop`.** `cdcTypes.ts` made both fields required, but
+  `cdcFixtures.ts` wasn't updated, so `tsc -b` (and so `npm run build`) fails
+  with TS2739. It passed at `a200c0a`. Verified fix, two lines in the fixture:
+  ```ts
+  drift_state: "none",
+  halted_tables: [],
+  ```
+  CI didn't catch it because no workflow builds the frontend.
+- **Banner reason:** see Section 4. Not every halt is drift.
+
+## 8. Deviations recorded
 
 - **Location.** The plan named `services/bi-dashboard/` for this task. That
   directory holds only an M9 README, and the dashboard already calls `subop-api`
