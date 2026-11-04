@@ -323,9 +323,8 @@ volumes were recreated under the folder-derived name:
  ✔ Volume suboprepo_mysql_data    Created
 ```
 
-**Status:** open. **Owner:** Abdalla. **Resolution path:** add
-`COMPOSE_PROJECT_NAME=subop` to `.env` and `.env.example` under M7W26T5, which
-already edits the Compose configuration, and apply it at that task's rebuild.
+**Status:** ✅ resolved in M7W26T5. `COMPOSE_PROJECT_NAME=subop` added to
+`.env` and `.env.example`; the T5 rebuild created `subop_*` volumes (Section 12).
 
 ### Finding 3 — Verification script read an unready Connect as a pass (self-inflicted)
 
@@ -355,8 +354,9 @@ It matters beyond noise: `subop-api` depends on all four databases with
 `condition: service_healthy`, and M7W26T6's status endpoint must be reachable
 on a cold start.
 
-**Status:** open. **Owner:** Abdalla. **Resolution path:** add a
-`start_period` to the MySQL healthcheck under M7W26T5.
+**Status:** ✅ resolved in M7W26T5. `start_period: 60s` added. On the T5
+rebuild MySQL reported healthy at 69.8s, `up -d` exited 0, and `subop-api`
+started (Section 12).
 
 ### Finding 5 — Connector RUNNING with no task
 
@@ -382,11 +382,11 @@ containers; a script run on the host sees only the shell's environment.
 **Resolution for this run:** both connection refs added to `.env`, then
 `set -a; source .env; set +a` in the shell.
 
-**Status:** open. **Owner:** Abdalla. A script that silently depends on the
-developer having sourced `.env` by hand will fail the same way in M7W27T1 and
-for every teammate. `python-dotenv` is already installed as a uvicorn
-dependency, so loading it in the CLI entry points is a small change. Decide at
-M7W26T3, which adds the next host-run entry point.
+**Status:** ✅ resolved. M7W26T3 made `services/cdc/kafka_consumer.py` load
+`.env` itself through `python-dotenv`, now an explicit dependency in
+`requirements-dev.txt` rather than an indirect uvicorn extra. M7W26T4 added
+the same loading to `cdc_demo_changes.py`. Values already exported in the
+shell still take precedence.
 
 ### Finding 7 — The CDC topic is named three different ways
 
@@ -396,8 +396,10 @@ The topic is `subop-postgres-cdc.cdc_demo.orders` (Section 7), derived from
 `KAFKA_TOPIC_CDC_EVENTS=subop-cdc-events`. The connector config is
 authoritative because it is what runs.
 
-**Status:** open. **Owner:** Abdalla. **Resolution path:** correct
-`.env.example` under M7W26T5. M7W26T3 consumes the real name.
+**Status:** ✅ resolved in M7W26T5. `KAFKA_TOPIC_CDC_EVENTS`, which no code
+read, is replaced by `KAFKA_TOPIC_CDC_PATTERN='^subop-postgres-cdc\.cdc_demo\..*'`.
+A pattern rather than one name, since Debezium writes one topic per table and
+there are now two. M7W26T3 subscribes by this pattern.
 
 ### Finding 8 — The plan's three-defect diagnosis was two-thirds wrong
 
@@ -451,8 +453,185 @@ not three, and the green suite was hiding a fixture set that no longer
 described reality. Both were corrected in M7W26T2, designed against the
 captures above.
 
-Four findings remain open with a named owner: the Compose project name (2), the
-MySQL `start_period` (4), `.env` loading for host scripts (6), and the topic
-name in `.env.example` (7). Three of them fold into M7W26T5.
+Of the four findings left open at capture, M7W26T5 resolved three (2, 4, 7),
+and M7W26T3 and M7W26T4 resolved the fourth (6). No findings from the capture
+remain open.
 
 **Gate on M7W26T2:** ✅ released.
+
+## 12. M7W26T5 — Rebuild With Persistent Broker State
+
+Run on 3 November 2026 after M7W26T5's changes: broker volumes, a second
+published table, the MySQL `start_period`, and `COMPOSE_PROJECT_NAME=subop`.
+
+### 12.1 Clean rebuild
+
+`docker compose up -d` exited 0 for the first time in this record. All
+volumes were created under the `subop_` prefix, including the three new ones:
+
+```
+ ✔ Volume subop_zookeeper_data Created
+ ✔ Volume subop_zookeeper_log  Created
+ ✔ Volume subop_postgres_data  Created
+ ✔ Volume subop_kafka_data     Created
+ ✔ Container subop-mysql       Healthy                                         69.8s
+ ✔ Container subop-kafka       Healthy                                        137.8s
+ ✔ Container subop-api         Started                                        162.3s
+```
+
+Connect REST responded after ~75s. Prerequisite checks against two tables:
+
+```
+--- CHECK 3 — published tables ---
+    pubname    | schemaname | tablename |                       attnames
+---------------+------------+-----------+------------------------------------------------------
+ subop_cdc_pub | cdc_demo   | orders    | {id,customer_id,status,amount,created_at,updated_at}
+ subop_cdc_pub | cdc_demo   | customers | {id,name,city,created_at,updated_at}
+(2 rows)
+
+--- CHECK 5 — replica identity ---
+ nspname  |  relname  | relreplident
+----------+-----------+--------------
+ cdc_demo | customers | f
+ cdc_demo | orders    | f
+(2 rows)
+
+--- CHECK 6 — seed rows ---
+    tbl    | seed_rows
+-----------+-----------
+ orders    |         3
+ customers |         3
+(2 rows)
+
+--- CHECK 7 — CDC role SELECT grant ---
+ orders | customers
+--------+-----------
+ t      | t
+(1 row)
+```
+
+Checks 1, 2 and 4 unchanged from Section 3. Init-script log: both
+`CREATE TABLE` / `ALTER TABLE` / `INSERT 0 3` triples ran, then
+`CREATE PUBLICATION`. Script summary: `All checks PASS.`
+
+### 12.2 Connector and topics
+
+```
+$ curl -s http://localhost:8083/connectors/subop-postgres-cdc/status
+{"name":"subop-postgres-cdc","connector":{"state":"RUNNING","worker_id":"172.19.0.9:8083","version":"3.6.3.Final"},"tasks":[{"id":0,"state":"RUNNING","worker_id":"172.19.0.9:8083","version":"3.6.3.Final"}],"type":"source"}
+
+$ docker compose exec -T kafka kafka-topics --bootstrap-server localhost:29092 --list
+__consumer_offsets
+subop-connect-configs
+subop-connect-offsets
+subop-connect-status
+subop-postgres-cdc.cdc_demo.customers
+subop-postgres-cdc.cdc_demo.orders
+```
+
+Connector and task both RUNNING within 20 seconds of registration — Finding 5's
+empty task list did not recur. One topic per published table.
+
+### 12.3 Persistence across a restart
+
+The test this task exists for: `docker compose down` **without** `-v`, which
+before M7W26T5 destroyed all Kafka data while PostgreSQL's replication slot
+survived in its volume.
+
+```
+$ docker compose exec -T kafka kafka-get-offsets --bootstrap-server localhost:29092 --topic subop-postgres-cdc.cdc_demo.customers
+subop-postgres-cdc.cdc_demo.customers:0:3
+$ docker compose down
+[+] down 11/11
+ ✔ Container subop-connect   Removed
+ ✔ Container subop-kafka     Removed
+ ✔ Container subop-postgres  Removed
+ ✔ Container subop-zookeeper Removed
+ ...
+$ docker compose up -d
+ ✔ Container subop-kafka     Healthy                                           99.8s
+ ✔ Container subop-connect   Started                                          101.3s
+$ sleep 90
+$ curl -s http://localhost:8083/connectors
+["subop-postgres-cdc"]
+$ docker compose exec -T kafka kafka-get-offsets --bootstrap-server localhost:29092 --topic subop-postgres-cdc.cdc_demo.customers
+subop-postgres-cdc.cdc_demo.customers:0:3
+```
+
+| Check | Expected | Actual | Result |
+|---|---|---|---|
+| Connector survives container removal | listed with no re-registration | `["subop-postgres-cdc"]` | PASS |
+| No re-snapshot | customers offset unchanged | 3 → 3 | PASS |
+
+Before M7W26T5 the connector list would have been `[]` and a re-registration
+would have re-snapshotted, pushing the offset to 6.
+
+### 12.4 Deviation from the closure checklist wording
+
+The checklist reads *"Kafka, Zookeeper and Connect declare volumes."* Connect
+does not. It runs in distributed mode, so its offsets, connector configs and
+status live in the three `subop-connect-*` topics, persisted by `kafka_data`.
+A volume on the Connect container would hold only logs. Section 12.3 is the
+evidence that the requirement's purpose is met. The wording is corrected in
+M7W27T2 rather than satisfied with a volume that does nothing.
+
+### 12.5 Minor observation — API image build context
+
+The project-name change forced a rebuild of the `subop-api` image (now
+`subop-subop-api`). The build sent an 89 MB context, taking 79 seconds, because
+`.dockerignore` is effectively empty (`transferring context: 2B`). Not
+blocking; noted for whoever next touches `infrastructure/docker/`.
+
+## 13. M7W26T4 — Warehouse Upsert Decisions
+
+Recorded here because the Week 26–27 plan requires the delete decision to be
+"stated in the verification record rather than assumed". M7W27T1's end-to-end
+record restates it against a live run.
+
+| Decision | Choice | Why |
+|---|---|---|
+| Target tables | Hand-written `warehouse.orders` and `warehouse.customers`, created at consumer start with `CREATE TABLE IF NOT EXISTS` | M7 must not depend on M8's metadata-driven schema generation. Created at start rather than by an init script, so no volume rebuild is needed. |
+| Write path | One `INSERT ... ON CONFLICT ... DO UPDATE` per event through `AbstractionLayer.execute_write` | Milestone 5's criterion: never a direct connection. One statement because the Postgres connector commits after each `execute_write`. |
+| Ordering key | **Primary key + LSN**, with `ts_ms` kept as `_cdc_ts_ms` | **Deviation from the M5 wording** "upsert by PK + timestamp", decided 3 Nov. `ts_ms` is the transaction's commit time, so two changes to one row in one transaction share it and cannot be ordered. The LSN rises with every WAL record. |
+| Idempotency | Overwrite only `WHERE stored._cdc_lsn < incoming._cdc_lsn` | A redelivered event (equal LSN) and a stale one (lower LSN) change nothing. Removing this clause fails exactly three tests: redelivery, stale change, and resurrection after delete. |
+| **Deletes** | **Soft: the row is kept, `_cdc_deleted = TRUE`, values from `before`** | A hard delete discards the row's LSN, so a replayed older change could bring it back. Soft deletes also keep the history M8's SCD work needs. **Readers of `warehouse.*` must filter `_cdc_deleted = FALSE`.** |
+| Write failures | Halt the table, not retry | The Postgres connector marks every `WriteError` non-retryable, including a lost connection. A warehouse outage therefore halts the table; restarting the consumer once the warehouse is back retries the message, and a success clears the halt. Recorded rather than changed in M7. |
+
+Finding 6 is now fully resolved: `cdc_demo_changes.py` loads `.env` the same
+way as the consumer.
+
+### 13.1 Live verification — 3 November 2026
+
+Run against the T5 stack. The consumer group's offsets were rewound to the
+earliest position on purpose, the "rewound offset" case the LSN guard exists for.
+
+| Test | Result |
+|---|---|
+| First replay into an empty warehouse | 15 events, all `-> warehouse`: 6 snapshot rows, then insert/update/delete for ids 4–6 |
+| Warehouse contents | orders 1–3 `snapshot`, not deleted; 4–6 `delete`, `_cdc_deleted = t`, `status = shipped` from `before`; 3 customers in `warehouse.customers` |
+| Resume without rewind | exactly 3 lines, all for id 7, the changes made while the consumer was stopped |
+| Full replay after rewind | all 18 events `-> unchanged (not newer)` |
+| Warehouse after replay | identical 6 rows, plus id 7 deleted at LSN 27052864 |
+
+Both closure-checklist items are met live: a committed INSERT, UPDATE and
+DELETE each arrive in warehouse storage with no scheduled run, and redelivery
+does not duplicate or corrupt a row.
+
+## 14. M7W26T6 — Status Endpoints
+
+Contract for the dashboard: `docs/planning/cdc_api_contract.md`.
+
+- **Location deviation.** The plan names `services/bi-dashboard/`, which holds
+  only an M9 README. The routes are in `services/cdc/api.py`, mounted into the
+  existing `subop-api` app on port 8000, the base URL the dashboard already uses.
+- **Architecture Section 6 addition.** `GET /api/cdc/events` is not in
+  Section 6. It's needed for the dashboard feed, and is served from a new
+  `cdc_meta.event_log` written by the consumer, since the warehouse keeps only
+  each row's latest state. Section 6 needs a one-line amendment.
+- **Path choice.** The list is `GET /api/cdc/connectors`, as Section 6 defines,
+  not the `/cdc/connectors/status` in the dashboard's fixture markers.
+- **Latency.** `lag_ms`, `latency` and each event's `latency_ms` are present and
+  `null`, reserved for M8.
+- **Known limit, carried to M8.** `cdc_meta.event_log` has no retention: one
+  row per change, kept indefinitely. Negligible at demo scale; it needs a
+  retention rule before pilot volumes. Owner Abdalla.

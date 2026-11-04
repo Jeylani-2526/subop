@@ -12,6 +12,9 @@ oracledb
 # --- Streaming connector driver (Module 4, M7W22T3) ---
 confluent-kafka
 
+# --- .env loading for host-run CLIs (M7W26T3; was only a uvicorn extra) ---
+python-dotenv
+
 # --- ETL Engine API (Module 3, M5W15T4) ---
 fastapi
 uvicorn[standard]

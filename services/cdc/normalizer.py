@@ -187,6 +187,15 @@ def _row(payload: Dict[str, Any], key: str) -> Optional[Dict[str, Any]]:
     return value
 
 
+def message_table(message: Any) -> str:
+    """Schema-qualified table a message belongs to, without validating op.
+
+    The consumer needs the table to scope a halt even when the message itself
+    is the reason for halting, e.g. a TRUNCATE that normalize() rejects.
+    """
+    return _qualified_table(_source_block(extract_payload(message)))
+
+
 def normalize(message: Any) -> Dict[str, Any]:
     """Map one Debezium envelope onto {op, table, before, after, ts_ms}.
 
@@ -363,6 +372,12 @@ class SchemaDriftDetector:
     def baseline(self, table: str) -> Optional[Dict[str, str]]:
         snapshot = self._baselines.get(table)
         return dict(snapshot) if snapshot is not None else None
+
+    def restore(self, table: str, snapshot: Dict[str, str]) -> None:
+        """Reinstate a persisted baseline (M7W26T3). Without this, a restart
+        forgets the baseline and the first post-ALTER message silently
+        becomes the new one, un-halting a drifted table."""
+        self._baselines[table] = dict(snapshot)
 
     def reset(self, table: Optional[str] = None) -> None:
         """Drop a stored baseline, re-establishing it from the next message.

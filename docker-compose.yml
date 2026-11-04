@@ -281,6 +281,10 @@ services:
       SUBOP_CONN_ORACLE_MAIN: >-
         {"host":"oracle","port":1521,"database":"${ORACLE_DATABASE}","username":"${ORACLE_USERNAME}","password":"${ORACLE_PASSWORD}"}
 
+      # M7W26T6 — /api/cdc reads connector state from Connect's REST API,
+      # reached by service name inside the compose network.
+      KAFKA_CONNECT_URL: http://connect:8083
+
     ports:
       - "8000:8000"
 
