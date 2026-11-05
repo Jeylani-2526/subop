@@ -35,9 +35,6 @@ function useWindowWidth() {
 }
 
 // ─── HaltedTablesBanner ───────────────────────────────
-// M7W26T7 (düzeltildi M7W26 fix): Her durdurulan tablo için halt nedenini
-// ayrı ayrı göster. drift_state === "CDC_SCHEMA_DRIFT_DETECTED" ise drift
-// metni; aksi hâlde tables[i].halt_error_code + halt_reason (contract Section 4).
 
 function HaltedTablesBanner({
   halted_tables,
@@ -65,7 +62,7 @@ function HaltedTablesBanner({
         gap: "8px",
       }}
     >
-      {/* Başlık */}
+      {/* Başlık — drift ise şema drift metni, değilse genel halt başlığı */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <span
           style={{
@@ -83,7 +80,7 @@ function HaltedTablesBanner({
             color: "var(--color-error, #dc2626)",
           }}
         >
-          {t("cdc_drift_detected_label")}
+          {isDrift ? t("cdc_drift_detected_label") : t("cdc_halted_table_label")}
         </span>
       </div>
 
@@ -123,79 +120,85 @@ function HaltedTablesBanner({
         </>
       ) : (
         // Drift dışı halt: her durdurulan tablo için hata kodu + açıklama
-        halted_tables.map((tblName) => {
-          const tblStatus = tables.find((t) => t.table === tblName);
-          return (
-            <div
-              key={tblName}
-              style={{
-                backgroundColor: "var(--color-row-alt)",
-                borderRadius: "4px",
-                padding: "6px 10px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "2px",
-              }}
-            >
+        <>
+          {halted_tables.map((tblName) => {
+            const tblStatus = tables.find((t) => t.table === tblName);
+            return (
               <div
-                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                key={tblName}
+                style={{
+                  backgroundColor: "var(--color-row-alt)",
+                  borderRadius: "4px",
+                  padding: "6px 10px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "2px",
+                }}
               >
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontFamily: "monospace",
-                    color: "var(--color-text)",
-                    fontWeight: 600,
-                  }}
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
                 >
-                  {tblName}
-                </span>
-                {tblStatus?.halt_error_code && (
                   <span
                     style={{
-                      fontSize: "10px",
+                      fontSize: "11px",
                       fontFamily: "monospace",
-                      color: "var(--color-error, #dc2626)",
-                      backgroundColor:
-                        "var(--color-error-bg, rgba(220,38,38,0.08))",
-                      border: "1px solid var(--color-error, #dc2626)",
-                      borderRadius: "3px",
-                      padding: "1px 6px",
+                      color: "var(--color-text)",
+                      fontWeight: 600,
                     }}
                   >
-                    {tblStatus.halt_error_code}
+                    {tblName}
                   </span>
+                  {tblStatus?.halt_error_code && (
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontFamily: "monospace",
+                        color: "var(--color-error, #dc2626)",
+                        backgroundColor:
+                          "var(--color-error-bg, rgba(220,38,38,0.08))",
+                        border: "1px solid var(--color-error, #dc2626)",
+                        borderRadius: "3px",
+                        padding: "1px 6px",
+                      }}
+                    >
+                      {tblStatus.halt_error_code}
+                    </span>
+                  )}
+                </div>
+                {tblStatus?.halt_reason && (
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    {tblStatus.halt_reason}
+                  </div>
+                )}
+                {tblStatus?.halted_at && (
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    {new Date(tblStatus.halted_at).toLocaleString()}
+                  </div>
                 )}
               </div>
-              {tblStatus?.halt_reason && (
-                <div
-                  style={{ fontSize: "11px", color: "var(--color-text-muted)" }}
-                >
-                  {tblStatus.halt_reason}
-                </div>
-              )}
-              {tblStatus?.halted_at && (
-                <div
-                  style={{ fontSize: "10px", color: "var(--color-text-muted)" }}
-                >
-                  {new Date(tblStatus.halted_at).toLocaleString()}
-                </div>
-              )}
-            </div>
-          );
-        })
+            );
+          })}
+          <div
+            style={{
+              fontSize: "11px",
+              color: "var(--color-text-muted)",
+              marginTop: "2px",
+            }}
+          >
+            {t("cdc_drift_resolution_hint")}
+          </div>
+        </>
       )}
-
-      {/* Manuel çözüm ipucu — her durumda göster */}
-      <div
-        style={{
-          fontSize: "11px",
-          color: "var(--color-text-muted)",
-          marginTop: "2px",
-        }}
-      >
-        {t("cdc_drift_resolution_hint")}
-      </div>
     </div>
   );
 }
@@ -462,11 +465,8 @@ export default function CDCPage() {
     getAllCDCConnectorStatuses().then(setConnectors).catch(console.error);
   }, []);
 
-  // Herhangi bir connector'da halted tablo varsa tüm liste toplanır.
-  // tables[] da birleştiriliyor — banner'ın halt_error_code'a erişmesi için.
   const haltedTables = connectors.flatMap((c) => c.halted_tables ?? []);
   const allTables = connectors.flatMap((c) => c.tables ?? []);
-  // drift_state: en az bir connector'da CDC_SCHEMA_DRIFT_DETECTED varsa
   const driftState = connectors.some(
     (c) => c.drift_state === "CDC_SCHEMA_DRIFT_DETECTED",
   )
@@ -586,7 +586,7 @@ export default function CDCPage() {
             {t("cdc_event_feed_title")}
           </div>
 
-          {/* M7W26T7 (düzeltildi): Halted tables banner */}
+          {/* Halted tables banner */}
           {haltedTables.length > 0 && (
             <HaltedTablesBanner
               halted_tables={haltedTables}
@@ -595,17 +595,6 @@ export default function CDCPage() {
               t={t}
             />
           )}
-
-          {/* Pending notice — W27 live swap'a kadar göster */}
-          <div
-            style={{
-              fontSize: "12px",
-              color: "var(--color-warning)",
-              marginBottom: "12px",
-            }}
-          >
-            {t("cdc_pending_notice")}
-          </div>
 
           {events.length === 0 ? (
             <div
@@ -672,17 +661,6 @@ export default function CDCPage() {
             }}
           >
             {t("cdc_connector_title")}
-          </div>
-
-          {/* Pending notice */}
-          <div
-            style={{
-              fontSize: "12px",
-              color: "var(--color-warning)",
-              marginBottom: "12px",
-            }}
-          >
-            {t("cdc_pending_notice")}
           </div>
 
           {connectors.length === 0 ? (
