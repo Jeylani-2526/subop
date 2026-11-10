@@ -484,9 +484,8 @@ $ docker compose exec -T subop-api grep -c "DROP COLUMN IF EXISTS events_process
 1
 ```
 
-**Status:** ✅ resolved for this run. Recommended: `verify_cdc_prerequisites.sh
---rebuild` should use `up -d --build`, so every clean rebuild also rebuilds
-the API image.
+**Status:** ✅ resolved. `verify_cdc_prerequisites.sh --rebuild` now runs
+`up -d --build`, so every clean rebuild also rebuilds the API image (5518e29).
 
 ### Finding 6 — "All checks PASS" means the queries ran, not that values matched
 
