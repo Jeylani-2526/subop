@@ -4,7 +4,7 @@ set -uo pipefail
 REBUILD=0
 START=0
 case "${1:-}" in
-  --rebuild) REBUILD=1 ;;   # down -v + up -d. Only needed when the init script
+    --rebuild) REBUILD=1 ;;   # down -v + up -d --build. Only needed when the init script
                             # must re-run; see the header note.
   --start)   START=1 ;;     # docker compose start — preserves container state
   "")        ;;             # checks only, against whatever is already running
@@ -86,8 +86,8 @@ if [[ $REBUILD -eq 1 ]]; then
   docker compose down -v --remove-orphans
   docker network rm "${COMPOSE_NETWORK_NAME:-subop-network}" 2>/dev/null || true
 
-  echo "\$ docker compose up -d --quiet-pull"
-  docker compose up -d --quiet-pull
+  echo "\$ docker compose up -d --build --quiet-pull"
+  docker compose up -d --build --quiet-pull
   up_status=${PIPESTATUS[0]}
   if [[ $up_status -ne 0 ]]; then
     echo >&2

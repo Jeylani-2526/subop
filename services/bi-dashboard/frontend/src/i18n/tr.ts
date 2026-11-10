@@ -100,7 +100,7 @@ const tr = {
 
   // KPI — CDC Latency
   kpi_cdc_latency_unit: "ms",
-  kpi_cdc_latency_pending: "W25'te canlıya alınacak",
+  kpi_cdc_latency_pending: "M8'de canlıya alınacak",
 
   // CDC Monitor sayfası
   cdc_latency_strip_title: "Gecikme Özeti",

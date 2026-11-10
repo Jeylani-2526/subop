@@ -99,7 +99,7 @@ const en = {
 
   // KPI — CDC Latency
   kpi_cdc_latency_unit: "ms",
-  kpi_cdc_latency_pending: "Goes live in W25",
+    kpi_cdc_latency_pending: "Goes live in M8",
 
   // CDC Monitor page
   cdc_latency_strip_title: "Latency Summary",
