@@ -1,32 +1,49 @@
 // services/bi-dashboard/frontend/api/cdcClient.ts
 
 import type { CDCChangeEvent, CDCConnectorStatus } from "./cdcTypes";
-import { CDC_CHANGE_EVENTS, CDC_CONNECTOR_STATUSES } from "./cdcFixtures";
 
 export type { CDCChangeEvent, CDCConnectorStatus };
 export type { CDCOperation, ConnectorState } from "./cdcTypes";
 
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
+
+// ─── Hata tipleri ─────────────────────────────────────
+
+export class CDCConnectUnavailableError extends Error {
+  constructor() {
+    super("CDC_CONNECT_UNAVAILABLE");
+    this.name = "CDCConnectUnavailableError";
+  }
+}
+
+// ─── Yardımcı ─────────────────────────────────────────
+
+async function cdcFetch<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`);
+  if (res.status === 503) {
+    throw new CDCConnectUnavailableError();
+  }
+  if (!res.ok) {
+    throw new Error(`CDC API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 // ─── API Fonksiyonları ────────────────────────────────
 
 export async function getCDCEvents(): Promise<CDCChangeEvent[]> {
-  // W24'te: GET ${_BASE_URL}/cdc/events
-  return Promise.resolve(CDC_CHANGE_EVENTS);
+  return cdcFetch<CDCChangeEvent[]>("/cdc/events");
 }
 
 export async function getCDCConnectorStatus(
   connectorId: string,
 ): Promise<CDCConnectorStatus> {
-  // W24'te: GET ${_BASE_URL}/cdc/connectors/${connectorId}/status
-  const found = CDC_CONNECTOR_STATUSES.find(
-    (c) => c.connector_id === connectorId,
-  );
-  if (!found) throw new Error(`Connector not found: ${connectorId}`);
-  return Promise.resolve(found);
+  return cdcFetch<CDCConnectorStatus>(`/cdc/connectors/${connectorId}/status`);
 }
 
 export async function getAllCDCConnectorStatuses(): Promise<
   CDCConnectorStatus[]
 > {
-  // W24'te: GET ${_BASE_URL}/cdc/connectors/status
-  return Promise.resolve(CDC_CONNECTOR_STATUSES);
+  return cdcFetch<CDCConnectorStatus[]>("/cdc/connectors");
 }

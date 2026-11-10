@@ -1,4 +1,6 @@
 // services/bi-dashboard/frontend/src/i18n/tr.ts
+// W27T6: cdc_pending_notice kaldırıldı, yeni key'ler eklendi
+
 const tr = {
   // Navigation
   nav_overview: "Genel Bakış",
@@ -104,7 +106,6 @@ const tr = {
   cdc_latency_strip_title: "Gecikme Özeti",
   cdc_event_feed_title: "Değişiklik Olayları",
   cdc_connector_title: "Connector Durumu",
-  cdc_pending_notice: "Veri bağlantısı W24'te kurulacak.",
   cdc_hop_e2e: "Uçtan Uca",
   cdc_hop_capture: "Yakalama",
   cdc_hop_publish: "Yayın",
@@ -119,19 +120,21 @@ const tr = {
   cdc_col_before: "Önce",
   cdc_col_after: "Sonra",
   cdc_col_latency: "Gecikme",
-  cdc_col_time: "Zaman",
   cdc_col_connector: "Connector",
   cdc_col_status: "Durum",
   cdc_col_last_event: "Son Olay",
   cdc_col_lag: "Gecikme",
-  cdc_drift_detected_label: "Şema Drift Tespit Edildi — Tablo Durduruldu",
-  cdc_drift_reason:
-    "Neden: CDC_SCHEMA_DRIFT_DETECTED — normalizer.py tablo şemasını kaynak ile karşılaştırdı ve uyuşmazlık buldu.",
-  cdc_halted_table_label: "Durdurulan Tablo",
-  cdc_drift_resolution_hint:
-    "Çözüm: Etkilenen tabloyu gözden geçirin, şema değişikliğini onaylayın ve connector'ı manuel olarak yeniden başlatın.",
+  cdc_col_time: "Zaman",
   cdc_events_empty: "Henüz değişiklik olayı yok.",
   cdc_connectors_empty: "Henüz connector bulunamadı.",
+  cdc_connect_unavailable:
+    "CDC Connect şu an erişilemiyor. Lütfen daha sonra tekrar deneyin.",
+  cdc_drift_detected_label: "Şema Drift Tespit Edildi",
+  cdc_halted_table_label: "Tablo Durduruldu",
+  cdc_drift_reason: "Tablo şeması değişti ve CDC akışı durduruldu.",
+  cdc_drift_resolution_hint:
+    "Şema değişikliğini inceleyin, ardından yakalamaya devam etmek için tablonun durdurma durumunu sıfırlayın.",
+  cdc_api_error: "CDC API'ye ulaşılamadı. Lütfen daha sonra tekrar deneyin.",
 };
 
 export default tr;
