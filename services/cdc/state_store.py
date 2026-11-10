@@ -21,7 +21,6 @@ _DDL = (
         halt_error_code   TEXT,
         halt_reason       TEXT,
         halted_at         TIMESTAMPTZ,
-        events_processed  BIGINT      NOT NULL DEFAULT 0,
         last_event_ts_ms  BIGINT,
         last_lsn          BIGINT,
         updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -45,6 +44,10 @@ _DDL = (
         UNIQUE (table_name, lsn, op, row_key)
     )
     """,
+    # M7W27T1 Finding 4 — a running counter counted redeliveries too; the count
+    # now comes from event_log, which keeps each event once. Drops the column
+    # from databases created before this change.
+    f"ALTER TABLE {TABLE} DROP COLUMN IF EXISTS events_processed",
 )
 
 
@@ -65,9 +68,11 @@ class CDCStateStore:
 
     def load(self) -> Dict[str, Dict[str, Any]]:
         rows = self._layer.execute_query(
-            f"SELECT table_name, baseline, halted, halt_error_code, halt_reason, "
-            f"halted_at, events_processed, last_event_ts_ms, last_lsn "
-            f"FROM {TABLE} ORDER BY table_name"
+            f"SELECT s.table_name, s.baseline, s.halted, s.halt_error_code, "
+            f"s.halt_reason, s.halted_at, s.last_event_ts_ms, s.last_lsn, "
+            f"(SELECT count(*) FROM {EVENT_LOG} e "
+            f"WHERE e.table_name = s.table_name) AS events_processed "
+            f"FROM {TABLE} s ORDER BY s.table_name"
         )
         state = {}
         for row in rows:
@@ -88,10 +93,9 @@ class CDCStateStore:
 
     def record_event(self, table: str, ts_ms: int, lsn: Optional[int]) -> None:
         self._layer.execute_write(
-            f"INSERT INTO {TABLE} (table_name, events_processed, last_event_ts_ms, last_lsn) "
-            f"VALUES (%s, 1, %s, %s) "
+            f"INSERT INTO {TABLE} (table_name, last_event_ts_ms, last_lsn) "
+            f"VALUES (%s, %s, %s) "
             f"ON CONFLICT (table_name) DO UPDATE SET "
-            f"events_processed = {TABLE}.events_processed + 1, "
             f"last_event_ts_ms = EXCLUDED.last_event_ts_ms, "
             f"last_lsn = COALESCE(EXCLUDED.last_lsn, {TABLE}.last_lsn), "
             f"updated_at = now()",
