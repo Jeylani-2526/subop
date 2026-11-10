@@ -42,11 +42,10 @@ def test_baseline_round_trips_as_a_dict(store, table):
     assert store.load()[table]["baseline"] == SNAPSHOT
 
 
-def test_events_accumulate_and_keep_the_latest_position(store, table):
+def test_record_event_keeps_the_latest_position(store, table):
     store.record_event(table, 1_000, 26642408)
     store.record_event(table, 2_000, 26643072)
     row = store.load()[table]
-    assert row["events_processed"] == 2
     assert (row["last_event_ts_ms"], row["last_lsn"]) == (2_000, 26643072)
 
 
@@ -139,3 +138,24 @@ def test_row_images_round_trip_as_dicts(store, table):
 def test_event_without_lsn_is_not_logged(store, table):
     store.append_event(_event(table, "insert", 7, 1), None)
     assert _mine(store, table) == []
+
+
+def test_events_processed_counts_logged_events(store, table):
+    store.record_event(table, 1, 100)
+    store.append_event(_event(table, "insert", 7, 1), 100)
+    store.record_event(table, 2, 200)
+    store.append_event(_event(table, "update", 7, 2), 200)
+    assert store.load()[table]["events_processed"] == 2
+
+
+def test_redelivery_does_not_inflate_events_processed(store, table):
+    """M7W27T1 Finding 4: a consumer-group rewind doubled the count."""
+    for _ in range(2):
+        store.record_event(table, 1, 100)
+        store.append_event(_event(table, "insert", 7, 1), 100)
+    assert store.load()[table]["events_processed"] == 1
+
+
+def test_table_with_no_logged_events_counts_zero(store, table):
+    store.save_baseline(table, SNAPSHOT)
+    assert store.load()[table]["events_processed"] == 0

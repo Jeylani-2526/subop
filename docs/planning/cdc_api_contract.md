@@ -30,7 +30,7 @@ fields with the same names and gains new ones. Nothing is renamed or removed.
 ```ts
 export interface CDCTableStatus {
   table: string;                    // "cdc_demo.orders"
-  events_processed: number;
+  events_processed: number;         // distinct change events; redeliveries not counted (M7W27T1 F4)
   last_event_ts_ms: number | null;
   last_lsn: number | null;
   halted: boolean;

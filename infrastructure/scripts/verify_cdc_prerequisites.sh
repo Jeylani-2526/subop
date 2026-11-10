@@ -55,18 +55,29 @@ fi
 
 banner() { echo; echo "=============================================================="; echo "$1"; echo "=============================================================="; }
 
-# Runs one psql check. Reports psql's exit status, not the pipeline's — the
-# M7W23T1 Finding 4 defect was a `tee` masking a non-zero status.
+# Runs one psql check: prints the full result for the record, then compares a
+# compact form of it with the expected value. Reports psql's exit status, not
+# the pipeline's — the M7W23T1 Finding 4 defect was a `tee` masking a non-zero
+# status. M7W27T1 Finding 6: exit status alone let a wrong value read as PASS.
 check() {
-  local label="$1" sql="$2"
+  local label="$1" sql="$2" assert_sql="$3" expected="$4" actual
   echo; echo "--- $label ---"; echo "\$ $sql"
   docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$sql"
   local status=${PIPESTATUS[0]}
   if [[ $status -ne 0 ]]; then
     echo "FAIL: psql exited $status" >&2
     FAILURES=$((FAILURES + 1))
+    return $status
   fi
-  return $status
+  actual=$(docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+    -Atc "$assert_sql" | tr -d '\r')
+  if [[ "$actual" == "$expected" ]]; then
+    echo "OK: $actual"
+  else
+    echo "FAIL: expected '$expected', got '$actual'" >&2
+    FAILURES=$((FAILURES + 1))
+    return 1
+  fi
 }
 
 if [[ $REBUILD -eq 1 ]]; then
@@ -122,29 +133,47 @@ fi
 
 banner "SECTION 3 — PREREQUISITE CHECKS"
 
+S="${SUBOP_CDC_SCHEMA:-cdc_demo}"
+U="${SUBOP_CDC_USER:-subop_cdc}"
+P="${SUBOP_CDC_PUBLICATION:-subop_cdc_pub}"
+
 check "CHECK 1 — wal_level (expect: logical)" \
-  "SHOW wal_level;"
+  "SHOW wal_level;" \
+  "SHOW wal_level;" \
+  "logical"
 
-check "CHECK 2 — publication scope (expect: subop_cdc_pub, puballtables = f)" \
-  "SELECT pubname, puballtables FROM pg_publication;"
+check "CHECK 2 — publication scope (expect: $P, puballtables = f)" \
+  "SELECT pubname, puballtables FROM pg_publication;" \
+  "SELECT string_agg(pubname || ':' || puballtables, ',' ORDER BY pubname) FROM pg_publication;" \
+  "$P:false"
 
-check "CHECK 3 — published tables (expect: exactly cdc_demo.orders and cdc_demo.customers)" \
-  "SELECT * FROM pg_publication_tables;"
+check "CHECK 3 — published tables (expect: exactly $S.customers with 5 columns and $S.orders with 6)" \
+  "SELECT * FROM pg_publication_tables;" \
+  "SELECT string_agg(schemaname || '.' || tablename || '(' || array_length(attnames, 1) || ')', ',' ORDER BY tablename) FROM pg_publication_tables;" \
+  "$S.customers(5),$S.orders(6)"
 
-check "CHECK 4 — CDC role (expect: subop_cdc, rolreplication = t)" \
-  "SELECT rolname, rolreplication FROM pg_roles WHERE rolname = '${SUBOP_CDC_USER:-subop_cdc}';"
+check "CHECK 4 — CDC role (expect: $U, rolreplication = t)" \
+  "SELECT rolname, rolreplication FROM pg_roles WHERE rolname = '$U';" \
+  "SELECT string_agg(rolname || ':' || rolreplication, ',') FROM pg_roles WHERE rolname = '$U';" \
+  "$U:true"
 
 # Schema-qualified deliberately: M8's warehouse layer will create its own
 # `orders`, and an unqualified predicate would then return several rows with no
 # way to tell which is which (M7W23T1 Section 3.5).
 check "CHECK 5 — replica identity (expect: f for both orders and customers)" \
-  "SELECT n.nspname, c.relname, c.relreplident FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = '${SUBOP_CDC_SCHEMA:-cdc_demo}' AND c.relkind = 'r' ORDER BY c.relname;"
+  "SELECT n.nspname, c.relname, c.relreplident FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = '$S' AND c.relkind = 'r' ORDER BY c.relname;" \
+  "SELECT string_agg(c.relname || ':' || c.relreplident::text, ',' ORDER BY c.relname) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = '$S' AND c.relkind = 'r';" \
+  "customers:f,orders:f"
 
 check "CHECK 6 — seed rows (expect: 3 in each table)" \
-  "SELECT 'orders' AS tbl, count(*) AS seed_rows FROM ${SUBOP_CDC_SCHEMA:-cdc_demo}.orders UNION ALL SELECT 'customers', count(*) FROM ${SUBOP_CDC_SCHEMA:-cdc_demo}.customers;"
+  "SELECT 'orders' AS tbl, count(*) AS seed_rows FROM $S.orders UNION ALL SELECT 'customers', count(*) FROM $S.customers;" \
+  "SELECT (SELECT count(*) FROM $S.customers) || ',' || (SELECT count(*) FROM $S.orders);" \
+  "3,3"
 
 check "CHECK 7 — CDC role SELECT grant (expect: t for both tables)" \
-  "SELECT has_table_privilege('${SUBOP_CDC_USER:-subop_cdc}', '${SUBOP_CDC_SCHEMA:-cdc_demo}.orders', 'SELECT') AS orders, has_table_privilege('${SUBOP_CDC_USER:-subop_cdc}', '${SUBOP_CDC_SCHEMA:-cdc_demo}.customers', 'SELECT') AS customers;"
+  "SELECT has_table_privilege('$U', '$S.orders', 'SELECT') AS orders, has_table_privilege('$U', '$S.customers', 'SELECT') AS customers;" \
+  "SELECT has_table_privilege('$U', '$S.orders', 'SELECT') || ',' || has_table_privilege('$U', '$S.customers', 'SELECT');" \
+  "true,true"
 
 banner "SECTION 4 — INIT-SCRIPT EXECUTION EVIDENCE"
 # Proves a FIRST-TIME volume initialisation. Querying pg_publication answers

@@ -118,13 +118,18 @@ class FakeStore:
             {
                 "baseline": None,
                 "halted": False,
-                "events_processed": 0,
                 "last_lsn": None,
             },
         )
 
     def load(self):
-        return copy.deepcopy(self.rows)
+        # Like the real store, the count comes from the deduplicated event log.
+        rows = copy.deepcopy(self.rows)
+        for table, row in rows.items():
+            row["events_processed"] = len(
+                {e for e in self.events if e[0] == table and e[2] is not None}
+            )
+        return rows
 
     def save_baseline(self, table, snapshot):
         self.baseline_saves += 1
@@ -132,7 +137,6 @@ class FakeStore:
 
     def record_event(self, table, ts_ms, lsn):
         row = self._row(table)
-        row["events_processed"] += 1
         row["last_event_ts_ms"] = ts_ms
         row["last_lsn"] = lsn
 
@@ -213,7 +217,7 @@ def test_baseline_is_persisted_once_per_table():
     for offset, name in enumerate(("insert.json", "update.json")):
         conn.handle_message(kafka, msg(ORDERS_TOPIC, offset, load(name)), Recorder())
     assert store.baseline_saves == 1
-    assert store.rows[ORDERS]["events_processed"] == 2
+    assert store.load()[ORDERS]["events_processed"] == 2
     assert [op for _, op, _ in store.events] == ["insert", "update"]
     assert (
         store.rows[ORDERS]["last_lsn"]
