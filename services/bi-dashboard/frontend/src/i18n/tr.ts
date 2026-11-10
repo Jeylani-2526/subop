@@ -133,7 +133,8 @@ const tr = {
   cdc_halted_table_label: "Tablo Durduruldu",
   cdc_drift_reason: "Tablo şeması değişti ve CDC akışı durduruldu.",
   cdc_drift_resolution_hint:
-    "Şemayı güncelleyin ve connector'ı yeniden başlatın.",
+    "Şema değişikliğini inceleyin, ardından yakalamaya devam etmek için tablonun durdurma durumunu sıfırlayın.",
+  cdc_api_error: "CDC API'ye ulaşılamadı. Lütfen daha sonra tekrar deneyin.",
 };
 
 export default tr;

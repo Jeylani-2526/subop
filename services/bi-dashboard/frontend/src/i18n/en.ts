@@ -132,7 +132,9 @@ const en = {
   cdc_halted_table_label: "Table Halted",
   cdc_drift_reason:
     "The table schema has changed and the CDC stream has been paused.",
-  cdc_drift_resolution_hint: "Update the schema and restart the connector.",
+  cdc_drift_resolution_hint:
+    "Review the schema change, then reset the table's halt to resume capture.",
+  cdc_api_error: "Could not reach the CDC API. Please try again later.",
 };
 
 export default en;

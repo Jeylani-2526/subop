@@ -5,7 +5,8 @@ import type { CDCChangeEvent, CDCConnectorStatus } from "./cdcTypes";
 export type { CDCChangeEvent, CDCConnectorStatus };
 export type { CDCOperation, ConnectorState } from "./cdcTypes";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
 
 // ─── Hata tipleri ─────────────────────────────────────
 
@@ -32,19 +33,17 @@ async function cdcFetch<T>(path: string): Promise<T> {
 // ─── API Fonksiyonları ────────────────────────────────
 
 export async function getCDCEvents(): Promise<CDCChangeEvent[]> {
-  return cdcFetch<CDCChangeEvent[]>("/api/cdc/events");
+  return cdcFetch<CDCChangeEvent[]>("/cdc/events");
 }
 
 export async function getCDCConnectorStatus(
   connectorId: string,
 ): Promise<CDCConnectorStatus> {
-  return cdcFetch<CDCConnectorStatus>(
-    `/api/cdc/connectors/${connectorId}/status`,
-  );
+  return cdcFetch<CDCConnectorStatus>(`/cdc/connectors/${connectorId}/status`);
 }
 
 export async function getAllCDCConnectorStatuses(): Promise<
   CDCConnectorStatus[]
 > {
-  return cdcFetch<CDCConnectorStatus[]>("/api/cdc/connectors");
+  return cdcFetch<CDCConnectorStatus[]>("/cdc/connectors");
 }

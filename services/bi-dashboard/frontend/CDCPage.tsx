@@ -463,6 +463,7 @@ export default function CDCPage() {
   const [events, setEvents] = useState<CDCChangeEvent[]>([]);
   const [connectors, setConnectors] = useState<CDCConnectorStatus[]>([]);
   const [cdcUnavailable, setCdcUnavailable] = useState(false);
+  const [cdcError, setCdcError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleError = (err: unknown) => {
@@ -470,6 +471,7 @@ export default function CDCPage() {
         setCdcUnavailable(true);
       } else {
         console.error(err);
+        setCdcError(err instanceof Error ? err.message : "CDC API error");
       }
     };
     getCDCEvents().then(setEvents).catch(handleError);
@@ -527,6 +529,22 @@ export default function CDCPage() {
           </div>
         )}
 
+        {/* Generic API error */}
+        {cdcError && !cdcUnavailable && (
+          <div
+            style={{
+              backgroundColor: "var(--color-error-bg, rgba(220,38,38,0.08))",
+              border: "1px solid var(--color-error, #dc2626)",
+              borderRadius: "6px",
+              padding: "10px 14px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: "var(--color-error, #dc2626)",
+            }}
+          >
+            {t("cdc_api_error")}
+          </div>
+        )}
         {/* Zone 1 — Latency Summary Strip */}
         <div
           style={{
