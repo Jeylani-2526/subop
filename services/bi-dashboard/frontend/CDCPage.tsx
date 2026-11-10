@@ -3,7 +3,11 @@ import AppShell from "./components/AppShell";
 import StatusBadge from "./components/StatusBadge";
 import { useT } from "./src/i18n/LanguageProvider";
 import type { TranslationKey } from "./src/i18n/tr";
-import { getCDCEvents, getAllCDCConnectorStatuses } from "./api/cdcClient";
+import {
+  getCDCEvents,
+  getAllCDCConnectorStatuses,
+  CDCConnectUnavailableError,
+} from "./api/cdcClient";
 import type { CDCChangeEvent, CDCConnectorStatus } from "./api/cdcClient";
 import type { CDCTableStatus } from "./api/cdcTypes";
 
@@ -62,7 +66,6 @@ function HaltedTablesBanner({
         gap: "8px",
       }}
     >
-      {/* Başlık — drift ise şema drift metni, değilse genel halt başlığı */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <span
           style={{
@@ -80,11 +83,12 @@ function HaltedTablesBanner({
             color: "var(--color-error, #dc2626)",
           }}
         >
-          {isDrift ? t("cdc_drift_detected_label") : t("cdc_halted_table_label")}
+          {isDrift
+            ? t("cdc_drift_detected_label")
+            : t("cdc_halted_table_label")}
         </span>
       </div>
 
-      {/* Drift ise tek genel açıklama; değilse her tablo için ayrı satır */}
       {isDrift ? (
         <>
           <div style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
@@ -119,7 +123,6 @@ function HaltedTablesBanner({
           </div>
         </>
       ) : (
-        // Drift dışı halt: her durdurulan tablo için hata kodu + açıklama
         <>
           {halted_tables.map((tblName) => {
             const tblStatus = tables.find((t) => t.table === tblName);
@@ -459,10 +462,18 @@ export default function CDCPage() {
 
   const [events, setEvents] = useState<CDCChangeEvent[]>([]);
   const [connectors, setConnectors] = useState<CDCConnectorStatus[]>([]);
+  const [cdcUnavailable, setCdcUnavailable] = useState(false);
 
   useEffect(() => {
-    getCDCEvents().then(setEvents).catch(console.error);
-    getAllCDCConnectorStatuses().then(setConnectors).catch(console.error);
+    const handleError = (err: unknown) => {
+      if (err instanceof CDCConnectUnavailableError) {
+        setCdcUnavailable(true);
+      } else {
+        console.error(err);
+      }
+    };
+    getCDCEvents().then(setEvents).catch(handleError);
+    getAllCDCConnectorStatuses().then(setConnectors).catch(handleError);
   }, []);
 
   const haltedTables = connectors.flatMap((c) => c.halted_tables ?? []);
@@ -496,6 +507,23 @@ export default function CDCPage() {
             }}
           >
             {t("pipeline_mobile_readonly")}
+          </div>
+        )}
+
+        {/* 503 — CDC Connect unavailable */}
+        {cdcUnavailable && (
+          <div
+            style={{
+              backgroundColor: "var(--color-warning-bg)",
+              border: "1px solid var(--color-warning)",
+              borderRadius: "6px",
+              padding: "10px 14px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: "var(--color-warning)",
+            }}
+          >
+            {t("cdc_connect_unavailable")}
           </div>
         )}
 
@@ -586,7 +614,6 @@ export default function CDCPage() {
             {t("cdc_event_feed_title")}
           </div>
 
-          {/* Halted tables banner */}
           {haltedTables.length > 0 && (
             <HaltedTablesBanner
               halted_tables={haltedTables}
