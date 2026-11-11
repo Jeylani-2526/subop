@@ -1,4 +1,6 @@
 // services/bi-dashboard/frontend/src/i18n/en.ts
+// W27T6: cdc_pending_notice removed, new keys added
+
 const en = {
   // Navigation
   nav_overview: "Overview",
@@ -97,13 +99,12 @@ const en = {
 
   // KPI — CDC Latency
   kpi_cdc_latency_unit: "ms",
-  kpi_cdc_latency_pending: "Goes live in W25",
+    kpi_cdc_latency_pending: "Goes live in M8",
 
   // CDC Monitor page
   cdc_latency_strip_title: "Latency Summary",
   cdc_event_feed_title: "Change Event Feed",
   cdc_connector_title: "Connector Status",
-  cdc_pending_notice: "Data connection will be wired in W24.",
   cdc_hop_e2e: "End-to-End",
   cdc_hop_capture: "Capture",
   cdc_hop_publish: "Publish",
@@ -118,13 +119,22 @@ const en = {
   cdc_col_before: "Before",
   cdc_col_after: "After",
   cdc_col_latency: "Latency",
-  cdc_col_time: "Time",
   cdc_col_connector: "Connector",
   cdc_col_status: "Status",
   cdc_col_last_event: "Last Event",
   cdc_col_lag: "Lag",
+  cdc_col_time: "Time",
   cdc_events_empty: "No change events yet.",
   cdc_connectors_empty: "No connectors found.",
+  cdc_connect_unavailable:
+    "CDC Connect is currently unavailable. Please try again later.",
+  cdc_drift_detected_label: "Schema Drift Detected",
+  cdc_halted_table_label: "Table Halted",
+  cdc_drift_reason:
+    "The table schema has changed and the CDC stream has been paused.",
+  cdc_drift_resolution_hint:
+    "Review the schema change, then reset the table's halt to resume capture.",
+  cdc_api_error: "Could not reach the CDC API. Please try again later.",
 };
 
 export default en;

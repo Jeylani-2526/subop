@@ -76,6 +76,9 @@ services:
       interval: 10s
       timeout:  5s
       retries:  5
+      # M7W26T5 — first-time init outlasted the ~50s retry budget, failing
+      # `up -d` and leaving subop-api Created but never Started.
+      start_period: 60s
   # ---------------------------------------------------------------------------
   # Microsoft SQL Server 2022 Developer — MSSQL connector test database
   # ---------------------------------------------------------------------------
@@ -152,6 +155,12 @@ services:
       ZOOKEEPER_TICK_TIME:   2000
     ports:
       - "2181:2181"
+    # M7W26T5 — Zookeeper holds Kafka's cluster id. It must persist together
+    # with kafka_data: if one survives without the other, Kafka refuses to
+    # start with InconsistentClusterIdException.
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
     healthcheck:
       test:     ["CMD", "bash", "-c", "echo srvr | nc localhost 2181 | grep Mode"]
       interval: 10s
@@ -178,6 +187,12 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE:        "true"
     ports:
       - "9092:9092"
+    # M7W26T5 — Connect runs in distributed mode, so its offsets, connector
+    # configs and status live in the subop-connect-* topics stored here, not on
+    # the Connect container. This volume is what lets the replication slot's
+    # LSN and Debezium's committed offset survive a restart together.
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     healthcheck:
       test:     ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 30s
@@ -266,6 +281,10 @@ services:
       SUBOP_CONN_ORACLE_MAIN: >-
         {"host":"oracle","port":1521,"database":"${ORACLE_DATABASE}","username":"${ORACLE_USERNAME}","password":"${ORACLE_PASSWORD}"}
 
+      # M7W26T6 — /api/cdc reads connector state from Connect's REST API,
+      # reached by service name inside the compose network.
+      KAFKA_CONNECT_URL: http://connect:8083
+
     ports:
       - "8000:8000"
 
@@ -291,6 +310,12 @@ volumes:
   pgadmin_data:
     driver: local
   oracle_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_log:
+    driver: local
+  kafka_data:
     driver: local
 
 networks:

@@ -14,11 +14,11 @@
     "slot.name": "subop_cdc_slot",
     "publication.name": "subop_cdc_pub",
     "publication.autocreate.mode": "disabled",
-    "table.include.list": "cdc_demo.orders",
+    "table.include.list": "cdc_demo.orders,cdc_demo.customers",
 
     "decimal.handling.mode": "string",
     "tombstones.on.delete": "false",
-    "column.propagate.source.type": ".*cdc_demo\\.orders\\..*",
+    "column.propagate.source.type": ".*cdc_demo\\.(orders|customers)\\..*",
 
     "tasks.max": "1"
   }

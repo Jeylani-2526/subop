@@ -67,16 +67,55 @@ SELECT * FROM (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM orders);
 
 -- -----------------------------------------------------------------------------
+-- 3b. Second CDC source table (M7W26T5)
+-- Drift handling is table-scoped (CDC Design Note Section 3.4): an ALTER on
+-- orders must halt orders only. Proving that live needs a second published
+-- table that keeps flowing, which M7's closure checklist requires.
+-- Plain BIGINT key with explicit seed ids, matching orders.customer_id.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS customers (
+    id          BIGINT       PRIMARY KEY,
+    name        VARCHAR(64)  NOT NULL,
+    city        VARCHAR(64)  NOT NULL,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+ALTER TABLE customers REPLICA IDENTITY FULL;
+
+INSERT INTO customers (id, name, city)
+SELECT * FROM (VALUES
+    (1001, 'Ayse Yilmaz',  'Istanbul'),
+    (1002, 'Mehmet Kaya',  'Ankara'),
+    (1003, 'Zeynep Demir', 'Izmir')
+) AS seed(id, name, city)
+WHERE NOT EXISTS (SELECT 1 FROM customers);
+
+-- -----------------------------------------------------------------------------
 -- 4. Publication
 -- Explicit table list, never FOR ALL TABLES — that would capture warehouse
 -- writes too. Debezium must run with publication.autocreate.mode=disabled in
 -- Week 23 so it uses this publication rather than creating its own.
 -- -----------------------------------------------------------------------------
 SELECT format(
-    'CREATE PUBLICATION %I FOR TABLE %I.orders',
-    :'cdc_publication', :'cdc_schema'
+    'CREATE PUBLICATION %I FOR TABLE %I.orders, %I.customers',
+    :'cdc_publication', :'cdc_schema', :'cdc_schema'
 )
 WHERE NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = :'cdc_publication')
+\gexec
+
+-- A publication created before M7W26T5 covers orders only. CREATE above is
+-- skipped when it exists, so add customers explicitly for a by-hand rerun.
+SELECT format(
+    'ALTER PUBLICATION %I ADD TABLE %I.customers',
+    :'cdc_publication', :'cdc_schema'
+)
+WHERE NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = :'cdc_publication'
+      AND schemaname = :'cdc_schema'
+      AND tablename = 'customers'
+)
 \gexec
 
 -- -----------------------------------------------------------------------------

@@ -28,7 +28,11 @@
   --color-row-alt: #ebf3fb;
   --color-success-bg: rgba(46, 125, 50, 0.1);
   --color-danger-bg: rgba(198, 40, 40, 0.1);
-  --color-warning-bg: rgba(230, 81, 0, 0.1);
+   --color-warning-bg: rgba(230, 81, 0, 0.1);
+  --color-text: var(--color-neutral-dark);
+  --color-text-muted: var(--color-neutral-500);
+  --color-error: var(--color-danger);
+  --color-error-bg: var(--color-danger-bg);
 }
 
 a {

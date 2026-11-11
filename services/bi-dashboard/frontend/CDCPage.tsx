@@ -3,8 +3,13 @@ import AppShell from "./components/AppShell";
 import StatusBadge from "./components/StatusBadge";
 import { useT } from "./src/i18n/LanguageProvider";
 import type { TranslationKey } from "./src/i18n/tr";
-import { getCDCEvents, getAllCDCConnectorStatuses } from "./api/cdcClient";
+import {
+  getCDCEvents,
+  getAllCDCConnectorStatuses,
+  CDCConnectUnavailableError,
+} from "./api/cdcClient";
 import type { CDCChangeEvent, CDCConnectorStatus } from "./api/cdcClient";
+import type { CDCTableStatus } from "./api/cdcTypes";
 
 // ─── Yardımcı ─────────────────────────────────────────
 
@@ -31,6 +36,174 @@ function useWindowWidth() {
     return () => window.removeEventListener("resize", handler);
   }, []);
   return width;
+}
+
+// ─── HaltedTablesBanner ───────────────────────────────
+
+function HaltedTablesBanner({
+  halted_tables,
+  drift_state,
+  tables,
+  t,
+}: {
+  halted_tables: string[];
+  drift_state: string | null;
+  tables: CDCTableStatus[];
+  t: (k: TranslationKey) => string;
+}) {
+  const isDrift = drift_state === "CDC_SCHEMA_DRIFT_DETECTED";
+
+  return (
+    <div
+      style={{
+        backgroundColor: "var(--color-error-bg, rgba(220,38,38,0.08))",
+        border: "1px solid var(--color-error, #dc2626)",
+        borderRadius: "6px",
+        padding: "10px 14px",
+        marginBottom: "12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <span
+          style={{
+            width: "8px",
+            height: "8px",
+            borderRadius: "50%",
+            backgroundColor: "var(--color-error, #dc2626)",
+            flexShrink: 0,
+          }}
+        />
+        <span
+          style={{
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "var(--color-error, #dc2626)",
+          }}
+        >
+          {isDrift
+            ? t("cdc_drift_detected_label")
+            : t("cdc_halted_table_label")}
+        </span>
+      </div>
+
+      {isDrift ? (
+        <>
+          <div style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
+            {t("cdc_drift_reason")}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {halted_tables.map((tbl) => (
+              <span
+                key={tbl}
+                style={{
+                  fontSize: "11px",
+                  fontFamily: "monospace",
+                  backgroundColor: "var(--color-row-alt)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "4px",
+                  padding: "2px 8px",
+                  color: "var(--color-text)",
+                }}
+              >
+                {tbl}
+              </span>
+            ))}
+          </div>
+          <div
+            style={{
+              fontSize: "11px",
+              color: "var(--color-text-muted)",
+              marginTop: "2px",
+            }}
+          >
+            {t("cdc_drift_resolution_hint")}
+          </div>
+        </>
+      ) : (
+        <>
+          {halted_tables.map((tblName) => {
+            const tblStatus = tables.find((t) => t.table === tblName);
+            return (
+              <div
+                key={tblName}
+                style={{
+                  backgroundColor: "var(--color-row-alt)",
+                  borderRadius: "4px",
+                  padding: "6px 10px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "2px",
+                }}
+              >
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                >
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontFamily: "monospace",
+                      color: "var(--color-text)",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {tblName}
+                  </span>
+                  {tblStatus?.halt_error_code && (
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontFamily: "monospace",
+                        color: "var(--color-error, #dc2626)",
+                        backgroundColor:
+                          "var(--color-error-bg, rgba(220,38,38,0.08))",
+                        border: "1px solid var(--color-error, #dc2626)",
+                        borderRadius: "3px",
+                        padding: "1px 6px",
+                      }}
+                    >
+                      {tblStatus.halt_error_code}
+                    </span>
+                  )}
+                </div>
+                {tblStatus?.halt_reason && (
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    {tblStatus.halt_reason}
+                  </div>
+                )}
+                {tblStatus?.halted_at && (
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    {new Date(tblStatus.halted_at).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <div
+            style={{
+              fontSize: "11px",
+              color: "var(--color-text-muted)",
+              marginTop: "2px",
+            }}
+          >
+            {t("cdc_drift_resolution_hint")}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 // ─── Expandable Row ────────────────────────────────────
@@ -289,11 +462,29 @@ export default function CDCPage() {
 
   const [events, setEvents] = useState<CDCChangeEvent[]>([]);
   const [connectors, setConnectors] = useState<CDCConnectorStatus[]>([]);
+  const [cdcUnavailable, setCdcUnavailable] = useState(false);
+  const [cdcError, setCdcError] = useState<string | null>(null);
 
   useEffect(() => {
-    getCDCEvents().then(setEvents).catch(console.error);
-    getAllCDCConnectorStatuses().then(setConnectors).catch(console.error);
+    const handleError = (err: unknown) => {
+      if (err instanceof CDCConnectUnavailableError) {
+        setCdcUnavailable(true);
+      } else {
+        console.error(err);
+        setCdcError(err instanceof Error ? err.message : "CDC API error");
+      }
+    };
+    getCDCEvents().then(setEvents).catch(handleError);
+    getAllCDCConnectorStatuses().then(setConnectors).catch(handleError);
   }, []);
+
+  const haltedTables = connectors.flatMap((c) => c.halted_tables ?? []);
+  const allTables = connectors.flatMap((c) => c.tables ?? []);
+  const driftState = connectors.some(
+    (c) => c.drift_state === "CDC_SCHEMA_DRIFT_DETECTED",
+  )
+    ? "CDC_SCHEMA_DRIFT_DETECTED"
+    : "none";
 
   return (
     <AppShell pageTitle={t("page_title_cdc")} userRole="admin">
@@ -321,6 +512,39 @@ export default function CDCPage() {
           </div>
         )}
 
+        {/* 503 — CDC Connect unavailable */}
+        {cdcUnavailable && (
+          <div
+            style={{
+              backgroundColor: "var(--color-warning-bg)",
+              border: "1px solid var(--color-warning)",
+              borderRadius: "6px",
+              padding: "10px 14px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: "var(--color-warning)",
+            }}
+          >
+            {t("cdc_connect_unavailable")}
+          </div>
+        )}
+
+        {/* Generic API error */}
+        {cdcError && !cdcUnavailable && (
+          <div
+            style={{
+              backgroundColor: "var(--color-error-bg, rgba(220,38,38,0.08))",
+              border: "1px solid var(--color-error, #dc2626)",
+              borderRadius: "6px",
+              padding: "10px 14px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: "var(--color-error, #dc2626)",
+            }}
+          >
+            {t("cdc_api_error")}
+          </div>
+        )}
         {/* Zone 1 — Latency Summary Strip */}
         <div
           style={{
@@ -408,16 +632,14 @@ export default function CDCPage() {
             {t("cdc_event_feed_title")}
           </div>
 
-          {/* Fix ② — pending notice banner */}
-          <div
-            style={{
-              fontSize: "12px",
-              color: "var(--color-warning)",
-              marginBottom: "12px",
-            }}
-          >
-            {t("cdc_pending_notice")}
-          </div>
+          {haltedTables.length > 0 && (
+            <HaltedTablesBanner
+              halted_tables={haltedTables}
+              drift_state={driftState}
+              tables={allTables}
+              t={t}
+            />
+          )}
 
           {events.length === 0 ? (
             <div
@@ -438,7 +660,6 @@ export default function CDCPage() {
             </div>
           ) : (
             <>
-              {/* Fix ③ — time column in header */}
               <div
                 style={{
                   display: "grid",
@@ -485,17 +706,6 @@ export default function CDCPage() {
             }}
           >
             {t("cdc_connector_title")}
-          </div>
-
-          {/* Fix ② — pending notice banner */}
-          <div
-            style={{
-              fontSize: "12px",
-              color: "var(--color-warning)",
-              marginBottom: "12px",
-            }}
-          >
-            {t("cdc_pending_notice")}
           </div>
 
           {connectors.length === 0 ? (
@@ -566,6 +776,23 @@ export default function CDCPage() {
                       {c.lag_ms != null ? `${c.lag_ms} ms` : "—"}
                     </span>
                   </div>
+                  {c.halted_tables && c.halted_tables.length > 0 && (
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--color-error, #dc2626)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      <span>●</span>
+                      <span>
+                        {t("cdc_halted_table_label")}:{" "}
+                        {c.halted_tables.join(", ")}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -574,7 +801,7 @@ export default function CDCPage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 100px 1fr 80px",
+                  gridTemplateColumns: "1fr 100px 1fr 80px 160px",
                   gap: "8px",
                   fontSize: "11px",
                   fontWeight: 600,
@@ -588,13 +815,14 @@ export default function CDCPage() {
                 <span>{t("cdc_col_status")}</span>
                 <span>{t("cdc_col_last_event")}</span>
                 <span>{t("cdc_col_lag")}</span>
+                <span>{t("cdc_halted_table_label")}</span>
               </div>
               {connectors.map((c) => (
                 <div
                   key={c.connector_id}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 100px 1fr 80px",
+                    gridTemplateColumns: "1fr 100px 1fr 80px 160px",
                     gap: "8px",
                     alignItems: "center",
                     fontSize: "12px",
@@ -618,6 +846,20 @@ export default function CDCPage() {
                     style={{ color: "var(--color-text)", fontSize: "11px" }}
                   >
                     {c.lag_ms != null ? `${c.lag_ms} ms` : "—"}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontFamily: "monospace",
+                      color:
+                        c.halted_tables && c.halted_tables.length > 0
+                          ? "var(--color-error, #dc2626)"
+                          : "var(--color-text-muted)",
+                    }}
+                  >
+                    {c.halted_tables && c.halted_tables.length > 0
+                      ? c.halted_tables.join(", ")
+                      : "—"}
                   </span>
                 </div>
               ))}
