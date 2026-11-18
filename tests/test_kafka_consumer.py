@@ -1,4 +1,4 @@
-"""tests/test_kafka_consumer.py — M7W26T3.
+"""tests/test_kafka_consumer.py — M7W26T3; latency points M8W28T4.
 
 Drives KafkaCDCConnector with an in-memory stand-in for confluent-kafka's
 Consumer, fed with the real captured envelopes. No broker is needed, for the
@@ -419,3 +419,141 @@ def test_consumer_is_configured_for_manual_commits():
     assert captured["enable.auto.commit"] is False
     assert captured["enable.auto.offset.store"] is False
     assert captured["group.id"] == "grp"
+
+
+# ---------------------------------------------------------------------------
+# Latency points t0-t4 (M8W28T4, CDC Design Note Section 2)
+# ---------------------------------------------------------------------------
+
+KAFKA_TS = 1793691261830
+
+
+def timed(topic, offset, envelope, kafka_ts=(1, KAFKA_TS)):
+    """A message carrying a Kafka timestamp, as confluent-kafka's does."""
+    message = msg(topic, offset, envelope)
+    message.timestamp = lambda: kafka_ts
+    return message
+
+
+class FakeLatency:
+    def __init__(self, fail_with: Optional[Exception] = None):
+        self.records: List[tuple] = []
+        self.fail_with = fail_with
+
+    def record(self, event, lsn, points):
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.records.append((event["table"], event["op"], lsn, tuple(points)))
+        return 1
+
+
+class Clock:
+    def __init__(self, *values):
+        self.values = list(values)
+
+    def __call__(self):
+        return self.values.pop(0)
+
+
+def timed_connector(latency, *clock_values, consumer_factory=None):
+    config = StreamingConnectionConfig("unused:9092", r"^subop-postgres-cdc\..*", "t")
+    return KafkaCDCConnector(
+        config,
+        latency_store=latency,
+        clock=Clock(*clock_values),
+        consumer_factory=consumer_factory,
+    )
+
+
+def test_t1_is_the_top_level_ts_ms_never_the_source_one():
+    """The Design Note's named trap: source.ts_ms is t0, payload.ts_ms is t1.
+    This fixture sets them 100 billion ms apart, so a swap cannot hide."""
+    latency = FakeLatency()
+    conn = timed_connector(latency, 1_800_000_000_200)
+    envelope = load("ts_ms_source_vs_processing.json")
+    message = timed(ORDERS_TOPIC, 0, envelope, (1, 1_800_000_000_004))
+    result = conn.handle_message(FakeConsumer(), message, Recorder(), 1_800_000_000_100)
+    assert result == HANDLED
+    [(table, op, lsn, points)] = latency.records
+    assert points == (
+        1_700_000_000_000,  # t0 payload.source.ts_ms
+        1_799_999_999_999,  # t1 payload.ts_ms
+        1_800_000_000_004,  # t2 Kafka message timestamp
+        1_800_000_000_100,  # t3 poll() returned
+        1_800_000_000_200,  # t4 after the handler committed
+    )
+    assert (table, op, lsn) == (ORDERS, "insert", 26642408)
+
+
+def test_t3_falls_back_to_now_when_called_directly():
+    latency = FakeLatency()
+    conn = timed_connector(latency, 10, 20)
+    conn.handle_message(
+        FakeConsumer(), timed(ORDERS_TOPIC, 0, load("insert.json")), Recorder()
+    )
+    assert latency.records[0][3][3:] == (10, 20)
+
+
+def test_run_stamps_t3_when_poll_returns():
+    latency = FakeLatency()
+    kafka = FakeConsumer([timed(ORDERS_TOPIC, 0, load("update.json"))])
+    conn = timed_connector(latency, 111, 222, consumer_factory=lambda settings: kafka)
+    kafka.on_empty = conn.stop
+    conn.run(Recorder())
+    assert latency.records[0][3][3:] == (111, 222)
+
+
+def test_snapshot_rows_are_not_timed():
+    """Their t0 is the snapshot time, not a change's commit time."""
+    latency = FakeLatency()
+    conn = timed_connector(latency, 1, 2)
+    result = conn.handle_message(
+        FakeConsumer(), timed(ORDERS_TOPIC, 0, load("snapshot_event.json")), Recorder()
+    )
+    assert result == HANDLED and latency.records == []
+
+
+def test_missing_kafka_timestamp_skips_the_row_but_not_the_data():
+    latency = FakeLatency()
+    conn, kafka = timed_connector(latency, 1, 2, 3, 4), FakeConsumer()
+    plain = msg(ORDERS_TOPIC, 0, load("insert.json"))
+    unavailable = timed(ORDERS_TOPIC, 1, load("update.json"), (0, -1))
+    assert conn.handle_message(kafka, plain, Recorder()) == HANDLED
+    assert conn.handle_message(kafka, unavailable, Recorder()) == HANDLED
+    assert latency.records == []
+    assert kafka.committed == [(ORDERS_TOPIC, 0), (ORDERS_TOPIC, 1)]
+
+
+def test_a_failed_latency_write_never_halts_the_table():
+    failure = WriteError("db busy", error_code="X", connector_type="postgresql")
+    conn, kafka = timed_connector(FakeLatency(fail_with=failure), 1, 2), FakeConsumer()
+    result = conn.handle_message(
+        kafka, timed(ORDERS_TOPIC, 0, load("insert.json")), Recorder()
+    )
+    assert result == HANDLED
+    assert kafka.committed == [(ORDERS_TOPIC, 0)] and conn.halted == {}
+
+
+def test_an_event_that_halts_or_retries_is_not_timed():
+    latency = FakeLatency()
+    conn = timed_connector(latency, 1, 2)
+    retry = WriteError(
+        "busy", error_code="X", connector_type="postgresql", retryable=True
+    )
+    halt = WriteError(
+        "bad row", error_code="POSTGRES_WRITE_FAILED", connector_type="postgresql"
+    )
+    envelope = load("insert.json")
+    assert (
+        conn.handle_message(
+            FakeConsumer(), timed(ORDERS_TOPIC, 0, envelope), Recorder(retry)
+        )
+        == RETRY
+    )
+    assert (
+        conn.handle_message(
+            FakeConsumer(), timed(ORDERS_TOPIC, 0, envelope), Recorder(halt)
+        )
+        == HALTED
+    )
+    assert latency.records == []
