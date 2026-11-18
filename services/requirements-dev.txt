@@ -19,6 +19,9 @@ python-dotenv
 fastapi
 uvicorn[standard]
 
+# --- Warehouse metadata models (Module 5, M8W28T2): v2 API, used directly ---
+pydantic>=2
+
 # --- Testing ---
 pytest
 httpx
