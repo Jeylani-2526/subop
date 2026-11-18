@@ -4,6 +4,8 @@
 **Status:** Implemented on `abdullah/M7W26T1-6` · **Date:** 3 November 2026
 **Updated:** 18 November 2026, M8W28T4: latency shape added in Section 9, which
 replaces Section 6.
+Updated again on 18 November 2026, M8W28T5: Section 10 says how the endpoints behave
+while Kafka Connect is down.
 
 The three endpoints behind `CDCPage.tsx`, served by `subop-api` on the same base
 URL `pipelinesClient.ts` already uses:
@@ -333,3 +335,57 @@ The second event is from before instrumentation, so its `latency_ms` is null.
 
 Fixtures: one connector with a populated `latency` (as in 9.4) and one with `latency: null`
 and `lag_ms: null`, so both states stay testable (M8W28T8).
+
+## 10. While Kafka Connect is down — M8W28T5
+
+**For:** Beyza (M8W28T8) · **Date:** 18 November 2026 · Closes the M7 checklist's
+"halt hidden while Connect is down" item.
+
+Until now, an unreachable Connect turned the **whole** response into a 503, and the
+page lost the halt states `cdc_meta.table_state` still holds. Now the connector
+endpoints fall back to that stored state.
+
+### 10.1 What changes in the response
+
+```ts
+// CDCConnectorStatus
+state: "RUNNING" | "PAUSED" | "FAILED" | "UNASSIGNED" | "UNKNOWN";  // UNKNOWN is new
+task_state: string | null;      // always null when state is UNKNOWN
+connect_reachable: boolean;     // new, always present: true on the live path
+```
+
+With `connect_reachable: false`:
+
+| Field | Value |
+|---|---|
+| `state` | `"UNKNOWN"`, because Connect could not be asked |
+| `task_state` | `null` |
+| `tables` | Every table in `cdc_meta.table_state`, sorted by name. The live path uses the connector's `table.include.list`, which only Connect knows |
+| `halted`, `halted_tables`, `drift_state`, each table's halt fields | From `cdc_meta`, exactly as stored: **the last known state** |
+| `events_processed`, `last_event_ts_ms`, `latency`, `lag_ms` | From `cdc_meta`, as on the live path |
+
+### 10.2 Which connectors the list returns
+
+`GET /api/cdc/connectors` normally asks Connect for the names. While Connect is down it
+uses the `CDC_CONNECTOR_NAMES` setting (comma-separated, default `subop-postgres-cdc`;
+decided 18 November).
+
+### 10.3 When it is still a 503
+
+| Case | Response |
+|---|---|
+| Connect down and `cdc_meta` holds no table state (the consumer has never run) | 503 `CDC_CONNECT_UNAVAILABLE`, `retryable: true`, as before |
+| Connect down and the requested connector is not in `CDC_CONNECTOR_NAMES` | 503 `CDC_CONNECT_UNAVAILABLE`: without Connect, it cannot be confirmed to exist |
+| Connect up, connector unknown | 404 `CDC_CONNECTOR_NOT_FOUND`, unchanged |
+
+`GET /api/cdc/events` never depended on Connect, so it is unchanged.
+
+### 10.4 What the UI should show
+
+| Condition | Show |
+|---|---|
+| `connect_reachable === false` | The existing Connect-unavailable warning, **and** the halt banner if `halted_tables` is not empty, labelled as the last known state |
+| `state === "UNKNOWN"` | A neutral status label: neither healthy nor failed |
+
+Fixtures: one connector with `connect_reachable: false`, `state: "UNKNOWN"` and a halted
+table, so the banner can be checked without stopping Connect (M8W28T8).

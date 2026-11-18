@@ -231,7 +231,8 @@ def test_unknown_connector_is_404_in_the_error_envelope(client):
     }
 
 
-def test_connect_down_is_503_not_a_guessed_state(client):
+def test_connect_down_with_nothing_stored_is_still_503(client):
+    """M8W28T5 keeps the 503 when there is no stored state to fall back on."""
     use(connect=FakeConnect(down=True))
     for path in ("/api/cdc/connectors", f"/api/cdc/connectors/{NAME}/status"):
         response = client.get(path)
@@ -241,6 +242,61 @@ def test_connect_down_is_503_not_a_guessed_state(client):
             body["error_code"] == "CDC_CONNECT_UNAVAILABLE"
             and body["retryable"] is True
         )
+
+
+def test_connect_down_keeps_the_last_known_halt_visible(client):
+    """M8W28T5: the halt in cdc_meta outlives a Connect outage."""
+    use(connect=FakeConnect(down=True), store=FakeStore(STATE))
+    response = client.get(f"/api/cdc/connectors/{NAME}/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["state"], body["task_state"], body["connect_reachable"]) == (
+        "UNKNOWN",
+        None,
+        False,
+    )
+    assert body["halted"] is True
+    assert body["halted_tables"] == [ORDERS]
+    assert body["drift_state"] == "CDC_SCHEMA_DRIFT_DETECTED"
+    orders = next(t for t in body["tables"] if t["table"] == ORDERS)
+    assert orders["halted_at"] == HALT_TIME.isoformat()
+    assert {t["table"] for t in body["tables"]} == {ORDERS, CUSTOMERS}
+
+
+def test_connect_down_list_uses_the_configured_connector_names(client, monkeypatch):
+    monkeypatch.setenv("CDC_CONNECTOR_NAMES", f"{NAME}, other-cdc")
+    use(connect=FakeConnect(down=True), store=FakeStore(STATE))
+    body = client.get("/api/cdc/connectors").json()
+    assert [c["connector_id"] for c in body] == [NAME, "other-cdc"]
+    assert all(c["state"] == "UNKNOWN" and not c["connect_reachable"] for c in body)
+
+
+def test_connect_down_list_defaults_to_the_demo_connector(client, monkeypatch):
+    monkeypatch.delenv("CDC_CONNECTOR_NAMES", raising=False)
+    use(connect=FakeConnect(down=True), store=FakeStore(STATE))
+    body = client.get("/api/cdc/connectors").json()
+    assert [c["connector_id"] for c in body] == [NAME]
+
+
+def test_connect_down_cannot_confirm_an_unknown_connector(client):
+    use(connect=FakeConnect(down=True), store=FakeStore(STATE))
+    response = client.get("/api/cdc/connectors/nobody/status")
+    assert response.status_code == 503
+    assert response.json()["error_code"] == "CDC_CONNECT_UNAVAILABLE"
+
+
+def test_connect_down_still_reports_latency(client):
+    latency = FakeLatency(LATENCY)
+    use(connect=FakeConnect(down=True), store=FakeStore(STATE), latency=latency)
+    body = client.get(f"/api/cdc/connectors/{NAME}/status").json()
+    assert body["lag_ms"] == 812 and body["latency"]["sample_size"] == 42
+    assert latency.asked_for == [sorted([ORDERS, CUSTOMERS])]
+
+
+def test_live_status_says_connect_is_reachable(client):
+    use(store=FakeStore(STATE))
+    body = client.get(f"/api/cdc/connectors/{NAME}/status").json()
+    assert body["connect_reachable"] is True and body["state"] == "RUNNING"
 
 
 def test_events_feed_matches_cdc_change_event(client):
