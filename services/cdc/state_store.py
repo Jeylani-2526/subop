@@ -136,24 +136,29 @@ class CDCStateStore:
             ),
         )
 
-    def recent_events(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def recent_events(
+        self, limit: int = 50, with_keys: bool = False
+    ) -> List[Dict[str, Any]]:
+        """with_keys adds lsn and row_key, the event's identity, for joining
+        latency rows (M8W28T4). They are not part of the API response."""
         rows = self._layer.execute_query(
-            f"SELECT op, table_name, before, after, ts_ms FROM {EVENT_LOG} "
+            f"SELECT op, table_name, before, after, ts_ms, lsn, row_key FROM {EVENT_LOG} "
             f"ORDER BY lsn DESC, id DESC LIMIT %s",
             (limit,),
         )
         events = []
         for row in rows:
             entry = dict(row)
-            events.append(
-                {
-                    "op": entry["op"],
-                    "table": entry["table_name"],
-                    "before": _parsed(entry["before"]),
-                    "after": _parsed(entry["after"]),
-                    "ts_ms": entry["ts_ms"],
-                }
-            )
+            event = {
+                "op": entry["op"],
+                "table": entry["table_name"],
+                "before": _parsed(entry["before"]),
+                "after": _parsed(entry["after"]),
+                "ts_ms": entry["ts_ms"],
+            }
+            if with_keys:
+                event["lsn"], event["row_key"] = entry["lsn"], entry["row_key"]
+            events.append(event)
         return events
 
     def clear_halt(self, table: str) -> None:

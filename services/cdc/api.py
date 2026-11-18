@@ -17,6 +17,7 @@ import httpx
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
+from services.cdc.latency_store import LatencyStore
 from services.cdc.state_store import CDCStateStore
 from services.connectors.errors import ConnectorError
 
@@ -104,6 +105,23 @@ def get_state_store() -> Iterator[CDCStateStore]:
         release_connection(layer)
 
 
+def get_latency_store() -> Iterator[LatencyStore]:
+    from services.etl_engine.connection_resolver import (
+        release_connection,
+        resolve_connection,
+    )
+
+    layer, _ = resolve_connection(
+        "postgresql", os.environ.get("CDC_STATE_REF", "dw-main")
+    )
+    try:
+        store = LatencyStore(layer)
+        store.ensure_schema()
+        yield store
+    finally:
+        release_connection(layer)
+
+
 # -- response building ------------------------------------------------------
 
 
@@ -125,7 +143,10 @@ def _table_entry(table: str, row: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _connector_status(
-    name: str, connect: ConnectClient, state: Dict[str, Dict[str, Any]]
+    name: str,
+    connect: ConnectClient,
+    state: Dict[str, Dict[str, Any]],
+    latency_store: LatencyStore,
 ) -> Dict[str, Any]:
     status = connect.status(name)
     config = connect.config(name)
@@ -137,6 +158,9 @@ def _connector_status(
     timestamps = [
         t["last_event_ts_ms"] for t in tables if t["last_event_ts_ms"] is not None
     ]
+    # Contract Section 9: the newest 100 events across this connector's tables.
+    latency = latency_store.summary(include)
+    lag_ms = latency.pop("lag_ms") if latency is not None else None
     return {
         "connector_id": name,
         "connector_name": name,
@@ -157,10 +181,8 @@ def _connector_status(
             if any(t["halt_error_code"] == _DRIFT for t in tables if t["halted"])
             else "none"
         ),
-        # Reserved for the M8 latency instrumentation (CDC Design Note
-        # Section 2). Present and null, so the shape does not change then.
-        "lag_ms": None,
-        "latency": None,
+        "lag_ms": lag_ms,
+        "latency": latency,
     }
 
 
@@ -182,10 +204,14 @@ def _guarded(build: Callable[[], Any]) -> Any:
 def list_connectors(
     connect: ConnectClient = Depends(get_connect_client),
     store: CDCStateStore = Depends(get_state_store),
+    latency: LatencyStore = Depends(get_latency_store),
 ):
     def build():
         state = store.load()
-        return [_connector_status(n, connect, state) for n in connect.connector_names()]
+        return [
+            _connector_status(n, connect, state, latency)
+            for n in connect.connector_names()
+        ]
 
     return _guarded(build)
 
@@ -195,19 +221,27 @@ def connector_status(
     connector_id: str,
     connect: ConnectClient = Depends(get_connect_client),
     store: CDCStateStore = Depends(get_state_store),
+    latency: LatencyStore = Depends(get_latency_store),
 ):
-    return _guarded(lambda: _connector_status(connector_id, connect, store.load()))
+    return _guarded(
+        lambda: _connector_status(connector_id, connect, store.load(), latency)
+    )
 
 
 @router.get("/events")
 def recent_events(
     limit: int = Query(50, ge=1, le=500),
     store: CDCStateStore = Depends(get_state_store),
+    latency: LatencyStore = Depends(get_latency_store),
 ):
     def build():
-        events = store.recent_events(limit)
-        for event in events:
-            event["latency_ms"] = None  # M8, as above
+        events = store.recent_events(limit, with_keys=True)
+        keys = [(e["table"], e["lsn"], e["op"], e["row_key"]) for e in events]
+        e2e = latency.e2e_by_key(keys)
+        for event, key in zip(events, keys):
+            del event["lsn"], event["row_key"]
+            # null for events from before M8 instrumentation, and for snapshots
+            event["latency_ms"] = e2e.get(key)
         return events
 
     return _guarded(build)

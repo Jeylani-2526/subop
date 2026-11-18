@@ -347,3 +347,57 @@ def test_get_kpis_reports_all_eight_connectors():
         "oracle",
     }
     assert body["connector_count"] == 8
+
+
+# ---------------------------------------------------------------------------
+# GET /api/kpis — cdc_latency_ms (M8W28T4, cdc_api_contract.md Section 9)
+# ---------------------------------------------------------------------------
+
+
+class _FakeLatencyStore:
+    summary_value = None
+
+    def __init__(self, layer):
+        self.layer = layer
+
+    def ensure_schema(self):
+        pass
+
+    def summary(self, tables=None):
+        return self.summary_value
+
+
+def test_get_kpis_cdc_latency_is_null_without_a_warehouse_connection(monkeypatch):
+    from services.connectors.errors import ConnectionError as ConnConnectionError
+
+    def unavailable(connector_type, ref):
+        raise ConnConnectionError(
+            "no ref", error_code="CONNECTION_REF_NOT_FOUND", connector_type="postgresql"
+        )
+
+    monkeypatch.setattr(connection_resolver, "resolve_connection", unavailable)
+    body = client.get("/api/kpis").json()
+    assert body["cdc_latency_ms"] is None
+    assert "pipeline_count" in body  # the other KPIs still answer
+
+
+def test_get_kpis_cdc_latency_is_the_e2e_p95(monkeypatch):
+    import services.cdc.latency_store as latency_store
+
+    released = []
+    monkeypatch.setattr(
+        connection_resolver,
+        "resolve_connection",
+        lambda t, ref: ("layer", "postgresql"),
+    )
+    monkeypatch.setattr(connection_resolver, "release_connection", released.append)
+    monkeypatch.setattr(latency_store, "LatencyStore", _FakeLatencyStore)
+
+    _FakeLatencyStore.summary_value = None
+    assert client.get("/api/kpis").json()["cdc_latency_ms"] is None
+
+    _FakeLatencyStore.summary_value = {
+        "e2e": {"median_ms": 734.5, "p95_ms": 1904.85, "max_ms": 2311}
+    }
+    assert client.get("/api/kpis").json()["cdc_latency_ms"] == 1904.85
+    assert released == ["layer", "layer"]  # the connection is always released

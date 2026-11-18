@@ -40,6 +40,10 @@ SKIPPED = "skipped"
 Handler = Callable[[Dict[str, Any], Dict[str, Any]], None]
 
 
+def _now_ms() -> int:
+    return int(time.time() * 1000)
+
+
 class KafkaCDCConnector(StreamingConnector):
     """Consumes Debezium topics, drift-checks each message, and hands the
     neutral event to a handler.
@@ -60,9 +64,13 @@ class KafkaCDCConnector(StreamingConnector):
         state_store: Any = None,
         detector: Optional[SchemaDriftDetector] = None,
         consumer_factory: Optional[Callable[[Dict[str, Any]], Any]] = None,
+        latency_store: Any = None,
+        clock: Callable[[], int] = _now_ms,
     ) -> None:
         super().__init__(config)
         self.state_store = state_store
+        self.latency_store = latency_store
+        self._clock = clock
         self.detector = detector or SchemaDriftDetector()
         self._consumer_factory = consumer_factory or _confluent_consumer
         self._stop = threading.Event()
@@ -125,7 +133,8 @@ class KafkaCDCConnector(StreamingConnector):
                 msg = consumer.poll(1.0)
                 if msg is None:
                     continue
-                if self.handle_message(consumer, msg, on_message) == RETRY:
+                polled_at = self._clock()  # t3
+                if self.handle_message(consumer, msg, on_message, polled_at) == RETRY:
                     time.sleep(RETRY_DELAY_SECONDS)
         finally:
             self.subscribed = False
@@ -133,7 +142,14 @@ class KafkaCDCConnector(StreamingConnector):
 
     # -- per message -------------------------------------------------------
 
-    def handle_message(self, consumer: Any, msg: Any, on_message: Handler) -> str:
+    def handle_message(
+        self,
+        consumer: Any,
+        msg: Any,
+        on_message: Handler,
+        polled_at_ms: Optional[int] = None,
+    ) -> str:
+        t3 = polled_at_ms if polled_at_ms is not None else self._clock()
         error = msg.error()
         if error is not None:
             if _is_partition_eof(error):
@@ -185,6 +201,7 @@ class KafkaCDCConnector(StreamingConnector):
             return self._halt(consumer, msg, table, exc.error_code, exc.message)
         except Exception as exc:  # an unclassified failure is not safe to skip
             return self._halt(consumer, msg, table, "CDC_HANDLER_FAILED", repr(exc))
+        t4 = self._clock()  # the handler returned, so the warehouse write committed
 
         if self.state_store is not None:
             self.state_store.record_event(table, event["ts_ms"], meta.get("lsn"))
@@ -196,8 +213,37 @@ class KafkaCDCConnector(StreamingConnector):
             log.info("halt on %s no longer reproduces; cleared", table)
             if self.state_store is not None:
                 self.state_store.clear_halt(table)
+        self._record_latency(event, envelope, msg, meta, t3, t4)
         consumer.commit(message=msg, asynchronous=False)
         return HANDLED
+
+    def _record_latency(
+        self,
+        event: Dict[str, Any],
+        envelope: Dict[str, Any],
+        msg: Any,
+        meta: Dict[str, Any],
+        t3: int,
+        t4: int,
+    ) -> None:
+        # Snapshot rows carry the snapshot time, not a change's commit time,
+        # so they would distort the KPI. A missing point is skipped, never
+        # filled in.
+        if self.latency_store is None or event["op"] == "snapshot":
+            return
+        t1, t2 = _processing_ts_ms(envelope), _kafka_ts_ms(msg)
+        if t1 is None or t2 is None:
+            log.warning(
+                "latency not recorded for %s: t1=%s t2=%s", event["table"], t1, t2
+            )
+            return
+        try:
+            self.latency_store.record(
+                event, meta.get("lsn"), (event["ts_ms"], t1, t2, t3, t4)
+            )
+        except ConnectorError as exc:
+            # Measurement only: a failed latency write must not stop the data.
+            log.warning("latency not recorded for %s: %s", event["table"], exc.message)
 
     def _halt(self, consumer: Any, msg: Any, table: str, code: str, reason: str) -> str:
         key = (msg.topic(), msg.partition())
@@ -222,6 +268,23 @@ def _message_meta(msg: Any, envelope: Dict[str, Any]) -> Dict[str, Any]:
         "offset": msg.offset(),
         "lsn": source.get("lsn"),
     }
+
+
+def _processing_ts_ms(envelope: Dict[str, Any]) -> Optional[int]:
+    # t1 is the TOP-LEVEL payload.ts_ms, Debezium's processing time. Never
+    # payload.source.ts_ms: that is t0 (Design Note Section 2.2's named trap).
+    payload = envelope.get("payload") if "payload" in envelope else envelope
+    value = (payload or {}).get("ts_ms")
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _kafka_ts_ms(msg: Any) -> Optional[int]:
+    # t2: confluent-kafka returns (type, ms); type 0 means not available.
+    timestamp = getattr(msg, "timestamp", None)
+    if timestamp is None:
+        return None
+    ts_type, value = timestamp()
+    return value if ts_type != 0 and isinstance(value, int) and value >= 0 else None
 
 
 def _is_partition_eof(error: Any) -> bool:
@@ -285,6 +348,18 @@ def _state_store(state_ref: str) -> Any:
     return store
 
 
+def _latency_store(ref: str) -> Any:
+    from services.cdc.latency_store import LatencyStore
+    from services.etl_engine.connection_resolver import resolve_connection
+
+    # Its own connection, like the sink's: a failed latency write never rolls
+    # back or blocks the state store or the warehouse.
+    layer, _ = resolve_connection("postgresql", ref)
+    store = LatencyStore(layer)
+    store.ensure_schema()
+    return store
+
+
 def _warehouse_handler(warehouse_ref: str) -> Handler:
     from services.cdc.warehouse_sink import WarehouseSink
     from services.etl_engine.connection_resolver import resolve_connection
@@ -344,6 +419,8 @@ def main(argv: Optional[list] = None) -> int:
     connector = KafkaCDCConnector(
         StreamingConnectionConfig(args.bootstrap, args.pattern, args.group),
         state_store=store,
+        # --log-only writes nothing to the warehouse, so there is no t4 to time.
+        latency_store=None if args.log_only else _latency_store(args.state_ref),
     )
     connector.restore_state()
     if connector.halted:

@@ -185,6 +185,30 @@ def get_run_status_route(pipeline_id: str, run_id: str):
     return JSONResponse(status_code=200, content=run)
 
 
+def _cdc_latency_ms() -> Optional[float]:
+    """M8W28T4: e2e p95 over the newest 100 CDC events, every table
+    (cdc_api_contract.md Section 9). null when nothing is measured yet or the
+    warehouse database is not reachable, so the other KPIs still answer."""
+    from services.cdc.latency_store import LatencyStore
+    from services.connectors.errors import ConnectorError
+
+    try:
+        layer, _ = connection_resolver.resolve_connection(
+            "postgresql", os.environ.get("CDC_STATE_REF", "dw-main")
+        )
+    except (ConnectorError, ImportError):
+        return None
+    try:
+        store = LatencyStore(layer)
+        store.ensure_schema()
+        summary = store.summary()
+    except ConnectorError:
+        return None
+    finally:
+        connection_resolver.release_connection(layer)
+    return summary["e2e"]["p95_ms"] if summary is not None else None
+
+
 def _kpi_aggregates() -> Dict[str, Any]:
     """
     Aggregate live KPI figures from pipeline_store and run_store —
@@ -246,6 +270,7 @@ def _kpi_aggregates() -> Dict[str, Any]:
             len(connector_types) if connector_types is not None else None
         ),
         "connector_types": connector_types,
+        "cdc_latency_ms": _cdc_latency_ms(),
     }
 
 

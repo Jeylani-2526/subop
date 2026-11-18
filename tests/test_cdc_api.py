@@ -1,4 +1,4 @@
-"""tests/test_cdc_api.py — M7W26T6.
+"""tests/test_cdc_api.py — M7W26T6; latency fields M8W28T4.
 
 The /api/cdc routes with Kafka Connect and the state store replaced through
 FastAPI dependency overrides, so the response contract is checked without a
@@ -7,6 +7,7 @@ running Connect worker or database.
 
 from __future__ import annotations
 
+import copy
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,8 +25,10 @@ from services.cdc.api import (  # noqa: E402
     ConnectorNotFound,
     ConnectUnavailable,
     get_connect_client,
+    get_latency_store,
     get_state_store,
 )
+from services.cdc.latency_store import row_key  # noqa: E402
 
 NAME = "subop-postgres-cdc"
 ORDERS, CUSTOMERS = "cdc_demo.orders", "cdc_demo.customers"
@@ -64,8 +67,43 @@ class FakeStore:
     def load(self):
         return self.state
 
-    def recent_events(self, limit):
-        return [dict(e) for e in self.events[:limit]]
+    def recent_events(self, limit, with_keys=False):
+        events = []
+        for i, e in enumerate(self.events[:limit]):
+            event = {k: v for k, v in e.items() if k != "lsn"}
+            if with_keys:
+                event["lsn"], event["row_key"] = e.get("lsn", 100 + i), row_key(e)
+            events.append(event)
+        return events
+
+
+class FakeLatency:
+    def __init__(self, summary=None, e2e=None):
+        self._summary, self._e2e = summary, e2e or {}
+        self.asked_for = []
+
+    def summary(self, tables=None):
+        self.asked_for.append(tables)
+        return copy.deepcopy(self._summary)
+
+    def e2e_by_key(self, keys):
+        return {k: self._e2e[k] for k in keys if k in self._e2e}
+
+
+def _stat(median, p95, maximum):
+    return {"median_ms": median, "p95_ms": p95, "max_ms": maximum}
+
+
+LATENCY = {
+    "window_size": 100,
+    "sample_size": 42,
+    "lag_ms": 812,
+    "e2e": _stat(734.5, 1904.85, 2311),
+    "capture": _stat(401, 1450.2, 1702),
+    "publish": _stat(12, 31.95, 44),
+    "consumer": _stat(288.5, 402.9, 517),
+    "warehouse": _stat(9, 21, 38),
+}
 
 
 HALT_TIME = datetime(2026, 11, 3, 16, 0, tzinfo=timezone.utc)
@@ -93,9 +131,10 @@ def client():
     app.dependency_overrides.clear()
 
 
-def use(connect=None, store=None):
+def use(connect=None, store=None, latency=None):
     app.dependency_overrides[get_connect_client] = lambda: connect or FakeConnect()
     app.dependency_overrides[get_state_store] = lambda: store or FakeStore()
+    app.dependency_overrides[get_latency_store] = lambda: latency or FakeLatency()
 
 
 def test_status_carries_the_fields_cdc_types_already_declare(client):
@@ -113,12 +152,38 @@ def test_status_carries_the_fields_cdc_types_already_declare(client):
     assert (body["connector_id"], body["state"]) == (NAME, "RUNNING")
 
 
-def test_latency_fields_are_present_and_null(client):
-    """Reserved for M8, so the response shape does not change when it lands."""
+def test_latency_is_null_until_an_event_is_measured(client):
+    """Contract Section 9.3: null, not zero, while nothing has been measured."""
     use(store=FakeStore(STATE))
     body = client.get(f"/api/cdc/connectors/{NAME}/status").json()
     assert body["lag_ms"] is None
     assert "latency" in body and body["latency"] is None
+
+
+def test_latency_follows_the_contract_shape(client):
+    """Contract Section 9.2: five hops, lag_ms beside them, not inside."""
+    latency = FakeLatency(LATENCY)
+    use(store=FakeStore(STATE), latency=latency)
+    body = client.get(f"/api/cdc/connectors/{NAME}/status").json()
+    expected = {k: v for k, v in LATENCY.items() if k != "lag_ms"}
+    assert body["latency"] == expected
+    assert body["lag_ms"] == 812
+    assert set(body["latency"]) == {
+        "window_size",
+        "sample_size",
+        "e2e",
+        "capture",
+        "publish",
+        "consumer",
+        "warehouse",
+    }
+
+
+def test_latency_covers_only_the_connector_tables(client):
+    latency = FakeLatency(LATENCY)
+    use(store=FakeStore(STATE), latency=latency)
+    client.get(f"/api/cdc/connectors/{NAME}/status")
+    assert latency.asked_for == [[ORDERS, CUSTOMERS]]
 
 
 def test_status_reports_counts_and_a_table_scoped_halt(client):
@@ -201,6 +266,33 @@ def test_events_feed_matches_cdc_change_event(client):
     for event in body:
         assert set(event) == {"op", "table", "before", "after", "ts_ms", "latency_ms"}
         assert event["latency_ms"] is None
+
+
+def test_events_carry_their_own_latency(client):
+    """latency_ms is that event's t4 - t0; an event from before M8 stays null."""
+    events = [
+        {
+            "op": "update",
+            "table": ORDERS,
+            "before": None,
+            "after": {"id": 7},
+            "ts_ms": 2,
+            "lsn": 501,
+        },
+        {
+            "op": "insert",
+            "table": ORDERS,
+            "before": None,
+            "after": {"id": 7},
+            "ts_ms": 1,
+            "lsn": 500,
+        },
+    ]
+    latency = FakeLatency(e2e={(ORDERS, 501, "update", "7"): 812})
+    use(store=FakeStore(events=events), latency=latency)
+    body = client.get("/api/cdc/events").json()
+    assert [e["latency_ms"] for e in body] == [812, None]
+    assert all("lsn" not in e and "row_key" not in e for e in body)
 
 
 def test_events_limit_is_bounded(client):
