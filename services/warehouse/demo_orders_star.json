@@ -1,0 +1,55 @@
+{
+  "name": "demo_orders_star",
+  "version": 1,
+  "description": "Orders star schema built from the M7 CDC demo tables.",
+  "source": {
+    "connector_type": "postgresql",
+    "connection_ref": "pg-main"
+  },
+  "fact": {
+    "name": "fact_orders",
+    "source_table": "cdc_demo.orders",
+    "columns": {
+      "id": "bigint",
+      "customer_id": "bigint",
+      "status": "varchar(32)",
+      "amount": "numeric(12,2)",
+      "created_at": "timestamptz"
+    },
+    "business_key": ["id"],
+    "measures": ["amount"],
+    "dimension_keys": {
+      "customer_id": "dim_customer",
+      "created_at": "dim_date"
+    },
+    "personal_data": true,
+    "legal_basis": "Contract",
+    "retention_policy_days": 3650
+  },
+  "dimensions": [
+    {
+      "name": "dim_customer",
+      "source_table": "cdc_demo.customers",
+      "columns": {
+        "id": "bigint",
+        "name": "varchar(64)",
+        "city": "varchar(64)"
+      },
+      "business_key": ["id"],
+      "scd_type": 2,
+      "tracked_attributes": ["city"],
+      "personal_data": true,
+      "legal_basis": "Contract",
+      "retention_policy_days": 3650
+    },
+    {
+      "name": "dim_date",
+      "derived_from": {
+        "kind": "date",
+        "column": "created_at"
+      },
+      "scd_type": 1,
+      "personal_data": false
+    }
+  ]
+}
