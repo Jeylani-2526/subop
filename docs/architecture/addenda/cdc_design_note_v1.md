@@ -46,6 +46,8 @@ All values normalised to **integer milliseconds, UTC**. Intervals are computed, 
 
 A `latency_store.py` module in `services/cdc/`, following the **in-memory, interface-first pattern** `lineage_store.py` and `run_store.py` already establish — one record per change event, keyed by event id, holding all five raw timestamps plus the source table and operation. Replaced by durable storage when M8's warehouse layer lands; the interface does not change.
 
+> **Amendment, 18 November 2026 (M8W28T4):** the store is persistent from the start, in `cdc_meta.event_latency`, not in-memory. The consumer and `subop-api` are separate processes, so an in-memory store could never reach the status endpoint. This is the same reason the 3 November decision moved CDC state into Postgres. The row is keyed like `cdc_meta.event_log`, so a redelivery is a no-op. Response shape: `docs/planning/cdc_api_contract.md` Section 9.
+
 Exposed through the API surface Architecture Section 6 already defines for Module 4: `GET /api/cdc/connectors/{id}/status`, documented there as returning snapshot/streaming status **plus current latency, specifically the measurement points from Section 5.2**. No new endpoint is invented — the contract already exists and this note fills it.
 
 Consumed by the frontend through `cdc_latency_ms` on the `KPISummary` interface, the nullable field added in M7W22T10, so the HomePage CDC Latency card reads a live value with no further frontend change.
