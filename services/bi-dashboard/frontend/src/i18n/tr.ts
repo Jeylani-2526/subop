@@ -135,6 +135,33 @@ const tr = {
   cdc_drift_resolution_hint:
     "Şema değişikliğini inceleyin, ardından yakalamaya devam etmek için tablonun durdurma durumunu sıfırlayın.",
   cdc_api_error: "CDC API'ye ulaşılamadı. Lütfen daha sonra tekrar deneyin.",
+
+  // Warehouse Schemas sayfası
+  nav_warehouse: "Warehouse Schemas",
+  page_title_warehouse: "Warehouse Schemas",
+  warehouse_pending_notice:
+    "Warehouse şeması henüz oluşturulmadı. API bağlandığında burada görünecek.",
+  warehouse_empty: "Henüz oluşturulmuş şema yok.",
+  warehouse_col_column: "Sütun",
+  warehouse_col_native_type: "Native Tip",
+  warehouse_col_canonical_type: "Canonical Tip",
+  warehouse_col_scd: "SCD",
+  warehouse_scd_type1: "Tip 1",
+  warehouse_scd_type2: "Tip 2",
+  warehouse_badge_personal_data: "Kişisel Veri",
+  warehouse_badge_legal_basis: "Hukuki Dayanak",
+  warehouse_badge_retention: "Saklama",
+  warehouse_legal_consent: "Rıza",
+  warehouse_legal_contract: "Sözleşme",
+  warehouse_legal_legal_obligation: "Yasal Yükümlülük",
+  warehouse_legal_vital_interests: "Hayati Çıkarlar",
+  warehouse_legal_public_task: "Kamu Görevi",
+  warehouse_legal_legitimate_interest: "Meşru Menfaat",
+  warehouse_fact_label: "Fact",
+  warehouse_dim_label: "Dim",
+  warehouse_select_schema: "Listedeki bir şemayı seçin.",
+  warehouse_api_error:
+    "Warehouse API'ye ulaşılamadı. Lütfen daha sonra tekrar deneyin.",
 };
 
 export default tr;
