@@ -140,7 +140,7 @@ const tr = {
   nav_warehouse: "Warehouse Schemas",
   page_title_warehouse: "Warehouse Schemas",
   warehouse_pending_notice:
-    "Warehouse şeması henüz oluşturulmadı. API bağlandığında burada görünecek.",
+    "Örnek veriler gösteriliyor; canlı API Hafta 29'da bağlanacak.",
   warehouse_empty: "Henüz oluşturulmuş şema yok.",
   warehouse_col_column: "Sütun",
   warehouse_col_native_type: "Native Tip",

@@ -2,113 +2,8 @@ import { useState, useEffect } from "react";
 import AppShell from "./components/AppShell";
 import { useT } from "./src/i18n/LanguageProvider";
 import type { TranslationKey } from "./src/i18n/tr";
-
-interface WarehouseColumn {
-  name: string;
-  native_type: string;
-  canonical_type: string;
-  tracked?: boolean; // SCD Type 2 tracked attribute
-}
-
-interface WarehouseTable {
-  name: string;
-  table_type: "fact" | "dim";
-  scd_type?: 1 | 2;
-  personal_data: boolean;
-  legal_basis?: string;
-  retention_policy_days?: number;
-  columns: WarehouseColumn[];
-}
-
-interface WarehouseSchema {
-  id: string;
-  name: string;
-  version: string;
-  source_connection_ref: string;
-  tables: WarehouseTable[];
-}
-
-const FIXTURE_SCHEMAS: WarehouseSchema[] = [
-  {
-    id: "demo_orders_star",
-    name: "demo_orders_star",
-    version: "1.0.0",
-    source_connection_ref: "postgres-demo",
-    tables: [
-      {
-        name: "fact_orders",
-        table_type: "fact",
-        personal_data: false,
-        columns: [
-          { name: "order_id", native_type: "int4", canonical_type: "integer" },
-          {
-            name: "customer_id",
-            native_type: "int4",
-            canonical_type: "integer",
-          },
-          { name: "date_id", native_type: "int4", canonical_type: "integer" },
-          { name: "amount", native_type: "numeric", canonical_type: "decimal" },
-          { name: "status", native_type: "varchar", canonical_type: "string" },
-        ],
-      },
-      {
-        name: "dim_customer",
-        table_type: "dim",
-        scd_type: 2,
-        personal_data: true,
-        legal_basis: "Contract",
-        retention_policy_days: 1095,
-        columns: [
-          {
-            name: "customer_id",
-            native_type: "int4",
-            canonical_type: "integer",
-          },
-          {
-            name: "name",
-            native_type: "varchar",
-            canonical_type: "string",
-            tracked: false,
-          },
-          {
-            name: "city",
-            native_type: "varchar",
-            canonical_type: "string",
-            tracked: true,
-          },
-          {
-            name: "valid_from",
-            native_type: "timestamptz",
-            canonical_type: "timestamp",
-          },
-          {
-            name: "valid_to",
-            native_type: "timestamptz",
-            canonical_type: "timestamp",
-          },
-          {
-            name: "is_current",
-            native_type: "bool",
-            canonical_type: "boolean",
-          },
-        ],
-      },
-      {
-        name: "dim_date",
-        table_type: "dim",
-        scd_type: 1,
-        personal_data: false,
-        columns: [
-          { name: "date_id", native_type: "int4", canonical_type: "integer" },
-          { name: "date", native_type: "date", canonical_type: "date" },
-          { name: "year", native_type: "int4", canonical_type: "integer" },
-          { name: "month", native_type: "int4", canonical_type: "integer" },
-          { name: "day", native_type: "int4", canonical_type: "integer" },
-        ],
-      },
-    ],
-  },
-];
+import type { WarehouseSchema, WarehouseTable } from "./api/warehouseTypes";
+import { getWarehouseSchemas } from "./api/warehouseClient";
 
 // ─── Legal basis key map ───────────────────────────────────
 
@@ -145,10 +40,8 @@ function SchemaCard({
   onClick: () => void;
 }) {
   const { t } = useT();
-  const factCount = schema.tables.filter(
-    (tb) => tb.table_type === "fact",
-  ).length;
-  const dimCount = schema.tables.filter((tb) => tb.table_type === "dim").length;
+  const factCount = schema.tables.filter((tb) => tb.role === "fact").length;
+  const dimCount = schema.tables.filter((tb) => tb.role === "dimension").length;
 
   return (
     <div
@@ -182,7 +75,7 @@ function SchemaCard({
         {schema.name}
       </div>
       <div style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
-        v{schema.version} · {schema.source_connection_ref}
+        v{schema.version} · {schema.source.connection_ref}
       </div>
       <div
         style={{
@@ -334,7 +227,7 @@ function TableDetail({
   isCard: boolean;
 }) {
   const tableTypeBadge =
-    table.table_type === "fact"
+    table.role === "fact"
       ? t("warehouse_fact_label")
       : t("warehouse_dim_label");
 
@@ -373,7 +266,7 @@ function TableDetail({
             fontSize: "10px",
             fontWeight: 600,
             backgroundColor:
-              table.table_type === "fact"
+              table.role === "fact"
                 ? "var(--color-secondary)"
                 : "var(--color-neutral-dark)",
             color: "#fff",
@@ -418,7 +311,7 @@ function TableDetail({
                 >
                   {col.name}
                 </span>
-                {col.tracked === true && (
+                {col.role === "tracked_attribute" && (
                   <span
                     style={{
                       fontSize: "9px",
@@ -436,7 +329,7 @@ function TableDetail({
               <div
                 style={{ fontSize: "11px", color: "var(--color-text-muted)" }}
               >
-                {col.native_type} → {col.canonical_type}
+                {col.native_type ?? "—"} → {col.canonical_type}
               </div>
             </div>
           ))}
@@ -492,7 +385,7 @@ function TableDetail({
                   fontSize: "11px",
                 }}
               >
-                {col.native_type}
+                {col.native_type ?? "—"}
               </span>
               <span
                 style={{
@@ -504,7 +397,7 @@ function TableDetail({
                 {col.canonical_type}
               </span>
               <span>
-                {col.tracked === true && (
+                {col.role === "tracked_attribute" && (
                   <span
                     style={{
                       fontSize: "9px",
@@ -518,7 +411,7 @@ function TableDetail({
                     T2
                   </span>
                 )}
-                {col.tracked === false && table.scd_type === 2 && (
+                {col.role === "attribute" && table.scd_type === 2 && (
                   <span
                     style={{
                       fontSize: "9px",
@@ -547,15 +440,24 @@ function TableDetail({
 export default function WarehousePage() {
   const { t } = useT();
   const width = useWindowWidth();
-  const [selectedId, setSelectedId] = useState<string | null>(
-    FIXTURE_SCHEMAS.length > 0 ? FIXTURE_SCHEMAS[0].id : null,
-  );
-
   const isCard = width < 900;
   const isMobile = width < 768;
 
-  const schemas = FIXTURE_SCHEMAS; // W29'da: replace with live data
-  const selectedSchema = schemas.find((s) => s.id === selectedId) ?? null;
+  const [schemas, setSchemas] = useState<WarehouseSchema[]>([]);
+  const [loadError, setLoadError] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    getWarehouseSchemas()
+      .then((data) => {
+        setSchemas(data);
+        if (data.length > 0) setSelectedId(data[0].schema_id);
+      })
+      .catch(() => setLoadError(true));
+  }, []);
+
+  const selectedSchema =
+    schemas.find((s) => s.schema_id === selectedId) ?? null;
 
   return (
     <AppShell pageTitle={t("page_title_warehouse")} userRole="admin">
@@ -593,7 +495,25 @@ export default function WarehousePage() {
           </div>
         )}
 
-        {schemas.length === 0 ? (
+        {/* Load error */}
+        {loadError && (
+          <div
+            style={{
+              backgroundColor: "var(--color-error-bg, rgba(220,38,38,0.08))",
+              border: "1px solid var(--color-error, #dc2626)",
+              borderRadius: "6px",
+              padding: "10px 14px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: "var(--color-error, #dc2626)",
+              marginBottom: "12px",
+            }}
+          >
+            {t("warehouse_api_error")}
+          </div>
+        )}
+
+        {schemas.length === 0 && !loadError ? (
           <div
             style={{
               textAlign: "center",
@@ -609,10 +529,10 @@ export default function WarehousePage() {
           <div>
             {schemas.map((s) => (
               <SchemaCard
-                key={s.id}
+                key={s.schema_id}
                 schema={s}
-                selected={s.id === selectedId}
-                onClick={() => setSelectedId(s.id)}
+                selected={s.schema_id === selectedId}
+                onClick={() => setSelectedId(s.schema_id)}
               />
             ))}
             {selectedSchema && (
@@ -653,10 +573,10 @@ export default function WarehousePage() {
               </div>
               {schemas.map((s) => (
                 <SchemaCard
-                  key={s.id}
+                  key={s.schema_id}
                   schema={s}
-                  selected={s.id === selectedId}
-                  onClick={() => setSelectedId(s.id)}
+                  selected={s.schema_id === selectedId}
+                  onClick={() => setSelectedId(s.schema_id)}
                 />
               ))}
             </div>
