@@ -15,7 +15,9 @@ interface StatusBadgeProps {
     | "UNASSIGNED"
     | "DESTROYED"
     | "RESTARTING"
-    | "STOPPED";
+    | "STOPPED"
+    // M8W28T8: Connect erişilemez durum
+    | "UNKNOWN";
   label?: string;
   size?: "default" | "compact";
 }
@@ -107,6 +109,12 @@ const STATUS_CONFIG: Record<
     bg: "var(--color-row-alt)",
     color: "var(--color-secondary)",
     defaultLabel: "Stopped",
+  },
+  // M8W28T8: Connect erişilemez durum
+  UNKNOWN: {
+    bg: "var(--color-row-alt)",
+    color: "var(--color-text-muted)",
+    defaultLabel: "Unknown",
   },
 };
 

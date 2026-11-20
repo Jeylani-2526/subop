@@ -3,13 +3,18 @@ import AppShell from "./components/AppShell";
 import StatusBadge from "./components/StatusBadge";
 import { useT } from "./src/i18n/LanguageProvider";
 import type { TranslationKey } from "./src/i18n/tr";
+
 import {
   getCDCEvents,
   getAllCDCConnectorStatuses,
   CDCConnectUnavailableError,
 } from "./api/cdcClient";
 import type { CDCChangeEvent, CDCConnectorStatus } from "./api/cdcClient";
-import type { CDCTableStatus } from "./api/cdcTypes";
+import type {
+  CDCTableStatus,
+  CDCLatency,
+  CDCLatencyStat,
+} from "./api/cdcTypes";
 
 // ─── Yardımcı ─────────────────────────────────────────
 
@@ -45,11 +50,13 @@ function HaltedTablesBanner({
   drift_state,
   tables,
   t,
+  last_known,
 }: {
   halted_tables: string[];
   drift_state: string | null;
   tables: CDCTableStatus[];
   t: (k: TranslationKey) => string;
+  last_known?: boolean; // M8W28T8: connect_reachable: false durumu
 }) {
   const isDrift = drift_state === "CDC_SCHEMA_DRIFT_DETECTED";
 
@@ -87,6 +94,22 @@ function HaltedTablesBanner({
             ? t("cdc_drift_detected_label")
             : t("cdc_halted_table_label")}
         </span>
+        {/* M8W28T8: Connect kapalıyken "son bilinen durum" etiketi */}
+        {last_known && (
+          <span
+            style={{
+              fontSize: "10px",
+              fontWeight: 500,
+              color: "var(--color-warning)",
+              backgroundColor: "var(--color-warning-bg)",
+              border: "1px solid var(--color-warning)",
+              borderRadius: "3px",
+              padding: "1px 6px",
+            }}
+          >
+            {t("cdc_last_known_state")}
+          </span>
+        )}
       </div>
 
       {isDrift ? (
@@ -452,6 +475,24 @@ function EventRow({
   );
 }
 
+// ─── Latency hop key → CDCLatency field map ────────────
+// M8W28T8: contract Section 9.2
+
+const HOP_FIELD_MAP: Record<
+  | "cdc_hop_e2e"
+  | "cdc_hop_capture"
+  | "cdc_hop_publish"
+  | "cdc_hop_consumer"
+  | "cdc_hop_warehouse",
+  keyof CDCLatency
+> = {
+  cdc_hop_e2e: "e2e",
+  cdc_hop_capture: "capture",
+  cdc_hop_publish: "publish",
+  cdc_hop_consumer: "consumer",
+  cdc_hop_warehouse: "warehouse",
+};
+
 // ─── CDCPage ───────────────────────────────────────────
 
 export default function CDCPage() {
@@ -478,11 +519,30 @@ export default function CDCPage() {
     getAllCDCConnectorStatuses().then(setConnectors).catch(handleError);
   }, []);
 
+  // M8W28T8: İlk populate latency'yi bul (Section 9.2)
+  const latency = connectors.find((c) => c.latency != null)?.latency ?? null;
+
+  // M8W28T8: Connect erişilemez connector var mı? (Section 10)
+  const hasUnreachable = connectors.some((c) => !c.connect_reachable);
+
   const haltedTables = connectors.flatMap((c) => c.halted_tables ?? []);
   const allTables = connectors.flatMap((c) => c.tables ?? []);
   const driftState = connectors.some(
     (c) => c.drift_state === "CDC_SCHEMA_DRIFT_DETECTED",
   )
+    ? "CDC_SCHEMA_DRIFT_DETECTED"
+    : "none";
+
+  // M8W28T8: connect_reachable: false olan connector'ların halted table'ları
+  const unreachableHaltedTables = connectors
+    .filter((c) => !c.connect_reachable)
+    .flatMap((c) => c.halted_tables ?? []);
+  const unreachableTables = connectors
+    .filter((c) => !c.connect_reachable)
+    .flatMap((c) => c.tables ?? []);
+  const unreachableDriftState = connectors
+    .filter((c) => !c.connect_reachable)
+    .some((c) => c.drift_state === "CDC_SCHEMA_DRIFT_DETECTED")
     ? "CDC_SCHEMA_DRIFT_DETECTED"
     : "none";
 
@@ -512,7 +572,7 @@ export default function CDCPage() {
           </div>
         )}
 
-        {/* 503 — CDC Connect unavailable */}
+        {/* 503 — CDC Connect unavailable (HTTP 503) */}
         {cdcUnavailable && (
           <div
             style={{
@@ -526,6 +586,23 @@ export default function CDCPage() {
             }}
           >
             {t("cdc_connect_unavailable")}
+          </div>
+        )}
+
+        {/* M8W28T8: connect_reachable: false — Connect kapalı, son bilinen durum (Section 10) */}
+        {hasUnreachable && !cdcUnavailable && (
+          <div
+            style={{
+              backgroundColor: "var(--color-warning-bg)",
+              border: "1px solid var(--color-warning)",
+              borderRadius: "6px",
+              padding: "10px 14px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: "var(--color-warning)",
+            }}
+          >
+            {t("cdc_connect_down_last_known")}
           </div>
         )}
 
@@ -545,6 +622,7 @@ export default function CDCPage() {
             {t("cdc_api_error")}
           </div>
         )}
+
         {/* Zone 1 — Latency Summary Strip */}
         <div
           style={{
@@ -574,41 +652,51 @@ export default function CDCPage() {
                 "cdc_hop_consumer",
                 "cdc_hop_warehouse",
               ] as const
-            ).map((key) => (
-              <div
-                key={key}
-                style={{
-                  flex: "1 1 140px",
-                  backgroundColor: "rgba(255,255,255,0.07)",
-                  borderRadius: "6px",
-                  padding: "12px 16px",
-                }}
-              >
+            ).map((key) => {
+              // M8W28T8: latency null ise "—", dolu ise p95_ms göster
+              const field = HOP_FIELD_MAP[key];
+              const stat = (latency?.[field] ?? null) as CDCLatencyStat | null;
+              const displayValue =
+                stat != null ? `${stat.p95_ms.toFixed(0)}` : "—";
+
+              return (
                 <div
+                  key={key}
                   style={{
-                    color: "rgba(255,255,255,0.6)",
-                    fontSize: "11px",
-                    marginBottom: "6px",
+                    flex: "1 1 140px",
+                    backgroundColor: "rgba(255,255,255,0.07)",
+                    borderRadius: "6px",
+                    padding: "12px 16px",
                   }}
                 >
-                  {t(key)}
+                  <div
+                    style={{
+                      color: "rgba(255,255,255,0.6)",
+                      fontSize: "11px",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    {t(key)}
+                  </div>
+                  <div
+                    style={{ color: "#fff", fontSize: "22px", fontWeight: 700 }}
+                  >
+                    {displayValue}
+                  </div>
+                  <div
+                    style={{
+                      color: "rgba(255,255,255,0.4)",
+                      fontSize: "10px",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {stat != null
+                      ? t("kpi_cdc_latency_unit")
+                      : t("kpi_cdc_latency_pending")}
+                  </div>
                 </div>
-                <div
-                  style={{ color: "#fff", fontSize: "22px", fontWeight: 700 }}
-                >
-                  —
-                </div>
-                <div
-                  style={{
-                    color: "rgba(255,255,255,0.4)",
-                    fontSize: "10px",
-                    marginTop: "4px",
-                  }}
-                >
-                  {t("kpi_cdc_latency_unit")}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -632,12 +720,27 @@ export default function CDCPage() {
             {t("cdc_event_feed_title")}
           </div>
 
-          {haltedTables.length > 0 && (
+          {/* Normal halt banner (connect_reachable: true connector'lar) */}
+          {haltedTables.filter((tbl) => !unreachableHaltedTables.includes(tbl))
+            .length > 0 && (
             <HaltedTablesBanner
-              halted_tables={haltedTables}
+              halted_tables={haltedTables.filter(
+                (tbl) => !unreachableHaltedTables.includes(tbl),
+              )}
               drift_state={driftState}
               tables={allTables}
               t={t}
+            />
+          )}
+
+          {/* M8W28T8: Connect kapalı connector'ların halt banner'ı — "son bilinen durum" etiketiyle */}
+          {unreachableHaltedTables.length > 0 && (
+            <HaltedTablesBanner
+              halted_tables={unreachableHaltedTables}
+              drift_state={unreachableDriftState}
+              tables={unreachableTables}
+              t={t}
+              last_known={true}
             />
           )}
 
