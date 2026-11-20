@@ -162,6 +162,10 @@ const tr = {
   warehouse_select_schema: "Listedeki bir şemayı seçin.",
   warehouse_api_error:
     "Warehouse API'ye ulaşılamadı. Lütfen daha sonra tekrar deneyin.",
+
+  cdc_connect_down_last_known:
+    "CDC Connect şu an kapalı. Aşağıdaki durum son bilinen veriyi göstermektedir.",
+  cdc_last_known_state: "Son Bilinen Durum",
 };
 
 export default tr;

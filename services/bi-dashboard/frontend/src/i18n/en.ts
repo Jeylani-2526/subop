@@ -135,6 +135,9 @@ const en = {
   cdc_drift_resolution_hint:
     "Review the schema change, then reset the table's halt to resume capture.",
   cdc_api_error: "Could not reach the CDC API. Please try again later.",
+  cdc_connect_down_last_known:
+    "CDC Connect is currently down. The status below reflects the last known state.",
+  cdc_last_known_state: "Last Known State",
 
   // Warehouse Schemas page
   nav_warehouse: "Warehouse Schemas",
