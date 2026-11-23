@@ -7,6 +7,7 @@ import CatalogPage from "../CatalogPage";
 import ReportsPage from "../ReportsPage";
 import AdminPage from "../AdminPage";
 import UsersPage from "../UsersPage";
+import WarehousePage from "../WarehousePage";
 import CDCPage from "../CDCPage";
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/lineage" element={<LineagePage />} />
         <Route path="/catalog" element={<CatalogPage />} />
         <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/warehouse" element={<WarehousePage />} />
         <Route path="/cdc" element={<CDCPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/users" element={<UsersPage />} />

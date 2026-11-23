@@ -6,7 +6,9 @@ import argparse
 import json
 import os
 import sys
+import time
 from datetime import timezone
+from functools import partial
 from typing import Any, Dict, Optional, Tuple
 
 import psycopg2
@@ -288,6 +290,23 @@ def run_all(conn) -> int:
     return order_id
 
 
+def run_loop(action, count: int, interval: float, sleep=time.sleep) -> int:
+    """M8W28T4: repeat one action as a steady background load for the
+    latency KPI's active condition (Part B item 4a). count 0 runs until
+    Ctrl+C. Returns how many rounds ran."""
+    done = 0
+    try:
+        while count == 0 or done < count:
+            action()
+            done += 1
+            if count == 0 or done < count:
+                sleep(interval)
+    except KeyboardInterrupt:
+        pass
+    print(f"loop finished after {done} round(s)", file=sys.stderr)
+    return done
+
+
 def _parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description=(
@@ -312,7 +331,26 @@ def _parse_args(argv=None):
         default=None,
         help="Target row for --update/--delete (default: highest id)",
     )
-    return parser.parse_args(argv)
+    parser.add_argument(
+        "--loop",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Repeat the action N times, or until Ctrl+C when N is 0 (latency KPI load)",
+    )
+    parser.add_argument(
+        "--interval",
+        type=float,
+        default=2.0,
+        metavar="SECONDS",
+        help="Pause between --loop rounds (default: 2.0)",
+    )
+    args = parser.parse_args(argv)
+    if args.loop is not None and args.loop < 0:
+        parser.error("--loop must be 0 or more")
+    if args.interval < 0:
+        parser.error("--interval must be 0 or more")
+    return args
 
 
 def _load_dotenv() -> None:
@@ -340,13 +378,17 @@ def main(argv=None) -> int:
                 file=sys.stderr,
             )
         if args.all:
-            run_all(conn)
+            action = partial(run_all, conn)
         elif args.insert:
-            insert_order(conn)
+            action = partial(insert_order, conn)
         elif args.update:
-            update_order(conn, args.id)
+            action = partial(update_order, conn, args.id)
         else:
-            delete_order(conn, args.id)
+            action = partial(delete_order, conn, args.id)
+        if args.loop is None:
+            action()
+        else:
+            run_loop(action, args.loop, args.interval)
     except (ConnectorConnectionError, WriteError) as e:
         print(json.dumps(e.to_envelope()), file=sys.stderr)
         return 1

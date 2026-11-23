@@ -159,3 +159,20 @@ def test_redelivery_does_not_inflate_events_processed(store, table):
 def test_table_with_no_logged_events_counts_zero(store, table):
     store.save_baseline(table, SNAPSHOT)
     assert store.load()[table]["events_processed"] == 0
+
+
+def test_recent_events_can_carry_their_keys(store, table):
+    """M8W28T4: lsn and row_key join an event to its latency row; the API
+    removes them again, so they are only returned when asked for."""
+    event = {
+        "op": "insert",
+        "table": table,
+        "before": None,
+        "after": {"id": 7},
+        "ts_ms": 1,
+    }
+    store.append_event(event, 26642408)
+    plain = [e for e in store.recent_events(50) if e["table"] == table]
+    keyed = [e for e in store.recent_events(50, with_keys=True) if e["table"] == table]
+    assert "lsn" not in plain[0] and "row_key" not in plain[0]
+    assert (keyed[0]["lsn"], keyed[0]["row_key"]) == (26642408, "7")

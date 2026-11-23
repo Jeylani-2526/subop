@@ -99,7 +99,7 @@ const en = {
 
   // KPI — CDC Latency
   kpi_cdc_latency_unit: "ms",
-    kpi_cdc_latency_pending: "Goes live in M8",
+  kpi_cdc_latency_pending: "Goes live in M8",
 
   // CDC Monitor page
   cdc_latency_strip_title: "Latency Summary",
@@ -135,6 +135,36 @@ const en = {
   cdc_drift_resolution_hint:
     "Review the schema change, then reset the table's halt to resume capture.",
   cdc_api_error: "Could not reach the CDC API. Please try again later.",
+  cdc_connect_down_last_known:
+    "CDC Connect is currently down. The status below reflects the last known state.",
+  cdc_last_known_state: "Last Known State",
+
+  // Warehouse Schemas page
+  nav_warehouse: "Warehouse Schemas",
+  page_title_warehouse: "Warehouse Schemas",
+  warehouse_pending_notice:
+    "Sample data is shown; live API connects in Week 29.",
+  warehouse_empty: "No schemas generated yet.",
+  warehouse_col_column: "Column",
+  warehouse_col_native_type: "Native Type",
+  warehouse_col_canonical_type: "Canonical Type",
+  warehouse_col_scd: "SCD",
+  warehouse_scd_type1: "Type 1",
+  warehouse_scd_type2: "Type 2",
+  warehouse_badge_personal_data: "Personal Data",
+  warehouse_badge_legal_basis: "Legal Basis",
+  warehouse_badge_retention: "Retention",
+  warehouse_legal_consent: "Consent",
+  warehouse_legal_contract: "Contract",
+  warehouse_legal_legal_obligation: "Legal Obligation",
+  warehouse_legal_vital_interests: "Vital Interests",
+  warehouse_legal_public_task: "Public Task",
+  warehouse_legal_legitimate_interest: "Legitimate Interest",
+  warehouse_fact_label: "Fact",
+  warehouse_dim_label: "Dim",
+  warehouse_select_schema: "Select a schema from the list.",
+  warehouse_api_error:
+    "Could not reach the Warehouse API. Please try again later.",
 };
 
 export default en;

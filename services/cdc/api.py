@@ -17,6 +17,7 @@ import httpx
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
+from services.cdc.latency_store import LatencyStore
 from services.cdc.state_store import CDCStateStore
 from services.connectors.errors import ConnectorError
 
@@ -104,6 +105,23 @@ def get_state_store() -> Iterator[CDCStateStore]:
         release_connection(layer)
 
 
+def get_latency_store() -> Iterator[LatencyStore]:
+    from services.etl_engine.connection_resolver import (
+        release_connection,
+        resolve_connection,
+    )
+
+    layer, _ = resolve_connection(
+        "postgresql", os.environ.get("CDC_STATE_REF", "dw-main")
+    )
+    try:
+        store = LatencyStore(layer)
+        store.ensure_schema()
+        yield store
+    finally:
+        release_connection(layer)
+
+
 # -- response building ------------------------------------------------------
 
 
@@ -124,25 +142,34 @@ def _table_entry(table: str, row: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _connector_status(
-    name: str, connect: ConnectClient, state: Dict[str, Dict[str, Any]]
+def configured_connectors() -> List[str]:
+    """Names to report when Kafka Connect cannot be asked (M8W28T5)."""
+    raw = os.environ.get("CDC_CONNECTOR_NAMES", "subop-postgres-cdc")
+    return [name.strip() for name in raw.split(",") if name.strip()]
+
+
+def _connector_body(
+    name: str,
+    connector_state: Optional[str],
+    task_state: Optional[str],
+    table_names: List[str],
+    state: Dict[str, Dict[str, Any]],
+    latency_store: LatencyStore,
+    connect_reachable: bool,
 ) -> Dict[str, Any]:
-    status = connect.status(name)
-    config = connect.config(name)
-    include = [
-        t.strip() for t in config.get("table.include.list", "").split(",") if t.strip()
-    ]
-    tables = [_table_entry(t, state.get(t, {})) for t in include]
-    task_states = [task.get("state") for task in status.get("tasks", [])]
+    tables = [_table_entry(t, state.get(t, {})) for t in table_names]
     timestamps = [
         t["last_event_ts_ms"] for t in tables if t["last_event_ts_ms"] is not None
     ]
+    # Contract Section 9: the newest 100 events across this connector's tables.
+    latency = latency_store.summary(table_names)
+    lag_ms = latency.pop("lag_ms") if latency is not None else None
     return {
         "connector_id": name,
         "connector_name": name,
-        "state": status.get("connector", {}).get("state"),
-        # A RUNNING connector with no task reads nothing (M7W26T1 Finding 5).
-        "task_state": task_states[0] if task_states else None,
+        "state": connector_state,
+        "task_state": task_state,
+        "connect_reachable": connect_reachable,
         "last_event_ts_ms": max(timestamps) if timestamps else None,
         "events_processed": sum(t["events_processed"] for t in tables),
         "halted": any(t["halted"] for t in tables),
@@ -157,11 +184,59 @@ def _connector_status(
             if any(t["halt_error_code"] == _DRIFT for t in tables if t["halted"])
             else "none"
         ),
-        # Reserved for the M8 latency instrumentation (CDC Design Note
-        # Section 2). Present and null, so the shape does not change then.
-        "lag_ms": None,
-        "latency": None,
+        "lag_ms": lag_ms,
+        "latency": latency,
     }
+
+
+def _connector_status(
+    name: str,
+    connect: ConnectClient,
+    state: Dict[str, Dict[str, Any]],
+    latency_store: LatencyStore,
+) -> Dict[str, Any]:
+    status = connect.status(name)
+    config = connect.config(name)
+    include = [
+        t.strip() for t in config.get("table.include.list", "").split(",") if t.strip()
+    ]
+    task_states = [task.get("state") for task in status.get("tasks", [])]
+    return _connector_body(
+        name,
+        status.get("connector", {}).get("state"),
+        # A RUNNING connector with no task reads nothing (M7W26T1 Finding 5).
+        task_states[0] if task_states else None,
+        include,
+        state,
+        latency_store,
+        connect_reachable=True,
+    )
+
+
+def _status_or_last_known(
+    name: str,
+    connect: ConnectClient,
+    state: Dict[str, Dict[str, Any]],
+    latency_store: LatencyStore,
+) -> Dict[str, Any]:
+    """M8W28T5: with Connect unreachable, its live state is unknown, but the
+    halts the consumer stored in cdc_meta are not, so they stay visible. The
+    503 remains only when there is nothing stored to fall back on, or the
+    connector cannot be confirmed without Connect."""
+    try:
+        return _connector_status(name, connect, state, latency_store)
+    except ConnectUnavailable:
+        if not state or name not in configured_connectors():
+            raise
+        return _connector_body(
+            name,
+            "UNKNOWN",
+            None,
+            sorted(state),
+            state,
+            latency_store,
+            connect_reachable=False,
+        )
 
 
 def _guarded(build: Callable[[], Any]) -> Any:
@@ -182,10 +257,17 @@ def _guarded(build: Callable[[], Any]) -> Any:
 def list_connectors(
     connect: ConnectClient = Depends(get_connect_client),
     store: CDCStateStore = Depends(get_state_store),
+    latency: LatencyStore = Depends(get_latency_store),
 ):
     def build():
         state = store.load()
-        return [_connector_status(n, connect, state) for n in connect.connector_names()]
+        try:
+            names = connect.connector_names()
+        except ConnectUnavailable:
+            if not state:
+                raise
+            names = configured_connectors()
+        return [_status_or_last_known(n, connect, state, latency) for n in names]
 
     return _guarded(build)
 
@@ -195,19 +277,27 @@ def connector_status(
     connector_id: str,
     connect: ConnectClient = Depends(get_connect_client),
     store: CDCStateStore = Depends(get_state_store),
+    latency: LatencyStore = Depends(get_latency_store),
 ):
-    return _guarded(lambda: _connector_status(connector_id, connect, store.load()))
+    return _guarded(
+        lambda: _status_or_last_known(connector_id, connect, store.load(), latency)
+    )
 
 
 @router.get("/events")
 def recent_events(
     limit: int = Query(50, ge=1, le=500),
     store: CDCStateStore = Depends(get_state_store),
+    latency: LatencyStore = Depends(get_latency_store),
 ):
     def build():
-        events = store.recent_events(limit)
-        for event in events:
-            event["latency_ms"] = None  # M8, as above
+        events = store.recent_events(limit, with_keys=True)
+        keys = [(e["table"], e["lsn"], e["op"], e["row_key"]) for e in events]
+        e2e = latency.e2e_by_key(keys)
+        for event, key in zip(events, keys):
+            del event["lsn"], event["row_key"]
+            # null for events from before M8 instrumentation, and for snapshots
+            event["latency_ms"] = e2e.get(key)
         return events
 
     return _guarded(build)
