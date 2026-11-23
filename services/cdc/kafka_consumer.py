@@ -115,6 +115,9 @@ class KafkaCDCConnector(StreamingConnector):
                 "auto.offset.reset": "earliest",
                 "enable.auto.commit": False,
                 "enable.auto.offset.store": False,
+                # cdc_slot_lifecycle.md (M8W28T10): the 300 s default delayed
+                # pickup of a new topic matching the pattern by ~292 s.
+                "topic.metadata.refresh.interval.ms": 5000,
             }
         )
         try:

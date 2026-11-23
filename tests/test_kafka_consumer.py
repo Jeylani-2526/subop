@@ -419,6 +419,7 @@ def test_consumer_is_configured_for_manual_commits():
     assert captured["enable.auto.commit"] is False
     assert captured["enable.auto.offset.store"] is False
     assert captured["group.id"] == "grp"
+    assert captured["topic.metadata.refresh.interval.ms"] == 5000
 
 
 # ---------------------------------------------------------------------------
