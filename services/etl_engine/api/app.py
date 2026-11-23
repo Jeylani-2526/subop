@@ -56,6 +56,11 @@ from services.cdc.api import router as cdc_router  # noqa: E402
 
 app.include_router(cdc_router)
 
+# M8W29T1 — warehouse schema routes, base /api/warehouse, same base URL.
+from services.warehouse.api import router as warehouse_router  # noqa: E402
+
+app.include_router(warehouse_router)
+
 
 def _error_envelope(
     error_code: str,
