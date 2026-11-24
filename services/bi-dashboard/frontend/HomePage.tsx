@@ -63,8 +63,14 @@ export default function HomePage() {
           value={kpi?.cdc_latency_ms ?? "—"}
           unit={t("kpi_cdc_latency_unit")}
           trend="down"
-          trendValue={t("kpi_cdc_latency_pending")}
-          status="warning"
+          trendValue={t("kpi_cdc_latency_target")}
+          status={
+            kpi?.cdc_latency_ms == null
+              ? "warning"
+              : kpi.cdc_latency_ms < 30_000
+                ? "healthy"
+                : "critical"
+          }
         />
         <KPISummaryCard
           label={t("kpi_connectors")}

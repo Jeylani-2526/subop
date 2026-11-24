@@ -13,7 +13,6 @@ const tr = {
   nav_user_management: "Kullanıcı Yönetimi",
 
   // AppShell
-  app_name: "SUBOP",
 
   // HomePage KPI cards
   kpi_active_pipelines: "Aktif Pipeline'lar",
@@ -71,9 +70,7 @@ const tr = {
   form_processing_purpose: "İşleme Amacı",
   form_processing_purpose_placeholder: "Sipariş entegrasyonu",
   form_data_subjects: "Veri Konusu Kategorileri",
-  form_data_subjects_placeholder: "customers, employees",
   form_recipients: "Transfer Alıcıları (opsiyonel)",
-  form_recipients_placeholder: "Boş bırakılabilir",
   form_select: "Seçin",
   form_cancel: "İptal",
   form_create: "Oluştur",
@@ -100,7 +97,8 @@ const tr = {
 
   // KPI — CDC Latency
   kpi_cdc_latency_unit: "ms",
-  kpi_cdc_latency_pending: "M8'de canlıya alınacak",
+  kpi_cdc_latency_target: "< 30 s",
+  cdc_latency_no_data: "Henüz veri yok",
 
   // CDC Monitor sayfası
   cdc_latency_strip_title: "Gecikme Özeti",
@@ -111,10 +109,6 @@ const tr = {
   cdc_hop_publish: "Yayın",
   cdc_hop_consumer: "Tüketici Gecikmesi",
   cdc_hop_warehouse: "Warehouse Yazımı",
-  cdc_status_healthy: "Sağlıklı",
-  cdc_status_warning: "Uyarı",
-  cdc_status_error: "Hata",
-  cdc_status_unknown: "Bilinmiyor",
   cdc_col_table: "Tablo",
   cdc_col_op: "İşlem",
   cdc_col_before: "Önce",

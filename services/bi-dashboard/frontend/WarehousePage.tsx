@@ -193,7 +193,13 @@ function ComplianceChips({
 
 // ─── ScdBadge (inline — StatusBadge SCD türlerini bilmez) ─
 
-function ScdBadge({ type }: { type: 1 | 2 }) {
+function ScdBadge({
+  type,
+  t,
+}: {
+  type: 1 | 2;
+  t: (k: TranslationKey) => string;
+}) {
   const isType2 = type === 2;
   return (
     <span
@@ -210,7 +216,7 @@ function ScdBadge({ type }: { type: 1 | 2 }) {
         letterSpacing: "0.3px",
       }}
     >
-      {isType2 ? "SCD 2" : "SCD 1"}
+      {isType2 ? t("warehouse_scd_type2") : t("warehouse_scd_type1")}
     </span>
   );
 }
@@ -276,7 +282,7 @@ function TableDetail({
         >
           {tableTypeBadge}
         </span>
-        {table.scd_type != null && <ScdBadge type={table.scd_type} />}
+        {table.scd_type != null && <ScdBadge type={table.scd_type} t={t} />}
       </div>
 
       {/* Compliance chips */}

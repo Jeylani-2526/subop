@@ -692,7 +692,7 @@ export default function CDCPage() {
                   >
                     {stat != null
                       ? t("kpi_cdc_latency_unit")
-                      : t("kpi_cdc_latency_pending")}
+                      : t("cdc_latency_no_data")}
                   </div>
                 </div>
               );
