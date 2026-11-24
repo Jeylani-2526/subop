@@ -462,22 +462,6 @@ export default function WarehousePage() {
   return (
     <AppShell pageTitle={t("page_title_warehouse")} userRole="admin">
       <div style={{ padding: isCard ? "16px" : "24px" }}>
-        {/* Pending notice — W29'da kaldırılacak */}
-        <div
-          style={{
-            backgroundColor: "var(--color-warning-bg)",
-            border: "1px solid var(--color-warning)",
-            borderRadius: "6px",
-            padding: "10px 14px",
-            fontSize: "12px",
-            fontWeight: 500,
-            color: "var(--color-warning)",
-            marginBottom: "20px",
-          }}
-        >
-          {t("warehouse_pending_notice")}
-        </div>
-
         {/* Mobile read-only banner */}
         {isMobile && (
           <div

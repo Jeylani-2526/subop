@@ -142,8 +142,6 @@ const en = {
   // Warehouse Schemas page
   nav_warehouse: "Warehouse Schemas",
   page_title_warehouse: "Warehouse Schemas",
-  warehouse_pending_notice:
-    "Sample data is shown; live API connects in Week 29.",
   warehouse_empty: "No schemas generated yet.",
   warehouse_col_column: "Column",
   warehouse_col_native_type: "Native Type",
