@@ -6,12 +6,129 @@
 
 | Section | KPI | Task | Status |
 |---|---|---|---|
-| 1 | DW schema automation, at least 80% faster than manual | M8W29T3 | Pending |
+| 1 | DW schema automation, at least 80% faster than manual | M8W29T3 | **NOT MET** (re-measurement carried to M9) |
 | 2 | CDC latency under 30 seconds, idle and active | M8W29T4 | **MET in both conditions** |
 
 ## 1. DW Schema Automation — M8W29T3
 
-Pending. Recorded by M8W29T3 under Part B item 4b.
+**Date:** 23–24 November 2026
+**Branch:** `M8W29T3`; target spec `docs/planning/m8_kpi_schema_spec.md`, committed in
+`40ca1ad` on 23 November at 16:10 UTC, before any attempt
+**Environment:** Local Development — Docker Compose (Windows, Git Bash)
+**Result:** **NOT MET.** Both halves built the same schema (equality check **IDENTICAL**),
+but the generated half took at least **0.327** of the manual half's time, against a pass
+rule of 0.20. The timing record has gaps (1.3); the verdict holds under every reading
+the evidence allows.
+
+### 1.1 Protocol and What Changed
+
+| Item | Part B item 4b and spec | As run |
+|---|---|---|
+| Spec | one written target spec, committed first | `kpi_shipments_star`: 4 tables, 26 columns; committed before any attempt |
+| Who | Abdalla does both halves | same |
+| Order | generated half first | same |
+| Start point | rule 5 (decided 23 Nov): both halves start from an empty file | **changed 24 Nov, about 08:23 UTC**, after attempt 2 showed the definition format was unknown: **both halves start from the demo template**, the generated half from `demo_orders_star.json`, the manual half from the demo DDL (`HAND_DDL` in `tests/test_schema_compare.py`) |
+| Timing | `date -u` immediately before the first keystroke and after the successful run | **gaps:** no `date` at the start of the final generated half, none at the end of the manual half (1.3) |
+| Equality check | tables, columns, types, nullability, primary and foreign keys | **IDENTICAL** (1.4) |
+| Corrections | rule 4: clock resumes for fixes found by the check | none needed; the JSON was also reviewed against the spec's compliance fields after the clock stopped: correct |
+| Pass rule | generated ≤ 20% of manual | not met |
+
+### 1.2 Timeline (UTC)
+
+| When | What | Evidence |
+|---|---|---|
+| 23 Nov, about 16:20 | **Attempt 1:** the spec's text pasted into the JSON file; the generator refused it twice (`(root): invalid JSON`). Abandoned. | terminal screenshot; no `date` line kept |
+| 24 Nov, 07:14:33.196 → 07:23:03.779 | **Attempt 2:** from an empty file, 8 min 30.583 s. Abandoned: the definition format was not known. | `date` lines |
+| 07:23 → about 08:25 | Untimed: the format explained and the demo definition read; the demo copied into the file and partly edited before the rule change (a half-edited file is visible at 08:14). | chat record, screenshot |
+| about 08:23 | Rule 5 changed (1.1). | chat record |
+| about 08:25 → 08:48:14.482 | **Generated half:** the definition edited from the template; generator run at 08:47:31.160 printed `kpi_shipments_star v1: created`. **About 23 min 14 s.** The start is Abdalla's account, not a `date` line. | `date` lines at 08:47:31.160 and 08:48:14.482; generator output |
+| by 09:11 | The manual DDL file holds the demo template, not yet edited. | file shared at 09:11 |
+| 10:17:28.493 → by 10:21 | `date` taken; the manual DDL run without errors; the equality check run. No `date` after the run; the result was reported at 10:21. | `date` line, psql and check output |
+
+### 1.3 Timing Gaps and the Verdict
+
+Two `date` lines are missing, so the ratio cannot be computed to the millisecond. The
+evidence still bounds it:
+
+| Half | Known | Duration used |
+|---|---|---|
+| Generated | start about 08:25 (Abdalla's account); end 08:48:14.482 | **1 394.482 s** (about 23 min 14 s) |
+| Manual | the template was still unedited at 09:11; the check had passed by 10:21:59 | **at most 4 259 s** (70 min 59 s); Abdalla's recollection of editing "between 10:30 and 12:00" local time does not fit the unedited file at 12:11 local, so the evidence bound is used |
+
+The **lowest possible ratio** is 1 394.482 / 4 259 = **0.327**, reached only if the
+manual half used the whole window. Taken at face value (editing after the 10:17:28 line,
+about 3.5 minutes), the ratio is above 6. **Every reading is above 0.20: NOT MET.**
+
+The two gaps are a process lesson for the re-measurement: a second person checks that
+both `date` lines exist for each half before the run counts (1.7).
+
+### 1.4 Equality Check
+
+```
+$ python -m services.warehouse.schema_compare dw dw_manual fact_shipments dim_carrier dim_depot dim_ship_date
+Compared dw with dw_manual: fact_shipments, dim_carrier, dim_depot, dim_ship_date
+Checked: tables, columns, types, nullability, primary keys, foreign keys
+RESULT: IDENTICAL
+```
+
+Generator output (generated half):
+
+```
+kpi_shipments_star v1: created
+  dw.fact_shipments: 9 columns
+  dw.dim_carrier: 3 columns
+  dw.dim_depot: 7 columns
+  dw.dim_ship_date: 7 columns
+```
+
+The manual DDL ran inside `psql -1`; its own `BEGIN`/`COMMIT` produced two harmless
+warnings (`there is already a transaction in progress`, `there is no transaction in
+progress`). Both halves are committed as evidence:
+`services/warehouse/definitions/kpi_shipments_star.json` and
+`docs/planning/m8_kpi_manual_ddl.sql`.
+
+### 1.5 Why It Was Not Met
+
+1. **The definition still had to spell every column and type.** For this small star the
+   definition (66 lines) was longer than the DDL (46 lines). The generator applied the
+   conventions (keys, SCD columns, date columns, foreign keys) but saved little typing.
+2. **The format was not documented.** Learning it fell inside the measurement: two
+   attempts were abandoned before the format was known.
+3. **The schema is narrow.** At about 25 columns, the DDL a person types is short, so
+   there is little for automation to save (1.6).
+
+### 1.6 What Was Built in Response (this branch)
+
+- **Columns read from the source** (`services/warehouse/source_catalog.py`): a
+  definition may leave `"columns"` out, or list names only, and the generator reads
+  names and native types from the source database, as Goal G5 states ("generated from
+  source metadata"). PostgreSQL sources today. A test proves a definition without types
+  generates a schema identical to one with every type.
+- **The definition format is documented** (`docs/planning/warehouse_definition_guide.md`).
+
+Measured on a draft second schema of the same size (not a KPI run), the typing this saves
+is about 21% (786 against 996 characters, spaces excluded). That is far from the 80%
+target at this width. The saving grows with table width: each further source column adds
+about 25 characters of DDL and none to a definition that reads its columns from the
+source. A fair re-measurement therefore needs a realistic-width schema, agreed before it
+is run, not a spec resized after a failed run.
+
+### 1.7 Resolution Plan
+
+| Item | Owner | Target |
+|---|---|---|
+| DW schema automation KPI carried to M9, recorded here as not met in M8 | Abdalla | M9 window (by 28 December 2026) |
+| Propose the re-measurement to Emrah in the M8 report, before any re-run: a realistic-width spec (source tables as wide as a real source system), both halves from empty files, the definition guide read beforehand | Abdalla | M8 report, 30 November |
+| A second person (Mert, verification and control) checks the `date` lines for each half during the re-run | Mert | the re-run |
+| Read columns from MySQL and MSSQL sources too (PostgreSQL only today) | Abdalla | M9 |
+
+### 1.8 Conclusion
+
+Under the protocol fixed on 18 November, with the start-point rule changed openly on
+24 November, the DW schema automation KPI is **NOT MET** in M8: generated time was at
+least 0.327 of manual time. The generator's correctness is proven (identical schemas),
+and the change Goal G5 calls for, generation from source metadata, is now built. Whether
+it meets the 80% target is left to a re-measurement agreed in advance for M9.
 
 ## 2. CDC Latency Under 30 Seconds — M8W29T4
 

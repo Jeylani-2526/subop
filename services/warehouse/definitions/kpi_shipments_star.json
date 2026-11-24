@@ -1,0 +1,66 @@
+{
+  "name": "kpi_shipments_star",
+  "version": 1,
+  "description": "Shipment weight and freight cost by carrier, depot, and ship date.",
+  "source": {
+    "connector_type": "postgresql",
+    "connection_ref": "pg-main"
+  },
+  "fact": {
+    "name": "fact_shipments",
+    "source_table": "logistics.shipments",
+    "columns": {
+      "shipment_id": "bigint",
+      "carrier_code": "varchar(8)",
+      "depot_id": "integer",
+      "shipped_at": "timestamptz",
+      "weight_kg": "numeric(10,3)",
+      "freight_cost": "numeric(12,2)"
+    },
+    "business_key": ["shipment_id"],
+    "measures": ["weight_kg", "freight_cost"],
+    "dimension_keys": {
+      "carrier_code": "dim_carrier",
+      "depot_id": "dim_depot",
+      "shipped_at": "dim_ship_date"
+    },
+    "personal_data": false
+  },
+  "dimensions": [
+    {
+      "name": "dim_carrier",
+      "source_table": "logistics.carriers",
+      "columns": {
+        "carrier_code": "varchar(8)",
+        "carrier_name": "varchar(80)"
+      },
+      "business_key": ["carrier_code"],
+      "scd_type": 1,
+      "personal_data": false
+    },
+    {
+      "name": "dim_depot",
+      "source_table": "logistics.depots",
+      "columns": {
+        "depot_id": "integer",
+        "city": "varchar(60)",
+        "manager_name": "varchar(80)"
+      },
+      "business_key": ["depot_id"],
+      "scd_type": 2,
+      "tracked_attributes": ["city"],
+      "personal_data": true,
+      "legal_basis": "LegitimateInterest",
+      "retention_policy_days": 1825
+    },
+    {
+      "name": "dim_ship_date",
+      "derived_from": {
+        "kind": "date",
+        "column": "shipped_at"
+      },
+      "scd_type": 1,
+      "personal_data": false
+    }
+  ]
+}
