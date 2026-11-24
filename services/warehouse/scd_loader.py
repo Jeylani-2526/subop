@@ -11,7 +11,6 @@ from services.warehouse.metadata import (
     Dimension,
     MetadataValidationError,
     WarehouseDefinition,
-    load_definition,
     surrogate_key,
 )
 from services.warehouse.schema_generator import (
@@ -330,22 +329,26 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    try:
-        defn = load_definition(args.definition)
-    except MetadataValidationError as exc:
-        print("Definition is invalid:", file=sys.stderr)
-        for error in exc.errors:
-            print(f"  - {error}", file=sys.stderr)
-        return 2
-
     from services.connectors.errors import ConnectorError
     from services.etl_engine.connection_resolver import (
         release_connection,
         resolve_connection,
     )
     from services.warehouse.schema_generator import _load_dotenv
+    from services.warehouse.source_catalog import load_with_source
 
     _load_dotenv()
+    try:
+        defn = load_with_source(args.definition)
+    except MetadataValidationError as exc:
+        print("Definition is invalid:", file=sys.stderr)
+        for error in exc.errors:
+            print(f"  - {error}", file=sys.stderr)
+        return 2
+    except ConnectorError as exc:
+        print(f"Load failed: {exc.error_code}: {exc.message}", file=sys.stderr)
+        return 4
+
     opened = []
     try:
         source, _ = resolve_connection(

@@ -16,7 +16,6 @@ from services.warehouse.metadata import (
     Dimension,
     MetadataValidationError,
     WarehouseDefinition,
-    load_definition,
     surrogate_key,
 )
 from services.warehouse.pg_types import formatted, pg_type
@@ -493,23 +492,35 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    from services.connectors.errors import ConnectorError
+    from services.warehouse.source_catalog import load_with_source
+
+    _load_dotenv()
     try:
-        defn = load_definition(args.definition)
+        defn = load_with_source(args.definition)
     except MetadataValidationError as exc:
         print("Definition is invalid:", file=sys.stderr)
         for error in exc.errors:
             print(f"  - {error}", file=sys.stderr)
         return 2
+    except ConnectorError as exc:
+        print(f"Source unreachable: {exc.error_code}: {exc.message}", file=sys.stderr)
+        return 4
 
     if args.dry_run:
         for statement in schema_ddl(TARGET_SCHEMA, plan_schema(defn)):
             print(statement + ";\n")
         return 0
 
-    _load_dotenv()
     from services.etl_engine.connection_resolver import resolve_connection
 
-    layer, _ = resolve_connection("postgresql", args.target_ref)
+    try:
+        layer, _ = resolve_connection("postgresql", args.target_ref)
+    except ConnectorError as exc:
+        print(
+            f"Warehouse unreachable: {exc.error_code}: {exc.message}", file=sys.stderr
+        )
+        return 4
     try:
         schema, created = SchemaGenerator(layer).generate(defn)
     except SchemaConflictError as exc:
