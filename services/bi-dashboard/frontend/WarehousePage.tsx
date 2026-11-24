@@ -462,8 +462,6 @@ export default function WarehousePage() {
   return (
     <AppShell pageTitle={t("page_title_warehouse")} userRole="admin">
       <div style={{ padding: isCard ? "16px" : "24px" }}>
-      
-
         {/* Mobile read-only banner */}
         {isMobile && (
           <div
