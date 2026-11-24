@@ -13,7 +13,6 @@ const en = {
   nav_user_management: "User Management",
 
   // AppShell
-  app_name: "SUBOP",
 
   // HomePage KPI cards
   kpi_active_pipelines: "Active Pipelines",
@@ -70,9 +69,7 @@ const en = {
   form_processing_purpose: "Processing Purpose",
   form_processing_purpose_placeholder: "Order integration",
   form_data_subjects: "Data Subject Categories",
-  form_data_subjects_placeholder: "customers, employees",
   form_recipients: "Transfer Recipients (optional)",
-  form_recipients_placeholder: "Leave blank if none",
   form_select: "Select",
   form_cancel: "Cancel",
   form_create: "Create",
@@ -100,6 +97,7 @@ const en = {
   // KPI — CDC Latency
   kpi_cdc_latency_unit: "ms",
   kpi_cdc_latency_target: "< 30 s",
+  cdc_latency_no_data: "No data yet",
 
   // CDC Monitor page
   cdc_latency_strip_title: "Latency Summary",
@@ -110,10 +108,6 @@ const en = {
   cdc_hop_publish: "Publish",
   cdc_hop_consumer: "Consumer Lag",
   cdc_hop_warehouse: "Warehouse Write",
-  cdc_status_healthy: "Healthy",
-  cdc_status_warning: "Warning",
-  cdc_status_error: "Error",
-  cdc_status_unknown: "Unknown",
   cdc_col_table: "Table",
   cdc_col_op: "Op",
   cdc_col_before: "Before",
