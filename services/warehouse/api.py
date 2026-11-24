@@ -15,12 +15,13 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from services.connectors.errors import ConnectorError, WriteError
-from services.warehouse.metadata import MetadataValidationError, validate_definition
+from services.warehouse.metadata import MetadataValidationError
 from services.warehouse.schema_generator import (
     DEFAULT_TARGET_REF,
     SchemaConflictError,
     SchemaGenerator,
 )
+from services.warehouse.source_catalog import definition_from_data
 
 router = APIRouter(prefix="/api/warehouse", tags=["warehouse"])
 
@@ -64,6 +65,19 @@ class WarehouseSession:
             self._layer = None
 
 
+def _connect_source(kind: str, ref: str) -> Any:
+    from services.etl_engine.connection_resolver import resolve_connection
+
+    layer, _ = resolve_connection(kind, ref)
+    return layer
+
+
+def _release_source(layer: Any) -> None:
+    from services.etl_engine.connection_resolver import release_connection
+
+    release_connection(layer)
+
+
 def get_session() -> Iterator[WarehouseSession]:
     session = WarehouseSession(os.environ.get("WAREHOUSE_REF", DEFAULT_TARGET_REF))
     try:
@@ -101,9 +115,14 @@ async def generate_schema(
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         return _error(422, "WAREHOUSE_METADATA_INVALID", f"(root): invalid JSON: {exc}")
     try:
-        defn = validate_definition(data)
+        # Reads the source only when a table leaves its column types out.
+        defn = await run_in_threadpool(
+            definition_from_data, data, _connect_source, _release_source
+        )
     except MetadataValidationError as exc:
         return _error(422, "WAREHOUSE_METADATA_INVALID", "; ".join(exc.errors))
+    except ConnectorError as exc:
+        return _error(503, exc.error_code, exc.message, retryable=exc.retryable)
 
     def build() -> JSONResponse:
         schema, created = session.generator().generate(defn)
