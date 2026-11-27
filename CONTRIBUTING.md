@@ -12,6 +12,7 @@ follows to keep the repository clean, traceable, and easy to review by the advis
 - [Pull Request Process](#pull-request-process)
 - [Code Style](#code-style)
 - [Weekly Workflow](#weekly-workflow)
+- [Repository Layout](#repository-layout)
 
 ---
 
@@ -221,3 +222,43 @@ into `develop` that week, what is in progress, and what is blocked.
 ---
 
 *Questions? Open a GitHub Discussion or raise it at the Sunday sync.*
+
+---
+
+## Repository Layout
+
+```
+subop/
+├── .github/                 # CI workflows (ci.yml, lint.yml), issue and PR templates
+├── docs/
+│   ├── architecture/        # Architecture doc, diagrams, addenda, tech stack
+│   ├── assets/              # README banner and other shared images
+│   ├── research/            # Competitor analysis and feasibility research (M2)
+│   ├── data-layer/          # Connector, abstraction and ETL interface docs
+│   ├── frontend/            # Design system and BI dashboard planning
+│   ├── infrastructure/      # CI/CD and infrastructure decision notes
+│   ├── compliance/          # KVKK/GDPR research (feeds the security module)
+│   ├── planning/            # Kickoff notes, verification records, KPI validation
+│   ├── milestones/          # M1–M12 status index
+│   └── api/                 # FastAPI contract specs
+├── services/
+│   ├── connectors/          # Module 1  — Connector Framework
+│   ├── abstraction/         # Module 2  — Database Abstraction Layer
+│   ├── etl_engine/          # Module 3  — ETL Engine (+ FastAPI app in api/)
+│   ├── cdc/                 # Module 4  — CDC / Real-Time Layer
+│   ├── warehouse/           # Module 5  — Metadata-Driven Data Warehouse
+│   ├── bi-dashboard/
+│   │   ├── frontend/        # Module 6a — React + TypeScript dashboard (Vite)
+│   │   └── backend/         # Module 6b — BI backend
+│   ├── data-quality/        # Module 7  — Data Quality Engine
+│   ├── lineage/             # Module 8  — Data Lineage
+│   ├── catalog/             # Module 9  — Data Catalog
+│   └── security/            # Module 10 — Security & Compliance
+├── infrastructure/
+│   ├── docker/              # Dockerfile.api
+│   └── scripts/             # Setup and CDC utility scripts
+├── data/samples/            # Sample CSV/JSON data for connector testing
+├── tests/                   # Cross-service tests and fixtures
+├── docker-compose.yml       # Full local development stack
+└── .env.example             # Environment variable template
+```

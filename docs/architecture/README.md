@@ -8,8 +8,7 @@ Full documentation of all 10 SUBOP modules, their data flow, and cross-cutting c
 |------|-------------|
 | `architecture_doc_v1.md` | Full architecture document (module design, data flow, deployment topology) |
 
-A rendered diagram export (`architecture_v1.png`) and its editable draw.io source will be added
-alongside the document as the diagram is finalised.
+| `diagrams/deployment_topology_diagram.png` | Deployment topology diagram (editable source: `deployment_topology_diagram.drawio`) |
 
 ## Layer Summary
 
@@ -25,3 +24,17 @@ alongside the document as the diagram is finalised.
 | Security | Module 10 — Security & Compliance (cross-cutting) |
 
 Full architecture documentation will be expanded in **M3 (29 Jun – 19 Jul 2026)**.
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend API | FastAPI + Uvicorn (Python 3.10+) |
+| Data Warehouse | PostgreSQL 15 |
+| CDC & Streaming | Debezium + Apache Kafka 3.7 + Apache Zookeeper |
+| Connector Drivers | psycopg2 · PyMySQL · cx_Oracle · pyodbc · pymongo · cassandra-driver · pandas · pyarrow · requests · gql · confluent-kafka-python |
+| BI Frontend | React + TypeScript (Vite) |
+| Infrastructure | Docker Compose |
+| Testing | pytest + Locust (load testing) |
+| Code Quality | Black · flake8 · Prettier · ESLint |
+| Version Control | GitHub — `main` / `develop` branch policy |
