@@ -1,285 +1,162 @@
-# SUBOP 🗄️
+<div align="center">
 
-**Database-Independent Enterprise Data Platform**
-> A 12-month prototype connecting heterogeneous data sources, executing database-agnostic ETL,
-> supporting near-real-time change capture, automating data warehouse management, and delivering
-> self-service BI dashboards — validated through real pilot testing with enterprise data teams.
+<img src="docs/assets/subop-banner.svg" alt="SUBOP" width="520">
 
-[![CI](https://github.com/jeylani-2526/subop/actions/workflows/ci.yml/badge.svg)](https://github.com/jeylani-2526/subop/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/jeylani-2526/subop/blob/main/LICENSE) [![Milestone](https://img.shields.io/badge/Milestone-4%20%E2%80%94%20Abstraction%20Layer-blue)](https://github.com/jeylani-2526/subop/blob/main/docs/milestones) [![Platform](https://img.shields.io/badge/Platform-Enterprise%20Data-1E4D78)](https://github.com/jeylani-2526/subop)
+### One data platform, any database.
 
----
+Connect any source, run vendor-neutral ETL and CDC, auto-build a PostgreSQL warehouse,<br>
+and explore it in a self-service BI dashboard.
 
-## Table of Contents
+[![CI](https://github.com/jeylani-2526/subop/actions/workflows/ci.yml/badge.svg)](https://github.com/jeylani-2526/subop/actions/workflows/ci.yml)
+[![Milestone](https://img.shields.io/badge/milestone-M8%20Warehouse%20%E2%86%92%20M9%20BI-2E75B6)](docs/milestones/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-1B3A6B)](services/requirements-dev.txt)
+[![Docker Compose](https://img.shields.io/badge/run%20with-docker%20compose-1B3A6B)](docker-compose.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2E7D32)](LICENSE)
 
-- [What is SUBOP?](#what-is-subop)
-- [The Problem](#the-problem)
-- [Architecture](#architecture)
-- [System Modules](#system-modules)
-- [Tech Stack](#tech-stack)
-- [Getting Started](#getting-started)
-- [Project Structure](#project-structure)
-- [Team](#team)
-- [Roadmap](#roadmap)
-- [KPI Targets](#kpi-targets)
-- [Contributing](#contributing)
-- [License](#license)
+[**Quickstart**](#-quickstart) · [**Architecture**](#-architecture) · [**Roadmap**](#-roadmap) · [**Docs**](docs/) · [**Contributing**](CONTRIBUTING.md)
 
----
+</div>
 
-## What is SUBOP?
+> [!NOTE]
+> **Prototype, month 7 of 12.** M1 to M8 are delivered. The metadata-driven warehouse (M8) closes on 30 Nov 2026,
+> and the BI dashboard builder (M9) runs 1 to 28 Dec 2026. Interfaces may still change.
 
-SUBOP (Software United Business Operation Platform) is a database-independent, end-to-end enterprise data platform. It connects to any data source, moves and transforms data through a unified ETL engine, captures real-time database changes via CDC, automatically builds and manages a data warehouse, and delivers self-service BI dashboards — without being tied to any single database vendor.
+## ✨ Why SUBOP
 
-**Pipeline summary:**
+| Pain in most data stacks | What SUBOP does |
+|---|---|
+| ETL tied to one database vendor | A database abstraction layer: switch engines with zero pipeline code change |
+| Data scattered across silos | One connector framework for PostgreSQL, MySQL, MSSQL, Oracle, SQLite, CSV, JSON, REST and Kafka |
+| Batch-only data movement | Change data capture with Debezium and Kafka (**p95 latency 650 ms**, target under 30 s) |
+| Hand-written warehouse SQL | Fact, dimension and SCD tables generated from metadata |
+| Expensive BI licences, no governance | Self-service dashboards, plus data quality, lineage, catalog and RBAC built in |
 
-```
-Any Data Source (Oracle · PostgreSQL · MySQL · MSSQL · MongoDB · CSV · REST API · Kafka · ...)
-  → Connector Framework
-  → Database Abstraction Layer
-  → ETL Engine  ◄──── CDC / Real-Time Layer (Debezium + Kafka)
-  → Metadata-Driven Data Warehouse  (PostgreSQL)
-  → BI Dashboard & Analytics Layer
+## 🏗️ Architecture
 
-Cross-cutting modules (apply to all layers):
-  Data Quality Engine ──  validates every pipeline execution
-  Data Lineage ────────── tracks source → ETL → DW → dashboard
-  Data Catalog ────────── indexes all data assets for search
-  Security & Compliance ─ RBAC · column masking · audit logs
+```mermaid
+flowchart LR
+  S[("Sources<br/>PG · MySQL · MSSQL · Oracle<br/>CSV · JSON · REST · Kafka")] --> C[Connector framework]
+  C --> A[Abstraction layer]
+  A --> E[ETL engine]
+  D[CDC<br/>Debezium + Kafka] --> E
+  E --> W[("Metadata-driven<br/>warehouse · PostgreSQL")]
+  W --> B[BI dashboard<br/>React + FastAPI]
+  Q[[Quality · Lineage · Catalog · Security]] -.-> E & W & B
 ```
 
----
+Full design: [`docs/architecture/`](docs/architecture/) · deployment topology: [diagram](docs/architecture/diagrams/deployment_topology_diagram.png)
 
-## The Problem
+## 🚀 Quickstart
 
-Enterprise organisations face five critical data challenges that no single existing tool fully addresses:
-
-| # | Problem | Impact |
-|---|---------|--------|
-| P1 | **Database vendor lock-in** — ETL tools tightly coupled to specific DB engines | High |
-| P2 | **Fragmented data silos** — no unified connector and integration layer | High |
-| P3 | **No real-time data movement** — batch-only ETL, no CDC infrastructure | High |
-| P4 | **Expensive BI tooling** — high licensing costs, no self-service analytics | Medium |
-| P5 | **No data quality or governance** — no automated validation, lineage, or audit | Critical |
-
-SUBOP is designed to solve all five within a single, open, database-independent platform.
-
----
-
-## Architecture
-
-Full architecture documentation — module design, data flow, and deployment topology — is in
-[`docs/architecture/`](docs/architecture/). A rendered diagram will be linked here once finalised.
-
----
-
-## System Modules
-
-| # | Module | Description | Tech | Milestone |
-|---|--------|-------------|------|-----------|
-| 1 | **Connector Framework** | Standardised access to 12+ heterogeneous data sources | psycopg2 · PyMySQL · cx_Oracle · pyodbc · pymongo · pandas · requests · confluent-kafka-python | M4 |
-| 2 | **Database Abstraction Layer** | Universal SQL/NoSQL interface — zero code change when switching DB engine | Custom Python abstraction | M4 |
-| 3 | **ETL Engine** | Batch, incremental, and parallel extract/transform/load pipelines | Python (Pipeline DSL) | M5 |
-| 4 | **CDC / Real-Time Layer** | Near-real-time change capture from database transaction logs | Debezium + Apache Kafka | M7 |
-| 5 | **Metadata-Driven Data Warehouse** | Auto-generated fact/dimension tables, SCD, and schema versioning | PostgreSQL + Python | M8 |
-| 6 | **BI Dashboard & Analytics** | Self-service dashboard builder — no SQL knowledge required | React/Vue + Chart.js/ECharts + FastAPI | M9 |
-| 7 | **Data Quality Engine** | Automated null/duplicate/format/range/anomaly checks with quality scoring | Python (custom rules engine) | M10 |
-| 8 | **Data Lineage** | Source-to-dashboard tracing via directed acyclic graph | Python + graph library | M10 |
-| 9 | **Data Catalog** | Searchable inventory of all data assets with metadata and quality scores | Python + search index | M10 |
-| 10 | **Security & Compliance** | RBAC, server-side column masking, anonymisation, audit logs, KVKK/GDPR | FastAPI middleware + PostgreSQL | M11 |
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Backend API | FastAPI + Uvicorn (Python 3.10+) |
-| Data Warehouse | PostgreSQL 15 |
-| CDC & Streaming | Debezium + Apache Kafka 3.7 + Apache Zookeeper |
-| Connector Drivers | psycopg2 · PyMySQL · cx_Oracle · pyodbc · pymongo · cassandra-driver · pandas · pyarrow · requests · gql · confluent-kafka-python |
-| BI Frontend | React / Vue 3 + Chart.js / Apache ECharts |
-| Infrastructure | Docker Compose |
-| Testing | pytest + Locust (load testing) |
-| Code Quality | Black · flake8 · Prettier · ESLint |
-| Version Control | GitHub — `main` / `develop` branch policy |
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Docker Desktop ≥ 4.x installed and running
-- Git
-- Python 3.10+
-- Node.js 18+ *(required for BI dashboard — M9 onward)*
-
-### 1. Clone the repo
+**Needs:** Docker Desktop 4+, Git, Python 3.10+, Node.js 18+ (dashboard only)
 
 ```bash
-git clone https://github.com/jeylani-2526/subop.git
-cd subop
-```
-
-### 2. Copy environment config
-
-```bash
+git clone https://github.com/jeylani-2526/subop.git && cd subop
 cp .env.example .env
-# Edit .env with your local settings if needed
-```
-
-### 3. Start the full stack
-
-```bash
 docker compose up -d
 ```
 
-Services will be available at:
+Then open the API docs at **http://localhost:8000/docs**.
 
-| Service | URL |
-|---------|-----|
-| SUBOP API (FastAPI) | http://localhost:8000 |
-| API Docs (Swagger) | http://localhost:8000/docs |
-| pgAdmin | http://localhost:5050 |
+<details>
+<summary>All local services and ports</summary>
+
+| Service | Address |
+|---|---|
+| SUBOP API (FastAPI) | http://localhost:8000 · docs at `/docs` |
 | Kafka UI | http://localhost:8080 |
-| PostgreSQL | localhost:5432 |
+| Kafka Connect (Debezium) | http://localhost:8083 |
+| pgAdmin | http://localhost:5050 |
+| PostgreSQL | localhost:5433 |
+| MySQL · MSSQL · Oracle | localhost:3306 · 1433 · 1521 |
 
-> **Note:** The `subop-api` service is commented out in `docker-compose.yml` until M3 (CI/CD setup).
-> Run `docker compose up -d postgres mysql pgadmin zookeeper kafka kafka-ui` for the M1–M2 dev environment.
+</details>
 
-### 4. Run tests
+<details>
+<summary>Run the tests and the dashboard</summary>
 
 ```bash
-# Python services
-pip install -r services/requirements-dev.txt
-pytest -v
-
-# BI Dashboard frontend (M9+)
-cd services/bi-dashboard/frontend
-npm install && npm test
+pip install -r services/requirements-dev.txt && pytest -v
+cd services/bi-dashboard/frontend && npm install && npm run dev
 ```
 
----
+</details>
 
-## Project Structure
+## 🧩 Modules
+
+| Module | Code | Milestone | Status |
+|---|---|---|---|
+| Connector framework | [`services/connectors`](services/connectors) | M4, M6 | ✅ Done |
+| Database abstraction layer | [`services/abstraction`](services/abstraction) | M4 | ✅ Done |
+| ETL engine | [`services/etl_engine`](services/etl_engine) | M5 | ✅ Done |
+| CDC / real-time | [`services/cdc`](services/cdc) | M7 | ✅ Done |
+| Metadata-driven warehouse | [`services/warehouse`](services/warehouse) | M8 | 🟢 Wrapping up |
+| BI dashboard | [`services/bi-dashboard`](services/bi-dashboard) | M9 | 🔜 Next |
+| Data quality · lineage · catalog | [`services/data-quality`](services/data-quality) | M10 | ⏳ Planned |
+| Security & compliance (KVKK/GDPR) | [`services/security`](services/security) | M11 | ⏳ Planned |
+
+## 🗺️ Roadmap
 
 ```
-subop/
-├── .github/
-│   ├── workflows/
-│   │   ├── ci.yml                  # Run lint + tests on push to develop / main
-│   │   └── lint.yml                # Black + flake8 check on every PR
-│   ├── ISSUE_TEMPLATE/
-│   │   ├── bug_report.md
-│   │   ├── feature_request.md
-│   │   └── milestone_task.md
-│   └── pull_request_template.md
-├── docs/                            # Organized by topic
-│   ├── architecture/                # System architecture doc, diagrams, addenda, superseded drafts
-│   ├── research/                    # Competitor analysis + feasibility research (M2)
-│   ├── data-layer/                  # Connector / abstraction / ETL research & interface docs
-│   ├── frontend/                    # Design system + BI dashboard page-shell planning
-│   ├── infrastructure/              # CI/CD and infra decision notes
-│   ├── compliance/                  # KVKK/GDPR research (feeds Module 10)
-│   ├── planning/                    # Scope notes, checklists, kickoff notes
-│   ├── milestones/                  # M1–M12 status index only (see docs/milestones/README.md)
-│   └── api/                         # FastAPI OpenAPI contract specs (M3+)
-├── services/
-│   ├── connectors/                 # Module 1  — Connector Framework
-│   ├── abstraction/                # Module 2  — Database Abstraction Layer
-│   ├── etl-engine/                 # Module 3  — ETL Engine
-│   ├── cdc/                        # Module 4  — CDC / Real-Time Layer
-│   ├── warehouse/                  # Module 5  — Metadata-Driven Data Warehouse
-│   ├── bi-dashboard/
-│   │   ├── frontend/               # Module 6a — React/Vue dashboard frontend
-│   │   └── backend/                # Module 6b — FastAPI BI backend
-│   ├── data-quality/               # Module 7  — Data Quality Engine
-│   ├── lineage/                    # Module 8  — Data Lineage
-│   ├── catalog/                    # Module 9  — Data Catalog
-│   └── security/                   # Module 10 — Security & Compliance
-├── infrastructure/
-│   ├── docker/                     # Dockerfiles per service (M3+)
-│   └── scripts/                    # Setup, seed, and utility scripts
-├── data/
-│   └── samples/                    # Sample CSV/JSON data for connector testing
-├── tests/                          # Cross-service connector integration tests
-├── docker-compose.yml              # Full local development stack
-├── .env.example                    # Environment variable template
-├── .gitignore
-├── CONTRIBUTING.md
-├── LICENSE
-└── README.md
+M1 ██ M2 ██ M3 ██ M4 ██ M5 ██ M6 ██ M7 ██ M8 ▓▓ M9 ░░ M10 ░░ M11 ░░ M12 ░░
 ```
 
----
+<details>
+<summary>Milestone dates and owners</summary>
 
-## Team
+| # | Milestone | Dates | Status |
+|---|---|---|---|
+| M1 | Requirements | 11 May – 7 Jun 2026 | ✅ |
+| M2 | Research & competitor analysis | 8 – 28 Jun 2026 | ✅ |
+| M3 | Architecture & infrastructure | 29 Jun – 19 Jul 2026 | ✅ |
+| M4 | Database abstraction layer | 20 Jul – 9 Aug 2026 | ✅ |
+| M5 | ETL engine core | 10 Aug – 6 Sep 2026 | ✅ |
+| M6 | Connector ecosystem | 7 Sep – 4 Oct 2026 | ✅ |
+| M7 | CDC & streaming | 5 Oct – 2 Nov 2026 | ✅ |
+| M8 | Metadata-driven warehouse | 3 – 30 Nov 2026 | 🟢 Closing |
+| M9 | BI dashboard & analytics | 1 – 28 Dec 2026 | 🔜 |
+| M10 | Quality, lineage & catalog | 29 Dec 2026 – 2 Feb 2027 | ⏳ |
+| M11 | Security & integration | 3 Feb – 23 Mar 2027 | ⏳ |
+| M12 | Pilot & final delivery | 24 Mar – 11 May 2027 | ⏳ |
 
-| Member | Role | Key Areas |
-|--------|------|-----------|
-| **Abdullah** | Project Lead · Data Engineering | Architecture, ETL engine, CDC, data warehouse, data quality, documentation, pilot testing |
-| **Beyza** | BI & UI/UX Lead | BI dashboard, chart components, data catalog UI, lineage visualisation, user guide |
-| **Omer** | Backend & Infrastructure | DB abstraction layer, connectors, FastAPI backend, Kafka/Debezium, security module, CI/CD |
+Week-by-week detail: [`docs/milestones/`](docs/milestones/)
+</details>
 
-**Advisor:** Weekly written progress report every Sunday.
+## 🎯 KPIs
 
----
+| KPI | Target | Result |
+|---|---|---|
+| Connector coverage | 8+ working connectors | ✅ Met in M6 (8 connectors × 5 checks) |
+| DB migration | Zero code change when switching engine | ✅ Demonstrated in M4 on PostgreSQL, MySQL and MSSQL ([record](docs/data-layer/abstraction_layer_readiness_v1.md)) |
+| CDC latency | Under 30 s end to end | ✅ p95 650 ms, idle and active ([record](docs/planning/m8_kpi_validation.md)) |
+| DW schema automation | 80% faster than manual | ❌ Not met in M8, re-measured in M9 ([record](docs/planning/m8_kpi_validation.md)) |
+| ETL speed | 1M rows in under 5 min | ⏳ Pending, no measurement recorded yet |
+| Abstraction overhead | ≥85% of native query speed | ⏳ Pending, no measurement recorded yet |
+| Dashboard creation | Non-technical user, under 15 min | ⏳ M9 |
+| Load test · uptime · pilot score | 5M rows · 99.5% · ≥4.0/5 | ⏳ M11 to M12 |
 
-## Roadmap
+## 📚 Documentation
 
-| # | Milestone | Dates | Owner | Status |
-|---|-----------|-------|-------|--------|
-| M1 | Project Understanding & Requirements | 11 May – 7 Jun 2026 | All | ✅ Completed |
-| M2 | Research, Feasibility & Competitor Analysis | 8 Jun – 28 Jun 2026 | All | ✅ Completed |
-| M3 | System Architecture & Infrastructure Setup | 29 Jun – 19 Jul 2026 | Abdullah + Omer | ✅ Completed |
-| M4 | Database-Agnostic Abstraction Layer | 20 Jul – 9 Aug 2026 | Omer | 🔄 In Progress |
-| M5 | ETL Engine Core | 10 Aug – 6 Sep 2026 | Abdullah + Omer | ⏳ Upcoming |
-| M6 | Connector Ecosystem Expansion | 7 Sep – 4 Oct 2026 | Omer | ⏳ Upcoming |
-| M7 | CDC & Real-Time Streaming Module | 5 Oct – 2 Nov 2026 | Abdullah + Omer | ⏳ Upcoming |
-| M8 | Metadata-Driven Data Warehouse | 3 Nov – 30 Nov 2026 | Abdullah + Omer | ⏳ Upcoming |
-| M9 | BI Dashboard & Analytics | 1 Dec – 28 Dec 2026 | Beyza | ⏳ Upcoming |
-| M10 | Data Quality, Profiling, Lineage & Catalog | 29 Dec 2026 – 2 Feb 2027 | Abdullah + Beyza | ⏳ Upcoming |
-| M11 | Security, Compliance & Full Integration | 3 Feb – 23 Mar 2027 | All | ⏳ Upcoming |
-| M12 | Pilot Testing, Documentation & Final Delivery | 24 Mar – 11 May 2027 | All | ⏳ Upcoming |
+| Topic | Where |
+|---|---|
+| Architecture & decisions | [`docs/architecture`](docs/architecture/) |
+| Connectors, abstraction, ETL contracts | [`docs/data-layer`](docs/data-layer/) |
+| API specs | [`docs/api`](docs/api/) |
+| Frontend design system | [`docs/frontend`](docs/frontend/) |
+| Compliance (KVKK/GDPR) | [`docs/compliance`](docs/compliance/) |
+| Milestone status and planning notes | [`docs/milestones`](docs/milestones/) · [`docs/planning`](docs/planning/) |
+| Tech stack | [`docs/architecture`](docs/architecture/README.md#tech-stack) |
+| Repository layout | [CONTRIBUTING.md](CONTRIBUTING.md#repository-layout) |
 
-See the full [Milestone documents](docs/milestones/) for week-by-week breakdowns.
+## 🤝 Contributing
 
----
+Branch from `develop`, use `type(scope): message` commits, and open a PR for review.
+The full workflow is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## KPI Targets
+## 👥 Team
 
-These targets are agreed by the team and validated at the milestones indicated.
+**Abdullah** (lead, data engineering) · **Beyza** (BI & UI/UX) · **Omer** (backend & infrastructure) · **Mert** (verification)
 
-| KPI | Target | Owner | Validate By |
-|-----|--------|-------|-------------|
-| ETL speed | 1 million rows processed in under 5 minutes | Abdullah + Omer | Sep 2026 |
-| CDC latency | End-to-end change capture under 30 seconds | Abdullah + Omer | Nov 2026 |
-| Abstraction performance | ≥85% of native database query performance retained | Omer | Aug 2026 |
-| DB migration code change | Zero code change required when switching the database engine | Omer | Oct 2026 |
-| DW schema automation | Warehouse schema generated 80% faster than manual | Abdullah | Nov 2026 |
-| Dashboard creation time | Non-technical user creates a dashboard in under 15 minutes | Beyza | Dec 2026 |
-| Load test | 5 million rows handled without system failure | Omer | Mar 2027 |
-| System uptime | 99.5%+ during pilot period | Omer | May 2027 |
-| Pilot satisfaction | Average score of 4.0 / 5.0 or higher | Abdullah | May 2027 |
+## 📄 License
 
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full branching strategy, commit message conventions, PR process, and weekly workflow.
-
-**Quick summary:**
-- Branch from `develop`, never commit directly to `main`
-- Branch naming: `feature/short-description` or `milestone/m3-architecture`
-- Commit format: `type(scope): message` — e.g. `feat(connectors): add PostgreSQL psycopg2 driver`
-- All PRs require at least one review before merging to `develop`
-
----
-
-## License
-
-MIT License — see [LICENSE](LICENSE).
-
----
-
-*SUBOP Platform · Team: Abdullah · Beyza · Omer · Start: 11 May 2026 · Target: 11 May 2027*
+[MIT](LICENSE)
